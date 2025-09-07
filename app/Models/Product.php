@@ -31,6 +31,11 @@ class Product extends Model
         'is_active' => 'boolean',
         'is_best_seller' => 'boolean',
     ];
+    public function getTotalStock(Store $store)
+    {
+        return $this->stockLots()->where('store_id', $store->id)->sum('quantity_remaining');
+    }
+
 
     public function brand()      { return $this->belongsTo(Brand::class); }
     public function categories() { return $this->belongsToMany(Category::class)->withTimestamps(); }
@@ -44,6 +49,47 @@ class Product extends Model
             ->withPivot('stock_quantity', 'alert_stock_quantity')
             ->withTimestamps();
     }
+    public function stockLots()
+    {
+        return $this->hasMany(StockLot::class);
+    }
     public function images()     { return $this->hasMany(ProductImage::class)->orderBy('sort_order'); }
     public function primaryImage(){ return $this->hasOne(ProductImage::class)->where('is_primary', true); }
+
+    public function lots()
+    {
+        return $this->hasMany(StockLot::class);
+    }
+
+    public function removeStock(Store $store, int $quantity): bool
+    {
+        $lots = $this->stockLots()
+            ->where('store_id', $store->id)
+            ->where('quantity_remaining', '>', 0)
+            ->orderBy('created_at', 'asc') // FIFO
+            ->get();
+
+        $remaining = $quantity;
+
+        foreach ($lots as $lot) {
+            if ($remaining <= 0) break;
+
+            $toDeduct = min($lot->quantity_remaining, $remaining);
+            $lot->quantity_remaining -= $toDeduct;
+            $lot->save();
+
+            $remaining -= $toDeduct;
+        }
+
+        // Mettre à jour le stock global pour compatibilité pivot product_store
+        $totalStock = $this->stockLots()
+            ->where('store_id', $store->id)
+            ->sum('quantity_remaining');
+
+        $store->products()->syncWithoutDetaching([
+            $this->id => ['stock_quantity' => $totalStock]
+        ]);
+
+        return $remaining === 0; // true si tout a été retiré, false sinon
+    }
 }

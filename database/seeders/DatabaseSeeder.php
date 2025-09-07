@@ -15,8 +15,12 @@ class DatabaseSeeder extends Seeder
     {
         $this->call(RolesTableSeeder::class);
         $this->call(SuperAdminSeeder::class);
+
+        $this->call(BrandSeeder::class);
         $this->call(SupplierSeeder::class);
         $this->call(StoreSeeder::class);
-        $this->call(BrandSeeder::class);
+        $this->call(ProductSeeder::class);
+        $this->call(SupplierOrderSeeder::class);
+        $this->call(StockMovementSeeder::class);
     }
 }

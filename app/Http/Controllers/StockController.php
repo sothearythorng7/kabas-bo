@@ -5,15 +5,16 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\Product;
 use App\Models\Store;
+use App\Models\StockLot;
+use Illuminate\Support\Facades\DB;
 
 class StockController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Product::with(['stores' => function ($q) {
-            $q->withPivot('stock_quantity');
-        }]);
+        $query = Product::query();
 
+        // Recherche par EAN ou nom
         if ($request->filled('q')) {
             $q = $request->q;
             $query->where(function ($sub) use ($q) {
@@ -26,6 +27,22 @@ class StockController extends Controller
         $products = $query->paginate(15)->withQueryString();
         $shops = Store::all();
 
-        return view('stocks.index', compact('products', 'shops'));
+        // Stock par lot (sum des quantités restantes)
+        $stocks = StockLot::selectRaw('store_id, product_id, SUM(quantity_remaining) as stock_quantity')
+            ->whereIn('product_id', $products->pluck('id'))
+            ->groupBy('store_id', 'product_id')
+            ->get()
+            ->groupBy('product_id');
+
+        // Alertes depuis product_store (clé store_id => alert)
+        $pivotAlerts = DB::table('product_store')
+            ->whereIn('product_id', $products->pluck('id'))
+            ->get()
+            ->groupBy('product_id')
+            ->map(function ($items) {
+                return $items->pluck('alert_stock_quantity', 'store_id');
+            });
+
+        return view('stocks.index', compact('products', 'shops', 'stocks', 'pivotAlerts'));
     }
 }

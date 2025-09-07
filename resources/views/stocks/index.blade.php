@@ -43,16 +43,21 @@
                     <tr>
                         <td>{{ $p->ean }}</td>
                         <td>{{ $p->name[app()->getLocale()] ?? reset($p->name) }}</td>
+
                         @foreach($shops as $shop)
                             @php
-                                $pivot = $p->stores->where('id', $shop->id)->first()?->pivot;
-                                $stock = $pivot->stock_quantity ?? 0;
-                                $alert = $pivot->alert_stock_quantity ?? 0;
+                                // Stock total par lot
+                                $lot = ($stocks[$p->id] ?? collect())->firstWhere('store_id', $shop->id);
+                                $stock = $lot->stock_quantity ?? 0;
+
+                                // Stock d'alerte depuis pivot
+                                $alert = ($pivotAlerts[$p->id][$shop->id] ?? 0);
+
                                 $isOk = $stock >= $alert;
                             @endphp
                             <td>
                                 <span class="badge {{ $isOk ? 'bg-success' : 'bg-danger' }}">
-                                    {{ $stock.' / '.$alert }}
+                                    {{ $stock }} / {{ $alert }}
                                 </span>
                             </td>
                         @endforeach
@@ -78,15 +83,16 @@
                         <ul class="list-group list-group-flush">
                             @foreach($shops as $shop)
                                 @php
-                                    $pivot = $p->stores->where('id', $shop->id)->first()?->pivot;
-                                    $stock = $pivot->stock_quantity ?? 0;
-                                    $alert = $pivot->alert_stock_quantity ?? 0;
+                                    $lot = ($stocks[$p->id] ?? collect())->firstWhere('store_id', $shop->id);
+                                    $stock = $lot->stock_quantity ?? 0;
+
+                                    $alert = ($pivotAlerts[$p->id][$shop->id] ?? 0);
                                     $isOk = $stock >= $alert;
                                 @endphp
                                 <li class="list-group-item d-flex justify-content-between">
                                     <span>{{ $shop->name }}</span>
                                     <span class="badge {{ $isOk ? 'bg-success' : 'bg-danger' }}">
-                                        {{ $stock.' / '.$alert }}
+                                        {{ $stock }} / {{ $alert }}
                                     </span>
                                 </li>
                             @endforeach

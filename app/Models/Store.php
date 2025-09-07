@@ -26,6 +26,12 @@ class Store extends Model
             ->withTimestamps();
     }
 
+    public function getTotalStock(Store $store)
+    {
+        return $this->stockLots()->where('store_id', $store->id)->sum('quantity_remaining');
+    }
+
+
     // Nouveau scope pour filtrer les entrepôts
     public function scopeWarehouse($query)
     {
@@ -36,5 +42,10 @@ class Store extends Model
     public function scopeShops($query)
     {
         return $query->where('type', 'shop');
+    }
+
+    public function stockLots()
+    {
+        return $this->hasMany(StockLot::class);
     }
 }

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Product;
 use App\Models\StockMovement;
 use App\Models\StockMovementItem;
+use App\Models\StockLot;
 use App\Models\Store;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -23,36 +24,49 @@ class StockMovementController extends Controller
 
     public function create()
     {
-        $products = Product::all();
-        $shops = Store::all();
+        $products = Product::with('stores', 'stockLots')->get();
+        $stores = Store::all();
 
-        return view('stock_movements.create', compact('products', 'shops'));
+        // Calculer le stock réel par magasin pour chaque produit
+        $products->map(function ($product) {
+            $product->realStock = $product->stores->mapWithKeys(function ($store) use ($product) {
+                $stock = $product->stockLots()
+                    ->where('store_id', $store->id)
+                    ->sum('quantity_remaining');
+                return [$store->id => $stock];
+            });
+            return $product;
+        });
+
+        return view('stock_movements.create', compact('products', 'stores'));
     }
 
     public function store(Request $request)
     {
         DB::transaction(function () use ($request) {
             $movement = StockMovement::create([
+                'type'          => StockMovement::TYPE_TRANSFER,
                 'from_store_id' => $request->from_store_id,
                 'to_store_id'   => $request->to_store_id,
                 'note'          => $request->note,
                 'user_id'       => auth()->id(),
-                'status'        => StockMovement::STATUS_VALIDATED, // ou draft si tu veux valider après
+                'status'        => StockMovement::STATUS_VALIDATED,
             ]);
 
-            foreach ($request->products ?? [] as $productId => $qty) {
-                if ($qty > 0) {
-                    $movement->items()->create([
-                        'product_id' => $productId,
-                        'quantity'   => $qty,
-                    ]);
+            $fromStore = Store::find($request->from_store_id);
 
-                    // Décrémenter le stock du magasin source immédiatement
-                    if ($request->from_store_id) {
-                        DB::table('product_store')
-                            ->where('product_id', $productId)
-                            ->where('store_id', $request->from_store_id)
-                            ->decrement('stock_quantity', $qty);
+            foreach ($request->products ?? [] as $productId => $qty) {
+                if ($qty <= 0) continue;
+
+                $movement->items()->create([
+                    'product_id' => $productId,
+                    'quantity'   => $qty,
+                ]);
+
+                if ($fromStore) {
+                    $product = Product::find($productId);
+                    if ($product && !$product->removeStock($fromStore, $qty)) {
+                        throw new \Exception("Stock insuffisant pour le produit {$product->name}");
                     }
                 }
             }
@@ -64,17 +78,38 @@ class StockMovementController extends Controller
 
     public function receive(StockMovement $movement)
     {
-        if ($movement->status !== StockMovement::STATUS_VALIDATED &&
-            $movement->status !== StockMovement::STATUS_IN_TRANSIT) {
+        if (!in_array($movement->status, [StockMovement::STATUS_VALIDATED, StockMovement::STATUS_IN_TRANSIT])) {
             return redirect()->back()->withErrors('Ce mouvement ne peut pas être réceptionné.');
         }
 
         DB::transaction(function () use ($movement) {
+            if (!in_array($movement->type, [StockMovement::TYPE_TRANSFER, StockMovement::TYPE_IN])) return;
+
+            $toStore = Store::find($movement->to_store_id);
+            if (!$toStore) throw new \Exception("Magasin de destination introuvable.");
+
             foreach ($movement->items as $item) {
-                DB::table('product_store')->updateOrInsert(
-                    ['product_id' => $item->product_id, 'store_id' => $movement->to_store_id],
-                    ['stock_quantity' => DB::raw('stock_quantity + '.$item->quantity)]
-                );
+                $product = Product::find($item->product_id);
+                if (!$product) continue;
+
+                // Créer un StockLot pour le magasin de destination
+                StockLot::create([
+                    'product_id'         => $product->id,
+                    'store_id'           => $toStore->id,
+                    'supplier_id'        => null,
+                    'supplier_order_id'  => null,
+                    'purchase_price'     => $product->price,
+                    'quantity'           => $item->quantity,
+                    'quantity_remaining' => $item->quantity,
+                    'batch_number'       => null,
+                    'expiry_date'        => null,
+                ]);
+
+                // Mettre à jour le stock global pivot
+                $currentStock = $toStore->products()->where('product_id', $product->id)->first()?->pivot->stock_quantity ?? 0;
+                $toStore->products()->syncWithoutDetaching([
+                    $product->id => ['stock_quantity' => $currentStock + $item->quantity]
+                ]);
             }
 
             $movement->update(['status' => StockMovement::STATUS_RECEIVED]);
@@ -91,13 +126,29 @@ class StockMovementController extends Controller
         }
 
         DB::transaction(function () use ($movement) {
-            // Restaurer le stock source uniquement si on avait décrémenté
             if ($movement->from_store_id) {
+                $fromStore = Store::find($movement->from_store_id);
+
                 foreach ($movement->items as $item) {
-                    DB::table('product_store')
-                        ->where('product_id', $item->product_id)
-                        ->where('store_id', $movement->from_store_id)
-                        ->increment('stock_quantity', $item->quantity);
+                    $product = Product::find($item->product_id);
+                    if (!$product) continue;
+
+                    // Restaurer les lots retirés
+                    StockLot::create([
+                        'product_id'         => $product->id,
+                        'store_id'           => $fromStore->id,
+                        'supplier_id'        => null,
+                        'supplier_order_id'  => null,
+                        'purchase_price'     => $product->price,
+                        'quantity'           => $item->quantity,
+                        'quantity_remaining' => $item->quantity,
+                    ]);
+
+                    // Mise à jour du pivot product_store
+                    $currentStock = $fromStore->products()->where('product_id', $product->id)->first()?->pivot->stock_quantity ?? 0;
+                    $fromStore->products()->syncWithoutDetaching([
+                        $product->id => ['stock_quantity' => $currentStock + $item->quantity]
+                    ]);
                 }
             }
 
@@ -114,16 +165,12 @@ class StockMovementController extends Controller
         return view('stock_movements.show', compact('movement'));
     }
 
-
     public function pdf(StockMovement $movement)
     {
         $movement->load(['user', 'fromStore', 'toStore', 'items.product']);
-
         $pdf = Pdf::loadView('stock_movements.pdf', compact('movement'))
-                ->setPaper('a4', 'portrait');
-
+            ->setPaper('a4', 'portrait');
         $filename = 'stock_movement_'.$movement->id.'.pdf';
-
         return $pdf->download($filename);
     }
 }

@@ -18,6 +18,7 @@ return [
         'acconting' => 'Accounting',
         'expenses' => 'Expenses',
         'bills_overview' => 'Bills Overview',
+        'stock_value' => 'Stock Value',
     ],
     'dashboard' => 'Dashboard',
     'shops' => 'Shops',

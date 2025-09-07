@@ -16,6 +16,7 @@ use App\Http\Controllers\StockController;
 use App\Http\Controllers\StockMovementController;
 use App\Http\Controllers\SupplierOrderController;
 use App\Http\Controllers\WarehouseInvoiceController;
+use App\Http\Controllers\StockValueController;
 
 Route::get('/', function () {
     return auth()->check() ? redirect()->route('dashboard') : redirect()->route('login');
@@ -51,6 +52,10 @@ Route::middleware(['auth', SetUserLocale::class])->group(function () {
         Route::delete('products/{product}/suppliers/{supplier}', [ProductController::class, 'detachSupplier'])->name('products.suppliers.detach');
         Route::put('products/{product}/suppliers/{supplier}/price', [ProductController::class, 'updateSupplierPrice'])->name('products.suppliers.updatePrice');
         Route::put('/suppliers/{supplier}/products/{product}/purchase-price', [SupplierController::class, 'updatePurchasePrice'])->name('suppliers.updatePurchasePrice');
+
+        // Stock Value
+        Route::get('stock-value', [App\Http\Controllers\StockValueController::class, 'index'])->name('stock-value');
+        Route::get('stock-value/{product}/lots', [StockValueController::class, 'lots'])->name('stock-value.lots');
 
 
         // Stores

@@ -13,7 +13,7 @@
                 <label class="form-label">{{ __('messages.stock_movement.source_store') }}</label>
                 <select name="from_store_id" class="form-select">
                     <option value="">{{ __('messages.main.select') }}</option>
-                    @foreach($shops as $s)
+                    @foreach($stores as $s)
                         <option value="{{ $s->id }}">{{ $s->name }}</option>
                     @endforeach
                 </select>
@@ -22,7 +22,7 @@
                 <label class="form-label">{{ __('messages.stock_movement.destination_store') }}</label>
                 <select name="to_store_id" class="form-select">
                     <option value="">{{ __('messages.main.select') }}</option>
-                    @foreach($shops as $s)
+                    @foreach($stores as $s)
                         <option value="{{ $s->id }}">{{ $s->name }}</option>
                     @endforeach
                 </select>
@@ -92,6 +92,7 @@
         </button>
     </form>
 </div>
+
 <!-- Modal d'erreur source = destination -->
 <div class="modal fade" id="storeErrorModal" tabindex="-1" aria-labelledby="storeErrorModalLabel" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">
@@ -109,7 +110,6 @@
     </div>
   </div>
 </div>
-
 @endsection
 
 @push('styles')
@@ -124,9 +124,7 @@
 @push('scripts')
 <script>
 const productStocks = @json($products->mapWithKeys(function($p) {
-    return [$p->id => $p->stores->mapWithKeys(function($s) {
-        return [$s->id => $s->pivot->stock_quantity];
-    })];
+    return [$p->id => $p->realStock];
 }));
 
 function updateStocks() {
@@ -173,14 +171,35 @@ document.querySelector('[name="from_store_id"]').addEventListener('change', upda
 document.querySelector('[name="to_store_id"]').addEventListener('change', updateStocks);
 updateStocks();
 
-// Gestion du submit : désactiver les inputs non visibles pour ne pas envoyer de doublons
+// Validation source ≠ destination
+function validateStores(selectChanged) {
+    const fromStore = document.querySelector('[name="from_store_id"]');
+    const toStore = document.querySelector('[name="to_store_id"]');
+
+    if (fromStore.value && fromStore.value === toStore.value) {
+        const storeErrorModal = new bootstrap.Modal(document.getElementById('storeErrorModal'));
+        storeErrorModal.show();
+        if (selectChanged === fromStore) fromStore.value = '';
+        else toStore.value = '';
+        updateStocks();
+    }
+}
+
+document.querySelector('[name="from_store_id"]').addEventListener('change', function() {
+    validateStores(this);
+    updateStocks();
+});
+document.querySelector('[name="to_store_id"]').addEventListener('change', function() {
+    validateStores(this);
+    updateStocks();
+});
+
+// Gestion du submit : désactiver les inputs non visibles pour éviter les doublons
 document.getElementById('stockForm').addEventListener('submit', function() {
     if (window.innerWidth >= 768) {
-        // Desktop : désactive mobile
         document.querySelectorAll('#productsTableMobile .product-card input').forEach(i => i.disabled = true);
         document.querySelectorAll('#productsTable tbody tr input').forEach(i => i.disabled = false);
     } else {
-        // Mobile : désactive desktop
         document.querySelectorAll('#productsTable tbody tr input').forEach(i => i.disabled = true);
         document.querySelectorAll('#productsTableMobile .product-card input').forEach(i => i.disabled = false);
     }
@@ -188,46 +207,13 @@ document.getElementById('stockForm').addEventListener('submit', function() {
 
 // Recherche dynamique
 document.getElementById('productSearch').addEventListener('keyup', function() {
-    let value = this.value.toLowerCase();
+    const value = this.value.toLowerCase();
     document.querySelectorAll('#productsTable tbody tr').forEach(row => {
         row.style.display = row.innerText.toLowerCase().includes(value) ? '' : 'none';
     });
     document.querySelectorAll('#productsTableMobile .product-card').forEach(card => {
         card.style.display = card.innerText.toLowerCase().includes(value) ? '' : 'none';
     });
-});
-
-
-// Gestion de la validation source ≠ destination
-function validateStores(selectChanged) {
-    const fromStore = document.querySelector('[name="from_store_id"]');
-    const toStore = document.querySelector('[name="to_store_id"]');
-
-    if (fromStore.value && fromStore.value === toStore.value) {
-        // Afficher la modal
-        const storeErrorModal = new bootstrap.Modal(document.getElementById('storeErrorModal'));
-        storeErrorModal.show();
-
-        // Rétablir la valeur précédente
-        if (selectChanged === fromStore) {
-            fromStore.value = '';
-        } else {
-            toStore.value = '';
-        }
-
-        updateStocks();
-    }
-}
-
-// Ajout des écouteurs
-document.querySelector('[name="from_store_id"]').addEventListener('change', function() {
-    validateStores(this);
-    updateStocks();
-});
-
-document.querySelector('[name="to_store_id"]').addEventListener('change', function() {
-    validateStores(this);
-    updateStocks();
 });
 </script>
 @endpush

@@ -12,6 +12,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use App\Models\StockLot;
+use App\Models\StockMovement;
 
 class ProductController extends Controller
 {
@@ -335,10 +337,67 @@ class ProductController extends Controller
             'stock_quantity' => 'required|integer|min:0',
             'alert_stock_quantity' => 'nullable|integer|min:0',
         ]);
-        $product->stores()->updateExistingPivot($store->id, [
-            'stock_quantity' => $request->stock_quantity,
-            'alert_stock_quantity' => $request->alert_stock_quantity ?? 0,
-        ]);
+
+        $newQuantity = $request->stock_quantity;
+        $alertQuantity = $request->alert_stock_quantity ?? 0;
+
+        DB::transaction(function() use ($product, $store, $newQuantity, $alertQuantity) {
+            $currentStock = $product->stockLots()
+                ->where('store_id', $store->id)
+                ->sum('quantity_remaining');
+
+            $difference = $newQuantity - $currentStock;
+
+            if ($difference != 0) {
+                // --- 1. Créer/retirer les lots ---
+                if ($difference > 0) {
+                    StockLot::create([
+                        'product_id' => $product->id,
+                        'store_id'   => $store->id,
+                        'quantity'   => $difference,
+                        'quantity_remaining' => $difference,
+                        'label'      => 'Ajustement manuel',
+                    ]);
+                } else {
+                    $remainingToDeduct = abs($difference);
+                    $lots = $product->stockLots()
+                        ->where('store_id', $store->id)
+                        ->where('quantity_remaining', '>', 0)
+                        ->orderBy('created_at', 'asc')
+                        ->get();
+
+                    foreach ($lots as $lot) {
+                        if ($remainingToDeduct <= 0) break;
+                        $deduct = min($lot->quantity_remaining, $remainingToDeduct);
+                        $lot->quantity_remaining -= $deduct;
+                        $lot->save();
+                        $remainingToDeduct -= $deduct;
+                    }
+                }
+
+                // --- 2. Créer le mouvement de stock ---
+                $movement = StockMovement::create([
+                    'type'    => StockMovement::TYPE_ADJUSTMENT,
+                    'note'    => 'Ajustement manuel',
+                    'user_id' => auth()->id(),
+                    'status'  => StockMovement::STATUS_VALIDATED,
+                    'to_store_id' => $difference > 0 ? $store->id : null,
+                    'from_store_id' => $difference < 0 ? $store->id : null,
+                ]);
+
+                $movement->items()->create([
+                    'product_id' => $product->id,
+                    'quantity'   => $difference,
+                ]);
+            }
+
+            // --- 3. Mettre à jour l’alerte stock pivot ---
+            $product->stores()->syncWithoutDetaching([
+                $store->id => ['alert_stock_quantity' => $alertQuantity]
+            ]);
+        });
+
+
         return back()->with('success', 'Store stock updated.')->withFragment('tab-stores');
     }
 
@@ -360,5 +419,39 @@ class ProductController extends Controller
     {
         $product->stores()->detach($store->id);
         return back()->with('success', 'Store detached successfully.')->withFragment('tab-stores');
+    }
+
+
+    public function removeStock(Store $store, int $quantity): bool
+    {
+        $lots = $this->stockLots()
+            ->where('store_id', $store->id)
+            ->where('quantity_remaining', '>', 0)
+            ->orderBy('created_at', 'asc') // FIFO : lots les plus anciens en premier
+            ->get();
+
+        $remaining = $quantity;
+
+        foreach ($lots as $lot) {
+            if ($remaining <= 0) break;
+
+            $toDeduct = min($lot->quantity_remaining, $remaining);
+            $lot->quantity_remaining -= $toDeduct;
+            $lot->save();
+
+            $remaining -= $toDeduct;
+        }
+
+        // Mettre à jour le stock global pour compatibilité pivot product_store
+        $totalStock = $this->stockLots()
+            ->where('store_id', $store->id)
+            ->sum('quantity_remaining');
+
+        $store->products()->syncWithoutDetaching([
+            $this->id => ['stock_quantity' => $totalStock]
+        ]);
+
+        // Retourne true si tout a été prélevé, false sinon (stock insuffisant)
+        return $remaining === 0;
     }
 }

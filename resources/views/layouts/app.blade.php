@@ -67,6 +67,9 @@
                     <a href="{{ route('warehouse-invoices.billsoverview') }}" class="list-group-item list-group-item-action ps-4">
                         <i class="bi bi-receipt"></i> {{ __('messages.menu.bills_overview') }}
                     </a>
+                    <a href="{{ route('stock-value') }}" class="list-group-item list-group-item-action ps-4">
+                        <i class="bi bi-currency-dollar"></i> {{ __('messages.menu.stock_value') }}
+                    </a>
                 </div>
 
 

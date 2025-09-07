@@ -139,28 +139,47 @@ class SupplierOrderController extends Controller
 
     public function storeReception(Request $request, Supplier $supplier, SupplierOrder $order)
     {
+        $store = Store::find($order->destination_store_id);
+        if (!$store) {
+            return back()->withErrors('Magasin de destination introuvable.');
+        }
+
         foreach ($request->input('products', []) as $productId => $qtyReceived) {
             $qtyReceived = (int) $qtyReceived;
+            if ($qtyReceived <= 0) continue;
 
-            // Mettre à jour la quantité reçue dans le pivot
+            $product = Product::find($productId);
+            if (!$product) continue;
+
+            // 1️⃣ Mettre à jour la quantité reçue dans le pivot supplier_order_product
             $order->products()->updateExistingPivot($productId, [
                 'quantity_received' => $qtyReceived,
             ]);
 
-            // Ajouter la quantité reçue au stock du magasin de destination
-            $store = Store::find($order->destination_store_id);
-            if ($store) {
-                $currentStock = $store->products()->where('product_id', $productId)->first()?->pivot->stock_quantity ?? 0;
+            // 2️⃣ Ajouter la quantité reçue au stock global du store (compatibilité)
+            $currentStock = $store->products()->where('product_id', $productId)->first()?->pivot->stock_quantity ?? 0;
+            $store->products()->syncWithoutDetaching([
+                $productId => ['stock_quantity' => $currentStock + $qtyReceived]
+            ]);
 
-                $store->products()->syncWithoutDetaching([
-                    $productId => ['stock_quantity' => $currentStock + $qtyReceived]
-                ]);
-            }
+            // 3️⃣ Créer un StockLot pour tracer le lot
+            \App\Models\StockLot::create([
+                'product_id'         => $productId,
+                'store_id'           => $store->id,
+                'supplier_id'        => $supplier->id,
+                'supplier_order_id'  => $order->id,
+                'purchase_price'     => $order->products()->where('product_id', $productId)->first()->pivot->purchase_price ?? 0,
+                'quantity'           => $qtyReceived,
+                'quantity_remaining' => $qtyReceived,
+                'batch_number'       => null, // optionnel, tu peux générer un n° de lot si besoin
+                'expiry_date'        => null, // optionnel si tu gères les DLC
+            ]);
         }
 
-        // Changer le statut de la commande
+        // 4️⃣ Changer le statut de la commande
         $order->update(['status' => 'received']);
 
-        return redirect()->route('suppliers.edit', $supplier)->with('success', 'Commande réceptionnée et stock mis à jour.');
+        return redirect()->route('suppliers.edit', $supplier)->with('success', 'Commande réceptionnée et stock / lots mis à jour.');
     }
+
 }

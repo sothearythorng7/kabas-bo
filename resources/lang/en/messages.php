@@ -32,6 +32,20 @@ return [
     'reset' => 'Reset',
     'searchBy' => 'Search by name or description',
 
+    'stock_value' => [
+        'title' => 'Stock value',
+        'search_placeholder' => 'Search by EAN or name',
+        'total_stock' => 'Total stock:',
+        'ean' => 'EAN',
+        'product' => 'Product',
+        'remaining_stock' => 'Remaining stock',
+        'estimated_value' => 'Estimated value',
+        'details' => 'Details',
+        'product_lots' => 'Product lots',
+        'store' => 'Store',
+        'purchase_price' => 'Purchase Price',
+        'no_lots' => 'No lots available.',
+    ],
     'stocks' => [
         'title' => 'Stock overview',
     ],
@@ -101,6 +115,8 @@ return [
         ],
     ],
     ],
+
+
 
     'user_edit' => [
         'title' => 'User management',

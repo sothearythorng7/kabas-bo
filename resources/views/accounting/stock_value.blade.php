@@ -2,26 +2,26 @@
 
 @section('content')
 <div class="container mt-4">
-    <h1>Valeur du stock</h1>
+    <h1>{{ __('messages.stock_value.title') }}</h1>
 
     <!-- Recherche -->
     <form method="GET" class="mb-3">
         <div class="input-group">
-            <input type="text" name="search" class="form-control" placeholder="Recherche par EAN ou nom" value="{{ request('search') }}">
-            <button class="btn btn-primary">Rechercher</button>
+            <input type="text" name="search" class="form-control" placeholder="{{ __('messages.stock_value.search_placeholder') }}" value="{{ request('search') }}">
+            <button class="btn btn-primary">{{ __('messages.btn.search') }}</button>
         </div>
     </form>
 
-    <p><strong>Total stock :</strong> {{ number_format($totalValue, 2) }} €</p>
+    <p><strong>{{ __('messages.stock_value.total_stock') }}</strong> {{ number_format($totalValue, 2) }} €</p>
 
     <table class="table table-striped table-sm">
         <thead>
             <tr>
-                <th>EAN</th>
-                <th>Produit</th>
-                <th>Stock restant</th>
-                <th>Valeur estimée</th>
-                <th>Détails</th>
+                <th>{{ __('messages.stock_value.ean') }}</th>
+                <th>{{ __('messages.stock_value.product') }}</th>
+                <th>{{ __('messages.stock_value.remaining_stock') }}</th>
+                <th>{{ __('messages.stock_value.estimated_value') }}</th>
+                <th>{{ __('messages.stock_value.details') }}</th>
             </tr>
         </thead>
         <tbody>
@@ -38,7 +38,7 @@
                 <td>{{ $totalQty }}</td>
                 <td>{{ number_format($totalVal, 2) }} €</td>
                 <td>
-                    <button class="btn btn-sm btn-info btn-lots" data-id="{{ $product->id }}">Détails</button>
+                    <button class="btn btn-sm btn-info btn-lots" data-id="{{ $product->id }}">{{ __('messages.stock_value.details') }}</button>
                 </td>
             </tr>
             @endforeach
@@ -54,7 +54,7 @@
   <div class="modal-dialog modal-lg modal-dialog-scrollable">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title">Lots du produit</h5>
+        <h5 class="modal-title">{{ __('messages.stock_value.product_lots') }}</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body" id="lotsContent">

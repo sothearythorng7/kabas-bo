@@ -1,15 +1,15 @@
-<h5>Lots pour {{ $product->name[app()->getLocale()] ?? reset($product->name) }}</h5>
+<h5>{{ $product->name[app()->getLocale()] ?? reset($product->name) }}</h5>
 
 @if($lots->isEmpty())
-    <p>Aucun lot disponible.</p>
+    <p>{{ __('messages.stock_value.no_lots') }}</p>
 @else
 <table class="table table-sm table-striped">
     <thead>
         <tr>
-            <th>Magasin</th>
-            <th>Quantité restante</th>
-            <th>Prix d'achat unitaire</th>
-            <th>Valeur</th>
+            <th>{{ __('messages.stock_value.store') }}</th>
+            <th>{{ __('messages.stock_value.remaining_stock') }}</th>
+            <th>{{ __('messages.stock_value.purchase_price') }}</th>
+            <th>{{ __('messages.stock_value.estimated_value') }}</th>
         </tr>
     </thead>
     <tbody>

@@ -241,6 +241,7 @@ return [
         'create' => 'Create Order',
         'validate' => 'Validate',
         'edit_title' => 'Edit Order',
+        'destination_store' => 'Destination Store',
     ],
 
     'stock_movement' => [

@@ -8,6 +8,22 @@
         @csrf
         @method('PUT')
 
+        <!-- Menu déroulant pour la destination -->
+        <div class="mb-3">
+            <label for="destination_store_id" class="form-label">{{ __('messages.supplier_order.destination_store') }}</label>
+            <select name="destination_store_id" id="destination_store_id" class="form-control" required>
+                <option value="">{{ __('messages.supplier_order.select_destination') }}</option>
+                @foreach($stores as $store)
+                    <option value="{{ $store->id }}" {{ $order->destination_store_id == $store->id ? 'selected' : '' }}>
+                        {{ $store->name }} ({{ $store->type }})
+                    </option>
+                @endforeach
+            </select>
+            @error('destination_store_id')
+                <div class="text-danger">{{ $message }}</div>
+            @enderror
+        </div>
+
         {{-- Liste des produits --}}
         <div class="d-none d-md-block">
             <table class="table table-striped">

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Supplier;
 use App\Models\SupplierOrder;
 use App\Models\Product;
+use App\Models\Store;
 use Illuminate\Http\Request;
 use Barryvdh\DomPDF\Facade\Pdf;
 
@@ -19,52 +20,51 @@ class SupplierOrderController extends Controller
     public function create(Supplier $supplier)
     {
         $products = $supplier->products()->with('brand')->get();
-        return view('supplier_orders.create', compact('supplier', 'products'));
+        $stores = Store::all(); // Récupérer tous les magasins (ou utiliser un scope si nécessaire)
+        return view('supplier_orders.create', compact('supplier', 'products', 'stores'));
     }
 
-public function store(Request $request, Supplier $supplier)
-{
-    $request->validate([
-        'products' => 'required|array',
-        'products.*.quantity' => 'nullable|integer|min:0',
-    ]);
+    public function store(Request $request, Supplier $supplier)
+    {
+        $request->validate([
+            'products' => 'required|array',
+            'products.*.quantity' => 'nullable|integer|min:0',
+            'destination_store_id' => 'required|exists:stores,id', // Validation pour destination_store_id
+        ]);
 
-    // Créer la commande
-    $order = $supplier->supplierOrders()->create([
-        'status' => 'pending',
-    ]);
+        // Créer la commande
+        $order = $supplier->supplierOrders()->create([
+            'status' => 'pending',
+            'destination_store_id' => $request->destination_store_id,
+        ]);
 
-    $syncData = [];
+        $syncData = [];
 
-    // Charger tous les produits du fournisseur avec pivot
-    $supplierProducts = $supplier->products()->get()->keyBy('id');
+        // Charger tous les produits du fournisseur avec pivot
+        $supplierProducts = $supplier->products()->get()->keyBy('id');
 
-    foreach ($request->input('products') as $productId => $productData) {
-        $quantity = (int) ($productData['quantity'] ?? 0);
-        if ($quantity <= 0) continue;
+        foreach ($request->input('products') as $productId => $productData) {
+            $quantity = (int) ($productData['quantity'] ?? 0);
+            if ($quantity <= 0) continue;
 
-        if (!isset($supplierProducts[$productId])) continue;
+            if (!isset($supplierProducts[$productId])) continue;
 
-        $product = $supplierProducts[$productId];
+            $product = $supplierProducts[$productId];
 
-        $syncData[$productId] = [
-            'quantity_ordered' => $quantity,
-            'purchase_price' => $product->pivot->purchase_price ?? 0,
-            'sale_price' => $product->price,
-            'created_at' => now(),
-            'updated_at' => now(),
-        ];
+            $syncData[$productId] = [
+                'quantity_ordered' => $quantity,
+                'purchase_price' => $product->pivot->purchase_price ?? 0,
+                'sale_price' => $product->price,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ];
+        }
+
+        // Synchroniser les produits avec la commande
+        $order->products()->sync($syncData);
+
+        return redirect()->route('suppliers.edit', $supplier)->with('success', 'Commande créée avec succès.');
     }
-
-    // Synchroniser les produits avec la commande
-    $order->products()->sync($syncData);
-
-    return redirect()->route('suppliers.edit', $supplier)->with('success', 'Commande créée avec succès.');
-}
-
-
-
-
 
     public function show(Supplier $supplier, SupplierOrder $order)
     {
@@ -74,11 +74,21 @@ public function store(Request $request, Supplier $supplier)
     public function edit(Supplier $supplier, SupplierOrder $order)
     {
         $products = $supplier->products()->with('brand')->get();
-        return view('supplier_orders.edit', compact('supplier', 'order', 'products'));
+        $stores = Store::all(); // Récupérer tous les magasins
+        return view('supplier_orders.edit', compact('supplier', 'order', 'products', 'stores'));
     }
 
     public function update(Request $request, Supplier $supplier, SupplierOrder $order)
     {
+        $request->validate([
+            'products' => 'required|array',
+            'products.*.quantity' => 'nullable|integer|min:0',
+            'destination_store_id' => 'required|exists:stores,id', // Validation pour destination_store_id
+        ]);
+
+        // Mettre à jour destination_store_id
+        $order->update(['destination_store_id' => $request->destination_store_id]);
+
         $order->products()->detach();
 
         foreach ($request->products as $productId => $productData) {
@@ -102,7 +112,6 @@ public function store(Request $request, Supplier $supplier)
         return redirect()->route('suppliers.edit', $supplier)->with('success', 'Commande mise à jour.');
     }
 
-
     public function destroy(Supplier $supplier, SupplierOrder $order)
     {
         $order->delete();
@@ -125,7 +134,6 @@ public function store(Request $request, Supplier $supplier)
     {
         // Charger les produits liés à la commande
         $order->load('products');
-
         return view('supplier_orders.reception', compact('supplier', 'order'));
     }
 
@@ -139,12 +147,12 @@ public function store(Request $request, Supplier $supplier)
                 'quantity_received' => $qtyReceived,
             ]);
 
-            // Ajouter la quantité reçue au stock du warehouse
-            $warehouse = \App\Models\Store::where('type', 'warehouse')->first();
-            if ($warehouse) {
-                $currentStock = $warehouse->products()->where('product_id', $productId)->first()?->pivot->stock_quantity ?? 0;
+            // Ajouter la quantité reçue au stock du magasin de destination
+            $store = $order->destinationStore; // Utiliser destination_store_id
+            if ($store) {
+                $currentStock = $store->products()->where('product_id', $productId)->first()?->pivot->stock_quantity ?? 0;
 
-                $warehouse->products()->syncWithoutDetaching([
+                $store->products()->syncWithoutDetaching([
                     $productId => ['stock_quantity' => $currentStock + $qtyReceived]
                 ]);
             }
@@ -155,5 +163,4 @@ public function store(Request $request, Supplier $supplier)
 
         return redirect()->route('suppliers.edit', $supplier)->with('success', 'Commande réceptionnée et stock mis à jour.');
     }
-
 }

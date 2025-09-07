@@ -242,6 +242,8 @@ return [
         'validate' => 'Validate',
         'edit_title' => 'Edit Order',
         'destination_store' => 'Destination Store',
+        'select_destination' => 'Select Destination Store',
+        'received_quantity' => 'Received Quantity',
     ],
 
     'stock_movement' => [

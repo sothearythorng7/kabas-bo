@@ -4,28 +4,28 @@
 <div class="container mt-4">
     <h1 class="crud_title">{{ __('messages.supplier_order.edit_title') }} - {{ $supplier->name }}</h1>
 
-    <form action="{{ route('supplier-orders.update', [$supplier, $order]) }}" method="POST">
-        @csrf
-        @method('PUT')
+    {{-- Version desktop --}}
+    <div class="d-none d-md-block">
+        <form action="{{ route('supplier-orders.update', [$supplier, $order]) }}" method="POST">
+            @csrf
+            @method('PUT')
 
-        <!-- Menu déroulant pour la destination -->
-        <div class="mb-3">
-            <label for="destination_store_id" class="form-label">{{ __('messages.supplier_order.destination_store') }}</label>
-            <select name="destination_store_id" id="destination_store_id" class="form-control" required>
-                <option value="">{{ __('messages.supplier_order.select_destination') }}</option>
-                @foreach($stores as $store)
-                    <option value="{{ $store->id }}" {{ $order->destination_store_id == $store->id ? 'selected' : '' }}>
-                        {{ $store->name }} ({{ $store->type }})
-                    </option>
-                @endforeach
-            </select>
-            @error('destination_store_id')
-                <div class="text-danger">{{ $message }}</div>
-            @enderror
-        </div>
+            <!-- Menu déroulant pour la destination -->
+            <div class="mb-3">
+                <label for="destination_store_id" class="form-label">{{ __('messages.supplier_order.destination_store') }}</label>
+                <select name="destination_store_id" id="destination_store_id" class="form-control" required>
+                    <option value="">{{ __('messages.supplier_order.select_destination') }}</option>
+                    @foreach($stores as $store)
+                        <option value="{{ $store->id }}" {{ $order->destination_store_id == $store->id ? 'selected' : '' }}>
+                            {{ $store->name }} ({{ $store->type }})
+                        </option>
+                    @endforeach
+                </select>
+                @error('destination_store_id')
+                    <div class="text-danger">{{ $message }}</div>
+                @enderror
+            </div>
 
-        {{-- Liste des produits --}}
-        <div class="d-none d-md-block">
             <table class="table table-striped">
                 <thead>
                     <tr>
@@ -52,10 +52,36 @@
                     @endforeach
                 </tbody>
             </table>
-        </div>
+            <div class="mt-3">
+                <button type="submit" class="btn btn-success">
+                    <i class="bi bi-floppy-fill"></i> {{ __('messages.btn.save') }}
+                </button>
+            </div>
+        </form>
+    </div>
 
-        {{-- Version mobile --}}
-        <div class="d-md-none">
+    {{-- Version mobile --}}
+    <div class="d-md-none">
+        <form action="{{ route('supplier-orders.update', [$supplier, $order]) }}" method="POST">
+            @csrf
+            @method('PUT')
+
+            <!-- Menu déroulant pour la destination -->
+            <div class="mb-3">
+                <label for="destination_store_id" class="form-label">{{ __('messages.supplier_order.destination_store') }}</label>
+                <select name="destination_store_id" id="destination_store_id" class="form-control" required>
+                    <option value="">{{ __('messages.supplier_order.select_destination') }}</option>
+                    @foreach($stores as $store)
+                        <option value="{{ $store->id }}" {{ $order->destination_store_id == $store->id ? 'selected' : '' }}>
+                            {{ $store->name }} ({{ $store->type }})
+                        </option>
+                    @endforeach
+                </select>
+                @error('destination_store_id')
+                    <div class="text-danger">{{ $message }}</div>
+                @enderror
+            </div>
+
             <div class="row">
                 @foreach($products as $product)
                 <div class="col-12 mb-3">
@@ -75,16 +101,18 @@
                 </div>
                 @endforeach
             </div>
-        </div>
+            <div class="mt-3">
+                <button type="submit" class="btn btn-success">
+                    <i class="bi bi-floppy-fill"></i> {{ __('messages.btn.save') }}
+                </button>
+            </div>
+        </form>
+    </div>
 
-        <div class="mt-3">
-            <a href="{{ route('supplier-orders.show', [$supplier, $order]) }}" class="btn btn-secondary">
-                <i class="bi bi-x-circle"></i> {{ __('messages.btn.cancel') }}
-            </a>
-            <button type="submit" class="btn btn-success">
-                <i class="bi bi-floppy-fill"></i> {{ __('messages.btn.save') }}
-            </button>
-        </div>
-    </form>
+    <div class="mt-3">
+        <a href="{{ route('supplier-orders.show', [$supplier, $order]) }}" class="btn btn-secondary">
+            <i class="bi bi-x-circle"></i> {{ __('messages.btn.cancel') }}
+        </a>
+    </div>
 </div>
 @endsection

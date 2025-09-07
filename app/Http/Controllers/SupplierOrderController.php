@@ -148,7 +148,7 @@ class SupplierOrderController extends Controller
             ]);
 
             // Ajouter la quantité reçue au stock du magasin de destination
-            $store = $order->destinationStore; // Utiliser destination_store_id
+            $store = Store::find($order->destination_store_id);
             if ($store) {
                 $currentStock = $store->products()->where('product_id', $productId)->first()?->pivot->stock_quantity ?? 0;
 

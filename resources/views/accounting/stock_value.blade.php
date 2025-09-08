@@ -14,39 +14,64 @@
 
     <p><strong>{{ __('messages.stock_value.total_stock') }}</strong> {{ number_format($totalValue, 2) }} €</p>
 
-    <table class="table table-striped table-sm">
-        <thead>
-            <tr>
-                <th>{{ __('messages.stock_value.ean') }}</th>
-                <th>{{ __('messages.stock_value.product') }}</th>
-                <th>{{ __('messages.stock_value.remaining_stock') }}</th>
-                <th>{{ __('messages.stock_value.estimated_value') }}</th>
-                <th>{{ __('messages.stock_value.details') }}</th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach($products as $product)
-            @php
-                $totalQty = $product->lots->sum('quantity_remaining');
-                $totalVal = $product->lots->sum(function($lot) {
-                    return $lot->quantity_remaining * $lot->purchase_price;
-                });
-            @endphp
-            <tr>
-                <td>{{ $product->ean }}</td>
-                <td>{{ $product->name[app()->getLocale()] ?? reset($product->name) }}</td>
-                <td>{{ $totalQty }}</td>
-                <td>{{ number_format($totalVal, 2) }} €</td>
-                <td>
-                    <button class="btn btn-sm btn-info btn-lots" data-id="{{ $product->id }}">{{ __('messages.stock_value.details') }}</button>
-                </td>
-            </tr>
-            @endforeach
-        </tbody>
-    </table>
+    <!-- Table version desktop -->
+    <div class="d-none d-md-block">
+        <table class="table table-striped table-sm">
+            <thead>
+                <tr>
+                    <th>{{ __('messages.stock_value.ean') }}</th>
+                    <th>{{ __('messages.stock_value.product') }}</th>
+                    <th>{{ __('messages.stock_value.remaining_stock') }}</th>
+                    <th>{{ __('messages.stock_value.estimated_value') }}</th>
+                    <th>{{ __('messages.stock_value.details') }}</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach($products as $product)
+                @php
+                    $totalQty = $product->lots->sum('quantity_remaining');
+                    $totalVal = $product->lots->sum(function($lot) {
+                        return $lot->quantity_remaining * $lot->purchase_price;
+                    });
+                @endphp
+                <tr>
+                    <td>{{ $product->ean }}</td>
+                    <td>{{ $product->name[app()->getLocale()] ?? reset($product->name) }}</td>
+                    <td>{{ $totalQty }}</td>
+                    <td>{{ number_format($totalVal, 2) }} €</td>
+                    <td>
+                        <button class="btn btn-sm btn-info btn-lots" data-id="{{ $product->id }}">{{ __('messages.stock_value.details') }}</button>
+                    </td>
+                </tr>
+                @endforeach
+            </tbody>
+        </table>
+        {{ $products->links() }}
+    </div>
 
-    <!-- Pagination -->
-    {{ $products->links() }}
+    <!-- Cards version mobile -->
+    <div class="d-md-none">
+        @foreach($products as $product)
+        @php
+            $totalQty = $product->lots->sum('quantity_remaining');
+            $totalVal = $product->lots->sum(function($lot) {
+                return $lot->quantity_remaining * $lot->purchase_price;
+            });
+        @endphp
+        <div class="card mb-3">
+            <div class="card-body">
+                <h5 class="card-title">{{ $product->name[app()->getLocale()] ?? reset($product->name) }}</h5>
+                <p class="card-text">
+                    <strong>{{ __('messages.stock_value.ean') }}:</strong> {{ $product->ean }}<br>
+                    <strong>{{ __('messages.stock_value.remaining_stock') }}:</strong> {{ $totalQty }}<br>
+                    <strong>{{ __('messages.stock_value.estimated_value') }}:</strong> {{ number_format($totalVal, 2) }} €
+                </p>
+                <button class="btn btn-info btn-sm btn-lots" data-id="{{ $product->id }}">{{ __('messages.stock_value.details') }}</button>
+            </div>
+        </div>
+        @endforeach
+        {{ $products->links() }}
+    </div>
 </div>
 
 <!-- Modal -->

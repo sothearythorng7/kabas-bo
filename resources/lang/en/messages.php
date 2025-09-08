@@ -182,6 +182,12 @@ return [
         'created' => 'Product created successfully.',
         'products' => 'Products',
         'purchase_price' => 'Purchase Price',
+        'tab_general' => 'General',
+        'tab_categories' => 'Categories',
+        'tab_suppliers' => 'Suppliers',
+        'tab_stores' => 'Stores',
+        'tab_photos' => 'Photos',
+        'tab_descriptions' => 'Descriptions',
     ],
 
     'store' => [
@@ -312,6 +318,7 @@ return [
         'show' => 'Show',
         'export_pdf' => 'Export PDF',
         'receive' => 'Receive',
+        "search" => "Search",
     ],
 
     'main' => [

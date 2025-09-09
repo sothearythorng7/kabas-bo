@@ -20,6 +20,7 @@ class Product extends Model
         'size',
         'is_active',
         'is_best_seller',
+        'is_resalable',
         'attributes',
     ];
 
@@ -30,6 +31,7 @@ class Product extends Model
         'attributes' => 'array',
         'is_active' => 'boolean',
         'is_best_seller' => 'boolean',
+        'is_resalable' => 'boolean',
     ];
     public function getTotalStock(Store $store)
     {
@@ -55,6 +57,13 @@ class Product extends Model
     }
     public function images()     { return $this->hasMany(ProductImage::class)->orderBy('sort_order'); }
     public function primaryImage(){ return $this->hasOne(ProductImage::class)->where('is_primary', true); }
+    public function resellerDeliveries()
+    {
+        return $this->belongsToMany(ResellerStockDelivery::class, 'reseller_stock_delivery_product')
+                    ->withPivot('quantity', 'unit_price')
+                    ->withTimestamps();
+    }
+
 
     public function lots()
     {

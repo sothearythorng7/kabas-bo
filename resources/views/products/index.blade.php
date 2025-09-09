@@ -38,6 +38,7 @@
                     <th>Price</th>
                     <th>Active</th>
                     <th>Best</th>
+                    <th>Resalable</th>
                     <th></th>
                 </tr>
             </thead>
@@ -64,8 +65,9 @@
                         <td>{{ $p->name[app()->getLocale()] ?? reset($p->name) }}</td>
                         <td>{{ $p->brand?->name ?? '-' }}</td>
                         <td>{{ number_format($p->price, 2) }}</td>
-                        <td>{{ $p->is_active ? 'Yes' : 'No' }}</td>
-                        <td>{{ $p->is_best_seller ? 'Yes' : 'No' }}</td>
+                        <td style="text-center">{{ $p->is_active ? 'Yes' : 'No' }}</td>
+                        <td style="text-center">{{ $p->is_best_seller ? 'Yes' : 'No' }}</td>
+                        <td style="text-center">{{ $p->is_resalable ? 'Yes' : 'No' }}</td>
                         <td class="d-flex justify-content-end gap-1">
                             <a href="{{ route('products.edit', $p) }}" class="btn btn-warning btn-sm">
                                 <i class="bi bi-pencil-fill"></i> {{ __('messages.btn.edit') }}
@@ -115,6 +117,7 @@
                         <p class="mb-1"><strong>Price:</strong> {{ number_format($p->price, 2) }}</p>
                         <p class="mb-1"><strong>Active:</strong> {{ $p->is_active ? 'Yes' : 'No' }}</p>
                         <p class="mb-1"><strong>Best:</strong> {{ $p->is_best_seller ? 'Yes' : 'No' }}</p>
+                        <p class="mb-1"><strong>Resalable:</strong> {{ $p->is_resalable ? 'Yes' : 'No' }}</p>
                         <div class="d-flex justify-content-between mt-2">
                             <a href="{{ route('products.edit', $p) }}" class="btn btn-warning btn-sm">Edit</a>
                             <form action="{{ route('products.destroy', $p) }}" method="POST">

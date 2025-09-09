@@ -90,6 +90,7 @@ class ProductController extends Controller
                 'size' => $data['size'] ?? null,
                 'is_active' => $data['is_active'] ?? false,
                 'is_best_seller' => $data['is_best_seller'] ?? false,
+                'is_resalable' => false
             ]);
 
             // Lier automatiquement tous les stores au produit créé
@@ -176,6 +177,7 @@ class ProductController extends Controller
             'size'  => 'nullable|string',
             'is_active' => 'boolean',
             'is_best_seller' => 'boolean',
+            'is_resalable' => 'sometimes|boolean',
             'categories' => 'nullable|array',
             'categories.*' => 'exists:categories,id',
             'suppliers' => 'nullable|array',
@@ -207,6 +209,7 @@ class ProductController extends Controller
                 'color'          => $data['color'] ?? null,
                 'size'           => $data['size'] ?? null,
                 'is_active'      => $data['is_active'] ?? false,
+                'is_resalable' => $data['is_resalable'] ?? false,
                 'is_best_seller' => $data['is_best_seller'] ?? false,
             ]);
 
@@ -273,7 +276,7 @@ class ProductController extends Controller
         return back()->with('success', __('messages.common.deleted'));
     }
 
-    private function buildCategoryPathOptions(): array
+    public function buildCategoryPathOptions(): array
     {
         $all = Category::with('children','parent')->get();
         $map = [];

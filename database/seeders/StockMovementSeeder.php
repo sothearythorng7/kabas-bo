@@ -22,6 +22,7 @@ class StockMovementSeeder extends Seeder
             $movement = StockMovement::create([
                 'from_store_id' => $from->id,
                 'to_store_id' => $to->id,
+                'type' => StockMovement::TYPE_TRANSFER,
                 'note' => 'Movement #' . ($i + 1),
                 'user_id' => 1,
                 'status' => StockMovement::STATUS_VALIDATED,

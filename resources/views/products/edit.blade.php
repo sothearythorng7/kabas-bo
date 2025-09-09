@@ -117,7 +117,11 @@
                     <input class="form-check-input" type="checkbox" name="is_best_seller" id="is_best_seller" value="1" {{ old('is_best_seller', $product->is_best_seller) ? 'checked' : '' }}>
                     <label class="form-check-label" for="is_best_seller">{{ __('messages.product.best_seller') }}</label>
                 </div>
-
+                <div class="form-check form-switch mb-2">
+                    <input class="form-check-input" type="checkbox" name="is_resalable" id="is_resalable" value="1"
+                        {{ old('is_resalable', $product->is_resalable) ? 'checked' : '' }}>
+                    <label class="form-check-label" for="is_resalable">{{ __('messages.product.is_resalable') }}</label>
+                </div>
                 <div class="mt-3">
                     <button class="btn btn-success">{{ __('messages.btn.save') }}</button>
                     <a href="{{ route('products.index') }}" class="btn btn-secondary">{{ __('messages.btn.cancel') }}</a>
@@ -285,6 +289,70 @@
         </div>
     </div>
 </div>
+{{-- Modal Ajouter une Catégorie --}}
+<div class="modal fade" id="addCategoryModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form action="{{ route('products.categories.attach', $product) }}" method="POST">
+        @csrf
+        <div class="modal-header">
+          <h5 class="modal-title">{{ __('messages.product.add_category') }}</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label">{{ __('messages.product.category') }}</label>
+            <select name="category_id" class="form-select" required>
+              <option value="">--</option>
+              @foreach(app(\App\Http\Controllers\ProductController::class)->buildCategoryPathOptions() as $id => $path)
+                <option value="{{ $id }}">{{ $path }}</option>
+              @endforeach
+            </select>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="submit" class="btn btn-success">{{ __('messages.btn.add') }}</button>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ __('messages.btn.cancel') }}</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{{-- Modal Ajouter un Supplier --}}
+<div class="modal fade" id="addSupplierModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form action="{{ route('products.suppliers.attach', $product) }}" method="POST">
+        @csrf
+        <div class="modal-header">
+          <h5 class="modal-title">{{ __('messages.product.add_supplier') }}</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label">{{ __('messages.supplier.name') }}</label>
+            <select name="supplier_id" class="form-select" required>
+              <option value="">--</option>
+              @foreach($allSuppliers as $s)
+                <option value="{{ $s->id }}">{{ $s->name }}</option>
+              @endforeach
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">{{ __('messages.supplier.purchase_price') }}</label>
+            <input type="number" step="0.01" name="purchase_price" class="form-control" required>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="submit" class="btn btn-success">{{ __('messages.btn.add') }}</button>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ __('messages.btn.cancel') }}</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
 
 {{-- Script pour dropdown mobile --}}
 <script>

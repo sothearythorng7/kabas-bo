@@ -8,6 +8,7 @@ use App\Models\Brand;
 use App\Models\Store;
 use App\Models\Supplier;
 use App\Models\StockLot;
+use App\Models\Category;
 use Illuminate\Support\Str;
 
 class ProductSeeder extends Seeder
@@ -42,7 +43,7 @@ class ProductSeeder extends Seeder
                 'ean' => 'EAN' . str_pad($i, 8, '0', STR_PAD_LEFT),
                 'name' => $names,
                 'description' => $descriptions,
-                'price' => rand(50, 500),
+                'price' => rand(50, 500),   
                 'brand_id' => $brands->random()->id,
                 'color' => fake()->safeColorName(),
                 'size' => fake()->randomElement(['S', 'M', 'L', 'XL']),
@@ -57,6 +58,12 @@ class ProductSeeder extends Seeder
                     'purchase_price' => rand(20, 200),
                 ]);
             });
+
+            $categories = Category::all();
+            if ($categories->isNotEmpty()) {
+                $randomCategories = $categories->random(rand(1, min(3, $categories->count())));
+                $product->categories()->attach($randomCategories->pluck('id')->toArray());
+            }
 
             // Créer des lots pour chaque magasin
             $stores->each(function ($store) use ($product, $suppliers) {

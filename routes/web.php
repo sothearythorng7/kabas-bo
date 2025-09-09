@@ -17,6 +17,11 @@ use App\Http\Controllers\StockMovementController;
 use App\Http\Controllers\SupplierOrderController;
 use App\Http\Controllers\WarehouseInvoiceController;
 use App\Http\Controllers\StockValueController;
+use App\Http\Controllers\ResellerController;
+use App\Http\Controllers\ResellerContactController;
+use App\Http\Controllers\ResellerStockDeliveryController;
+use App\Http\Controllers\ResellerSalesReportController;
+
 
 Route::get('/', function () {
     return auth()->check() ? redirect()->route('dashboard') : redirect()->route('login');
@@ -117,6 +122,29 @@ Route::middleware(['auth', SetUserLocale::class])->group(function () {
             Route::get('orders/{order}/pdf', [SupplierOrderController::class, 'generatePdf'])->name('supplier-orders.pdf');
 
         });
+
+
+        Route::resource('resellers', ResellerController::class);
+        Route::post('resellers/{reseller}/contacts', [ResellerContactController::class, 'store'])->name('resellers.contacts.store');
+        Route::delete('resellers/{reseller}/contacts/{contact}', [ResellerContactController::class, 'destroy'])->name('resellers.contacts.destroy');
+        Route::get('resellers/{reseller}/deliveries/create', [ResellerStockDeliveryController::class, 'create'])->name('resellers.deliveries.create');
+        Route::post('resellers/{reseller}/deliveries', [ResellerStockDeliveryController::class, 'store'])->name('resellers.deliveries.store');
+        Route::get('resellers/{reseller}/reports/create', [ResellerSalesReportController::class, 'create'])->name('resellers.reports.create');
+        Route::post('resellers/{reseller}/reports', [ResellerSalesReportController::class, 'store'])->name('resellers.reports.store');
+        Route::get('resellers/{reseller}/reports/{report}', [ResellerSalesReportController::class, 'show'])->name('resellers.reports.show');
+        Route::get('resellers/{reseller}/deliveries/{delivery}/edit', [ResellerStockDeliveryController::class, 'edit'])
+            ->name('reseller-stock-deliveries.edit');
+
+        Route::get('resellers/{reseller}/deliveries/{delivery}/edit', [ResellerStockDeliveryController::class, 'edit'])
+            ->name('reseller-stock-deliveries.edit');
+
+        Route::get('resellers/{reseller}/deliveries/{delivery}', [ResellerStockDeliveryController::class, 'show'])
+            ->name('reseller-stock-deliveries.show');
+
+        Route::put('resellers/{reseller}/deliveries/{delivery}', [ResellerStockDeliveryController::class, 'update'])
+            ->name('reseller-stock-deliveries.update');
+
+        
     });
 
 });

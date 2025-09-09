@@ -19,6 +19,7 @@ return [
         'expenses' => 'Expenses',
         'bills_overview' => 'Bills Overview',
         'stock_value' => 'Stock Value',
+        'resellers' => 'Resellers'
     ],
     'dashboard' => 'Dashboard',
     'shops' => 'Shops',
@@ -161,6 +162,7 @@ return [
         'size' => 'Size',
         'is_active' => 'Is Active',
         'is_best_seller' => 'Is Best Seller',
+        'is_resalable' => 'Is resalable',
         'categories' => 'Categories',
         'suppliers' => 'Suppliers',
         'stores' => 'Stores',
@@ -188,6 +190,8 @@ return [
         'tab_stores' => 'Stores',
         'tab_photos' => 'Photos',
         'tab_descriptions' => 'Descriptions',
+        'active' => "Active",
+        'best_seller' => 'Best Seller'
     ],
 
     'store' => [

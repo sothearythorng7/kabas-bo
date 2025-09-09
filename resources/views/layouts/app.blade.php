@@ -40,6 +40,9 @@
                     <div><i class="bi bi-inboxes"></i> {{ __('messages.menu.stocks') }}</div>
                     <span class="caret"></span>
                 </a>
+                <a href="{{ route('resellers.index') }}" class="list-group-item list-group-item-action">
+                    <i class="bi bi-shop"></i> {{ __('messages.menu.resellers') }}
+                </a>
                 <div class="collapse" id="submenu-stock">
                     <a href="{{ route('stocks.index') }}" class="list-group-item list-group-item-action ps-4">
                         <i class="bi bi-eye"></i> {{ __('messages.menu.stock_overview') }}

@@ -2,19 +2,19 @@
 
 @section('content')
 <div class="container mt-4">
-    <h1 class="crud_title">Resellers</h1>
+    <h1 class="crud_title">{{ __('messages.resellers.title') }}</h1>
 
     <a href="{{ route('resellers.create') }}" class="btn btn-success mb-3">
-        <i class="bi bi-plus-circle"></i> Add Reseller
+        <i class="bi bi-plus-circle"></i> {{ __('messages.btn.add') }}
     </a>
 
     <table class="table table-striped">
         <thead>
             <tr>
-                <th>Name</th>
-                <th>Type</th>
-                <th>Contacts</th>
-                <th>Actions</th>
+                <th>{{ __('messages.resellers.name') }}</th>
+                <th>{{ __('messages.resellers.type') }}</th>
+                <th>{{ __('messages.resellers.contacts') }}</th>
+                <th>{{ __('messages.main.actions') }}</th>
             </tr>
         </thead>
         <tbody>
@@ -28,12 +28,8 @@
                     @endforeach
                 </td>
                 <td>
-                    <a href="{{ route('resellers.show', $reseller) }}" class="btn btn-sm btn-info">View</a>
-                    <a href="{{ route('resellers.edit', $reseller) }}" class="btn btn-sm btn-warning">Edit</a>
-                    <form action="{{ route('resellers.destroy', $reseller) }}" method="POST" class="d-inline">
-                        @csrf @method('DELETE')
-                        <button class="btn btn-sm btn-danger" onclick="return confirm('Delete this reseller?')">Delete</button>
-                    </form>
+                    <a href="{{ route('resellers.show', $reseller) }}" class="btn btn-sm btn-info">{{ __('messages.btn.view') }}</a>
+                    <a href="{{ route('resellers.edit', $reseller) }}" class="btn btn-sm btn-warning">{{ __('messages.btn.edit') }}</a>
                 </td>
             </tr>
         @empty

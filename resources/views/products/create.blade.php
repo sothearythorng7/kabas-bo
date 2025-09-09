@@ -14,7 +14,7 @@
             {{-- General --}}
             <div class="tab-pane fade show active" id="tab-general" role="tabpanel">
                 <div class="row">
-                    <div class="col-md-6 mb-3">
+                    <div class="col-md-3 mb-3">
                         <label class="form-label">EAN</label>
                         <input type="text" name="ean" class="form-control @error('ean') is-invalid @enderror" value="{{ old('ean') }}" required>
                         @error('ean') <div class="invalid-feedback">{{ $message }}</div> @enderror
@@ -32,6 +32,11 @@
                         <label class="form-label">Price</label>
                         <input type="number" step="0.01" name="price" class="form-control @error('price') is-invalid @enderror" value="{{ old('price', 0) }}">
                         @error('price') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <label class="form-label">Price BtoB</label>
+                        <input type="number" step="0.01" name="price" class="form-control @error('price_btob') is-invalid @enderror" value="{{ old('price_btob', 0) }}">
+                        @error('price_btob') <div class="invalid-feedback">{{ $message }}</div> @enderror
                     </div>
                 </div>
 

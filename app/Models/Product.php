@@ -15,6 +15,7 @@ class Product extends Model
         'description',
         'slugs',
         'price',
+        'price_btob',
         'brand_id',
         'color',
         'size',
@@ -100,5 +101,21 @@ class Product extends Model
         ]);
 
         return $remaining === 0; // true si tout a été retiré, false sinon
+    }
+
+
+    protected static function booted()
+    {
+        static::creating(function ($product) {
+            if ($product->is_resalable && is_null($product->price_btob)) {
+                $product->price_btob = $product->price;
+            }
+        });
+
+        static::updating(function ($product) {
+            if ($product->is_resalable && is_null($product->price_btob)) {
+                $product->price_btob = $product->price;
+            }
+        });
     }
 }

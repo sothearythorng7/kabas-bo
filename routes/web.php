@@ -21,6 +21,7 @@ use App\Http\Controllers\ResellerController;
 use App\Http\Controllers\ResellerContactController;
 use App\Http\Controllers\ResellerStockDeliveryController;
 use App\Http\Controllers\ResellerSalesReportController;
+use App\Http\Controllers\ResellerInvoiceController;
 
 
 Route::get('/', function () {
@@ -95,6 +96,15 @@ Route::middleware(['auth', SetUserLocale::class])->group(function () {
             Route::delete('/{invoice}/{file}', [WarehouseInvoiceController::class, 'deleteFile'])->name('delete-file');
             Route::post('{invoice}/upload-files', [WarehouseInvoiceController::class, 'uploadFiles'])->name('upload-files');
             Route::get('/bills', [WarehouseInvoiceController::class, 'bills'])->name('billsoverview');
+        });
+
+        Route::prefix('reseller-invoices')->name('reseller-invoices.')->group(function () {
+            Route::get('/', [ResellerInvoiceController::class, 'index'])->name('index');
+            Route::get('/create', [ResellerInvoiceController::class, 'create'])->name('create');
+            Route::post('/', [ResellerInvoiceController::class, 'store'])->name('store');
+            Route::get('/{invoice}/edit', [ResellerInvoiceController::class, 'edit'])->name('edit');
+            Route::put('/{invoice}', [ResellerInvoiceController::class, 'update'])->name('update');
+            Route::delete('/{invoice}', [ResellerInvoiceController::class, 'destroy'])->name('destroy');
         });
 
         // Routes commandes fournisseurs

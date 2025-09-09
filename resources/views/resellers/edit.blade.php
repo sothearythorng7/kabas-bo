@@ -2,11 +2,7 @@
 
 @section('content')
 <div class="container mt-4">
-    <h1>Edit Reseller</h1>
-
-    <a href="{{ route('resellers.deliveries.create', $reseller) }}" class="btn btn-success">
-        Nouvelle commande
-    </a>
+    <h1 class="crud_title">{{ __('messages.resellers.title_edit') }}</h1>
 
     <form action="{{ route('resellers.update', $reseller) }}" method="POST">
         @csrf @method('PUT')

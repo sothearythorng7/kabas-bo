@@ -27,6 +27,8 @@
             @endif
         </form>
     </div>
+
+    <!-- Desktop -->
     <div class="d-none d-md-block">
         <table class="table table-striped">
             <thead>
@@ -36,6 +38,7 @@
                     <th>{{ __('messages.product.name') }}</th>
                     <th>Brand</th>
                     <th>Price</th>
+                    <th>Price BtoB</th> <!-- Nouvelle colonne -->
                     <th>Active</th>
                     <th>Best</th>
                     <th>Resalable</th>
@@ -43,52 +46,59 @@
                 </tr>
             </thead>
             <tbody>
-                    @foreach($products as $p)
-                    @php
-                        $lowStockStores = [];
-                        foreach($p->stores as $store) {
-                            if($store->pivot->stock_quantity <= $store->pivot->alert_stock_quantity) {
-                                $lowStockStores[] = $store->name . ', ' . __('messages.store.stocklow') . ': ' . $store->pivot->stock_quantity;
-                            }
+                @foreach($products as $p)
+                @php
+                    $lowStockStores = [];
+                    foreach($p->stores as $store) {
+                        if($store->pivot->stock_quantity <= $store->pivot->alert_stock_quantity) {
+                            $lowStockStores[] = $store->name . ', ' . __('messages.store.stocklow') . ': ' . $store->pivot->stock_quantity;
                         }
-                    @endphp
-                    <tr>
-                        <td>
-                            @if(count($lowStockStores))
-                                <i class="bi bi-exclamation-triangle-fill text-warning" 
-                                data-bs-toggle="tooltip" 
-                                data-bs-placement="top" 
-                                title="{{ implode("\n", $lowStockStores) }}"></i>
-                            @endif
-                        </td>
-                        <td>{{ $p->ean }}</td>
-                        <td>{{ $p->name[app()->getLocale()] ?? reset($p->name) }}</td>
-                        <td>{{ $p->brand?->name ?? '-' }}</td>
-                        <td>{{ number_format($p->price, 2) }}</td>
-                        <td style="text-center">{{ $p->is_active ? 'Yes' : 'No' }}</td>
-                        <td style="text-center">{{ $p->is_best_seller ? 'Yes' : 'No' }}</td>
-                        <td style="text-center">{{ $p->is_resalable ? 'Yes' : 'No' }}</td>
-                        <td class="d-flex justify-content-end gap-1">
-                            <a href="{{ route('products.edit', $p) }}" class="btn btn-warning btn-sm">
-                                <i class="bi bi-pencil-fill"></i> {{ __('messages.btn.edit') }}
-                            </a>
-                            <form action="{{ route('products.destroy', $p) }}" method="POST" style="display:inline;">
-                                @csrf @method('DELETE')
-                                <button type="submit" class="btn btn-danger btn-sm"
-                                    onclick="return confirm('{{ __('messages.product.confirm_delete') }}')">
-                                    <i class="bi bi-trash-fill"></i> {{ __('messages.btn.delete') }}
-                                </button>
-                            </form>
-                        </td>
-                    </tr>
-                    @endforeach
-
+                    }
+                @endphp
+                <tr>
+                    <td>
+                        @if(count($lowStockStores))
+                            <i class="bi bi-exclamation-triangle-fill text-warning" 
+                            data-bs-toggle="tooltip" 
+                            data-bs-placement="top" 
+                            title="{{ implode("\n", $lowStockStores) }}"></i>
+                        @endif
+                    </td>
+                    <td>{{ $p->ean }}</td>
+                    <td>{{ $p->name[app()->getLocale()] ?? reset($p->name) }}</td>
+                    <td>{{ $p->brand?->name ?? '-' }}</td>
+                    <td>{{ number_format($p->price, 2) }}</td>
+                    <td>
+                        @if($p->price_btob !== null)
+                            {{ number_format($p->price_btob, 2) }}
+                        @else
+                            -
+                        @endif
+                    </td>
+                    <td style="text-center">{{ $p->is_active ? 'Yes' : 'No' }}</td>
+                    <td style="text-center">{{ $p->is_best_seller ? 'Yes' : 'No' }}</td>
+                    <td style="text-center">{{ $p->is_resalable ? 'Yes' : 'No' }}</td>
+                    <td class="d-flex justify-content-end gap-1">
+                        <a href="{{ route('products.edit', $p) }}" class="btn btn-warning btn-sm">
+                            <i class="bi bi-pencil-fill"></i> {{ __('messages.btn.edit') }}
+                        </a>
+                        <form action="{{ route('products.destroy', $p) }}" method="POST" style="display:inline;">
+                            @csrf @method('DELETE')
+                            <button type="submit" class="btn btn-danger btn-sm"
+                                onclick="return confirm('{{ __('messages.product.confirm_delete') }}')">
+                                <i class="bi bi-trash-fill"></i> {{ __('messages.btn.delete') }}
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+                @endforeach
             </tbody>
         </table>
 
         {{ $products->links() }}
     </div>
 
+    <!-- Mobile -->
     <div class="d-md-none">
         <div class="row">
             @foreach($products as $p)
@@ -115,6 +125,13 @@
                         <p class="mb-1"><strong>EAN:</strong> {{ $p->ean }}</p>
                         <p class="mb-1"><strong>Brand:</strong> {{ $p->brand?->name ?? '-' }}</p>
                         <p class="mb-1"><strong>Price:</strong> {{ number_format($p->price, 2) }}</p>
+                        <p class="mb-1"><strong>Price BtoB:</strong> 
+                            @if($p->price_btob !== null)
+                                {{ number_format($p->price_btob, 2) }}
+                            @else
+                                -
+                            @endif
+                        </p>
                         <p class="mb-1"><strong>Active:</strong> {{ $p->is_active ? 'Yes' : 'No' }}</p>
                         <p class="mb-1"><strong>Best:</strong> {{ $p->is_best_seller ? 'Yes' : 'No' }}</p>
                         <p class="mb-1"><strong>Resalable:</strong> {{ $p->is_resalable ? 'Yes' : 'No' }}</p>

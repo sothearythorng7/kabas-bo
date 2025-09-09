@@ -53,7 +53,7 @@
             <form action="{{ route('products.update', $product) }}" method="POST" enctype="multipart/form-data">
                 @csrf @method('PUT')
                 <div class="row">
-                    <div class="col-md-6 mb-3">
+                    <div class="col-md-3 mb-3">
                         <label class="form-label">EAN</label>
                         <input type="text" name="ean" class="form-control @error('ean') is-invalid @enderror" value="{{ old('ean', $product->ean) }}" required>
                         @error('ean') <div class="invalid-feedback">{{ $message }}</div> @enderror
@@ -71,6 +71,11 @@
                         <label class="form-label">{{ __('messages.product.price') }}</label>
                         <input type="number" step="0.01" name="price" class="form-control @error('price') is-invalid @enderror" value="{{ old('price', $product->price) }}">
                         @error('price') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <label class="form-label">{{ __('messages.product.price_btob') }}</label>
+                        <input type="number" step="0.01" name="price_btob" class="form-control @error('price') is-invalid @enderror" value="{{ old('price', $product->price_btob) }}">
+                        @error('price_btob') <div class="invalid-feedback">{{ $message }}</div> @enderror
                     </div>
                 </div>
 

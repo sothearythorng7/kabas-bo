@@ -3,7 +3,9 @@
 @section('content')
 <div class="container mt-4">
     <h1 class="crud_title">Vue d'ensemble des factures revendeurs</h1>
-    
+    <div class="alert alert-warning">
+        Montant total des factures en attente de paiement : <strong>${{ number_format($totalPending, 2) }}</strong>
+    </div>
     <ul class="nav nav-tabs mb-3" id="invoiceStatusTab" role="tablist">
         @foreach($statuses as $status)
             <li class="nav-item" role="presentation">
@@ -26,6 +28,7 @@
                     <thead>
                         <tr>
                             <th>Revendeur</th>
+                            <th>Revendeur type</th>
                             <th>Commande liée</th>
                             <th>Montant total</th>
                             <th>Statut</th>
@@ -37,12 +40,24 @@
                         @forelse($invoicesByStatus[$status] as $invoice)
                             <tr>
                                 <td>{{ $invoice->reseller->name }}</td>
-                                <td>#{{ $invoice->resellerStockDelivery->id ?? '-' }}</td>
+                                <td>{{ $invoice->reseller->type }}</td>
+                                <td>
+                                    @if($invoice->reseller_stock_delivery_id)
+    commande
+                                    @elseif($invoice->sales_report_id)
+    rapport de vente
+                                    @else
+                                        ---
+                                    @endif
+
+
+
+                                </td>
                                 <td>${{ number_format($invoice->total_amount, 2) }}</td>
                                 <td>{{ ucfirst(str_replace('_', ' ', $invoice->status)) }}</td>
                                 <td>{{ $invoice->created_at->format('d/m/Y H:i') }}</td>
                                 <td>
-                                    <a href="{{ route('reseller-invoices.edit', $invoice) }}" class="btn btn-sm btn-warning">Éditer</a>
+                                    <a href="{{ route('reseller-invoices.show', $invoice) }}" class="btn btn-sm btn-info">Détails</a>
                                 </td>
                             </tr>
                         @empty

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Reseller;
 use Illuminate\Http\Request;
 use App\Models\Product;
+use App\Models\ResellerSalesReportAnomaly;
 
 class ResellerController extends Controller
 {
@@ -37,32 +38,36 @@ class ResellerController extends Controller
         $reseller->load([
             'contacts',
             'deliveries.products',
-            'reports.items.product' // pour les rapports de vente et les produits vendus
+            'deliveries.invoice', // ajout pour le statut de facturation
+            'reports.items.product', // rapports de vente
         ]);
 
-        // Charger les stocks une seule fois
+        // Charger le stock une seule fois
         $stock = $reseller->getCurrentStock();
 
-        // Récupérer uniquement les produits que le revendeur a en stock
+        // Produits en stock
         $products = Product::whereIn('id', $stock->keys())
             ->with('brand')
             ->orderBy('name')
             ->paginate(20);
 
-        // Récupérer les livraisons paginées
-        $deliveries = $reseller->deliveries()->latest()->paginate(10);
+        // Livraisons avec pagination
+        $deliveries = $reseller->deliveries()
+            ->with(['products', 'invoice'])
+            ->latest()
+            ->paginate(10);
 
-        // Récupérer les rapports de vente paginés uniquement pour les revendeurs consignment
+        // Rapports de vente (uniquement pour les consignations)
         $salesReports = collect();
         if ($reseller->type === 'consignment') {
             $salesReports = $reseller->reports()
-                ->with('items.product') // charger les produits vendus
+                ->with('items.product')
                 ->latest()
                 ->paginate(10);
         }
 
-        //Les anomalie  
-        $anomalies = \App\Models\ResellerSalesReportAnomaly::whereHas('report', function($q) use ($reseller) {
+        // Anomalies liées aux rapports du revendeur
+        $anomalies = ResellerSalesReportAnomaly::whereHas('report', function($q) use ($reseller) {
             $q->where('reseller_id', $reseller->id);
         })->latest()->paginate(10);
 
@@ -75,8 +80,6 @@ class ResellerController extends Controller
             'anomalies'
         ));
     }
-
-
 
     public function edit(Reseller $reseller)
     {

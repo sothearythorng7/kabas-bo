@@ -13,8 +13,10 @@ class ResellerInvoice extends Model
     protected $fillable = [
         'reseller_id',
         'reseller_stock_delivery_id',
+        'sales_report_id',
         'total_amount',
         'status',
+        'file_path',
         'paid_at',
     ];
 
@@ -40,6 +42,11 @@ class ResellerInvoice extends Model
     public function reseller(): BelongsTo
     {
         return $this->belongsTo(Reseller::class);
+    }
+
+    public function salesReport(): BelongsTo
+    {
+        return $this->belongsTo(ResellerSalesReport::class, 'sales_report_id');
     }
 
     /**

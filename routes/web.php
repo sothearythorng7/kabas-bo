@@ -131,6 +131,7 @@ Route::middleware(['auth', SetUserLocale::class])->group(function () {
             // Génération PDF
             Route::get('orders/{order}/pdf', [SupplierOrderController::class, 'generatePdf'])->name('supplier-orders.pdf');
 
+
         });
 
 
@@ -154,7 +155,15 @@ Route::middleware(['auth', SetUserLocale::class])->group(function () {
         Route::put('resellers/{reseller}/deliveries/{delivery}', [ResellerStockDeliveryController::class, 'update'])
             ->name('reseller-stock-deliveries.update');
 
-        
+        Route::get('/deliveries/{delivery}/invoice', [\App\Http\Controllers\ResellerInvoiceController::class, 'generateOrDownloadInvoice'])
+            ->name('resellers.deliveries.invoice');
+        Route::get('/resellers/{reseller}/reports/{report}/invoice', [ResellerSalesReportController::class, 'invoice'])->name('resellers.reports.invoice');
+
+        Route::prefix('reseller-invoices')->name('reseller-invoices.')->group(function () {
+            Route::get('/', [ResellerInvoiceController::class, 'index'])->name('index');
+            Route::get('/{invoice}', [ResellerInvoiceController::class, 'show'])->name('show');
+            Route::post('/{invoice}/payments', [ResellerInvoiceController::class, 'addPayment'])->name('addPayment');
+        });
     });
 
 });

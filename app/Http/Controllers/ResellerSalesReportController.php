@@ -7,6 +7,9 @@ use App\Models\ResellerSalesReport;
 use App\Models\ResellerSalesReportItem;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
+use Barryvdh\DomPDF\Facade\Pdf;
+use App\Models\ResellerInvoice;
 
 class ResellerSalesReportController extends Controller
 {
@@ -50,50 +53,124 @@ class ResellerSalesReportController extends Controller
                     ResellerSalesReportItem::create([
                         'report_id'     => $report->id,
                         'product_id'    => $product->id,
-                            'quantity_sold' => $p['quantity'],
-                            'unit_price'    => $product->price,
+                        'quantity_sold' => $p['quantity'],
+                        'unit_price'    => $product->price,
+                    ]);
+
+                    // Déduction du stock via le système de lots (FIFO)
+                    $remaining = $p['quantity'];
+                    $batches = $reseller->stockBatches()
+                        ->where('product_id', $product->id)
+                        ->where('quantity', '>', 0)
+                        ->orderBy('created_at')
+                        ->get();
+
+                    foreach ($batches as $batch) {
+                        if ($remaining <= 0) break;
+
+                        $deduct = min($batch->quantity, $remaining);
+                        $batch->quantity -= $deduct;
+                        $batch->save();
+
+                        $remaining -= $deduct;
+                    }
+
+                    // Si le restant > 0, créer une anomalie
+                    if ($remaining > 0) {
+                        \App\Models\ResellerSalesReportAnomaly::create([
+                            'report_id'   => $report->id,
+                            'product_id'  => $product->id,
+                            'quantity'    => $remaining,
+                            'description' => "Reported quantity exceeds available stock",
                         ]);
-
-                        // Déduction du stock via le système de lots (FIFO)
-                        $remaining = $p['quantity'];
-                        $batches = $reseller->stockBatches()
-                            ->where('product_id', $product->id)
-                            ->where('quantity', '>', 0)
-                            ->orderBy('created_at') // FIFO
-                            ->get();
-
-                        foreach ($batches as $batch) {
-                            if ($remaining <= 0) break;
-
-                            $deduct = min($batch->quantity, $remaining);
-                            $batch->quantity -= $deduct;
-                            $batch->save();
-
-                            $remaining -= $deduct;
-                        }
-
-                        // Si le restant > 0, on crée une anomalie au lieu de bloquer
-                        if ($remaining > 0) {
-                            \App\Models\ResellerSalesReportAnomaly::create([
-                                'report_id'   => $report->id,
-                                'product_id'  => $product->id,
-                                'quantity'    => $remaining,
-                                'description' => "Reported quantity exceeds available stock",
-                            ]);
-                        }
                     }
                 }
-            });
+            }
 
-            return redirect()->route('resellers.show', $reseller)
-                ->with('success', 'Sales report recorded and stock updated.');
-        }
+            // --- Génération de la facture ---
+            $report->load('items.product');
 
+            $totalValue = $report->items->sum(fn($i) => $i->quantity_sold * $i->unit_price);
+
+            $invoice = \App\Models\ResellerInvoice::firstOrCreate(
+                [
+                    'reseller_id' => $reseller->id,
+                    'reseller_stock_delivery_id' => null, // pas liée à une livraison
+                    'sales_report_id' => $report->id,
+                ],
+                [
+                    'total_amount' => $totalValue,
+                    'status' => 'unpaid',
+                    'file_path' => null,
+                ]
+            );
+
+            // Génération du PDF
+            $pdf = Pdf::loadView('resellers.reports.invoice', [
+                'reseller'   => $reseller,
+                'report'     => $report,
+                'totalValue' => $totalValue,
+            ]);
+
+            $fileName = "sales_report_{$report->id}.pdf";
+            $filePath = "sales_reports/{$fileName}";
+
+            Storage::put($filePath, $pdf->output());
+
+            $invoice->update(['file_path' => $filePath, 'total_amount' => $totalValue]);
+        });
+
+        return redirect()->route('resellers.show', $reseller)
+            ->with('success', 'Sales report recorded, stock updated, and invoice generated.');
+    }
 
         public function show(Reseller $reseller, ResellerSalesReport $report)
         {
             $report->load('items.product');
             return view('resellers.reports.show', compact('reseller', 'report'));
+        }
+
+
+        public function invoice(Reseller $reseller, ResellerSalesReport $report)
+        {
+            $report->load('items.product');
+
+            // Vérifie si une facture existe déjà
+            $invoice = ResellerInvoice::where('reseller_id', $reseller->id)
+                ->where('reseller_stock_delivery_id', null) // Pas liée à une livraison
+                ->where('sales_report_id', $report->id) // à ajouter dans la table si tu veux lier report -> invoice
+                ->first();
+
+            $totalValue = $report->items->sum(fn($i) => $i->quantity_sold * $i->unit_price);
+
+            if (!$invoice) {
+                // Crée une nouvelle facture
+                $invoice = ResellerInvoice::create([
+                    'reseller_id' => $reseller->id,
+                    'reseller_stock_delivery_id' => null,
+                    'total_amount' => $totalValue,
+                    'status' => 'unpaid',
+                    'file_path' => null,
+                ]);
+            }
+
+            // Génère le PDF
+            $pdf = Pdf::loadView('resellers.reports.invoice', [
+                'reseller' => $reseller,
+                'report' => $report,
+                'totalValue' => $totalValue
+            ]);
+
+            // Sauvegarde le PDF sur le disque
+            $fileName = 'invoices/sales_report_' . $report->id . '.pdf';
+            Storage::put($fileName, $pdf->output());
+
+            // Mets à jour le chemin dans la facture
+            $invoice->file_path = $fileName;
+            $invoice->save();
+
+            // Retourne le PDF pour téléchargement
+            return $pdf->download('sales_report_' . $report->id . '.pdf');
         }
 
     }

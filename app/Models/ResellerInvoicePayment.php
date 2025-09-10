@@ -38,4 +38,8 @@ class ResellerInvoicePayment extends Model
             $payment->invoice->updateStatus();
         });
     }
+
+    protected $casts = [
+        'paid_at' => 'datetime',
+    ];
 }

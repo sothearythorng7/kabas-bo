@@ -34,7 +34,7 @@
         @endif
 
         <li class="nav-item" role="presentation">
-            <button class="nav-link" id="orders-tab" data-bs-toggle="tab" data-bs-target="#orders" type="button" role="tab" aria-controls="orders" aria-selected="false">
+            <button class="nav-link active" id="orders-tab" data-bs-toggle="tab" data-bs-target="#orders" type="button" role="tab" aria-controls="orders" aria-selected="true">
                 {{ __('messages.resellers.deliveries') }}
                 <span class="badge bg-{{ ($deliveries->total() ?? 0) > 0 ? 'primary' : 'secondary' }}">{{ $deliveries->total() ?? 0 }}</span>
             </button>
@@ -102,10 +102,10 @@
         @if($reseller->type === 'consignment')
             {{-- Onglet Produits --}}
             <div class="tab-pane fade" id="products" role="tabpanel" aria-labelledby="products-tab">
-                <div class="d-flex justify-content-between align-items-center mb-2">
-                    <div class="alert alert-info mb-0">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div class="alert alert-info mb-0 w-100">
                         <strong>{{ __('messages.resellers.stock_value_total') }} :</strong> 
-                        {{ number_format($reseller->getStockValue(), 2, ',', ' ') }} €
+                        {{ number_format($reseller->getStockValue(), 2, ',', ' ') }} $
                     </div>
                 </div>
 
@@ -166,58 +166,78 @@
                     </a>
                 </div>
 
-                {{-- Desktop --}}
-                <div class="d-none d-md-block">
-                    <table class="table table-striped">
-                        <thead>
-                            <tr>
-                                <th>{{ __('messages.resellers.report_id') }}</th>
-                                <th>{{ __('messages.resellers.created_at') }}</th>
-                                <th>{{ __('messages.resellers.total_items') }}</th>
-                                <th>{{ __('messages.resellers.total_value') }}</th>
-                                <th></th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach($salesReports as $report)
+               {{-- Desktop --}}
+                    <div class="d-none d-md-block">
+                        <table class="table table-striped">
+                            <thead>
                                 <tr>
-                                    <td>#{{ $report->id }}</td>
-                                    <td>{{ $report->created_at->format('d/m/Y H:i') }}</td>
-                                    <td>{{ $report->items->count() }}</td>
-                                    <td>{{ number_format($report->items->sum(fn($i) => $i->quantity_sold * $i->unit_price), 2) }}</td>
-                                    <td class="text-end">
-                                        <a href="{{ route('resellers.reports.show', [$reseller, $report]) }}" class="btn btn-primary btn-sm">
-                                            <i class="bi bi-eye-fill"></i> {{ __('messages.btn.view') }}
-                                        </a>
-                                    </td>
+                                    <th>{{ __('messages.resellers.report_id') }}</th>
+                                    <th>{{ __('messages.resellers.created_at') }}</th>
+                                    <th>{{ __('messages.resellers.total_items') }}</th>
+                                    <th>{{ __('messages.resellers.total_value') }}</th>
+                                    <th></th>
                                 </tr>
-                            @endforeach
-                        </tbody>
-                    </table>
-                    {{ $salesReports->links() }}
-                </div>
+                            </thead>
+                            <tbody>
+                                @foreach($salesReports as $report)
+                                    @php
+                                        $totalValue = $report->items->sum(fn($i) => $i->quantity_sold * $i->unit_price);
+                                    @endphp
+                                    <tr>
+                                        <td>#{{ $report->id }}</td>
+                                        <td>{{ $report->created_at->format('d/m/Y H:i') }}</td>
+                                        <td>{{ $report->items->count() }}</td>
+                                        <td>{{ number_format($totalValue, 2, ',', ' ') }} €</td>
+                                        <td class="text-end">
+                                            <a href="{{ route('resellers.reports.show', [$reseller, $report]) }}" class="btn btn-primary btn-sm">
+                                                <i class="bi bi-eye-fill"></i> {{ __('messages.btn.view') }}
+                                            </a>
 
-                {{-- Mobile --}}
-                <div class="d-md-none">
-                    <div class="row">
-                        @foreach($salesReports as $report)
-                            <div class="col-12 mb-3">
-                                <div class="card shadow-sm">
-                                    <div class="card-body p-3">
-                                        <h5 class="card-title mb-1">#{{ $report->id }}</h5>
-                                        <p class="mb-1"><strong>{{ __('messages.resellers.created_at') }}:</strong> {{ $report->created_at->format('d/m/Y H:i') }}</p>
-                                        <p class="mb-1"><strong>{{ __('messages.resellers.total_items') }}:</strong> {{ $report->items->count() }}</p>
-                                        <p class="mb-1"><strong>{{ __('messages.resellers.total_value') }} (€):</strong> {{ number_format($report->items->sum(fn($i) => $i->quantity_sold * $i->unit_price), 2) }}</p>
-                                        <a href="{{ route('resellers.reports.show', [$reseller, $report]) }}" class="btn btn-primary btn-sm mt-2">
-                                            <i class="bi bi-eye-fill"></i> {{ __('messages.btn.view') }}
-                                        </a>
-                                    </div>
-                                </div>
-                            </div>
-                        @endforeach
+                                            @if($reseller->type === 'consignment')
+                                                <a href="{{ route('resellers.reports.invoice', [$reseller, $report]) }}" class="btn btn-warning btn-sm">
+                                                    <i class="bi bi-file-earmark-pdf-fill"></i> Invoice
+                                                </a>
+                                            @endif
+                                        </td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
                         {{ $salesReports->links() }}
                     </div>
-                </div>
+
+                    {{-- Mobile --}}
+                    <div class="d-md-none">
+                        <div class="row">
+                            @foreach($salesReports as $report)
+                                @php
+                                    $totalValue = $report->items->sum(fn($i) => $i->quantity_sold * $i->unit_price);
+                                @endphp
+                                <div class="col-12 mb-3">
+                                    <div class="card shadow-sm">
+                                        <div class="card-body p-3">
+                                            <h5 class="card-title mb-1">#{{ $report->id }}</h5>
+                                            <p class="mb-1"><strong>{{ __('messages.resellers.created_at') }}:</strong> {{ $report->created_at->format('d/m/Y H:i') }}</p>
+                                            <p class="mb-1"><strong>{{ __('messages.resellers.total_items') }}:</strong> {{ $report->items->count() }}</p>
+                                            <p class="mb-1"><strong>{{ __('messages.resellers.total_value') }}:</strong> {{ number_format($totalValue, 2, ',', ' ') }} €</p>
+
+                                            <a href="{{ route('resellers.reports.show', [$reseller, $report]) }}" class="btn btn-primary btn-sm mt-2">
+                                                <i class="bi bi-eye-fill"></i> {{ __('messages.btn.view') }}
+                                            </a>
+
+                                            @if($reseller->type === 'consignment')
+                                                <a href="{{ route('resellers.reports.invoice', [$reseller, $report]) }}" class="btn btn-warning btn-sm mt-2">
+                                                    <i class="bi bi-file-earmark-pdf-fill"></i> Invoice
+                                                </a>
+                                            @endif
+                                        </div>
+                                    </div>
+                                </div>
+                            @endforeach
+                            {{ $salesReports->links() }}
+                        </div>
+                    </div>
+
             </div>
 
             {{-- Onglet Anomalies --}}
@@ -271,8 +291,9 @@
             </div>
         @endif
 
+
         {{-- Onglet Livraisons --}}
-        <div class="tab-pane fade" id="orders" role="tabpanel" aria-labelledby="orders-tab">
+        <div class="tab-pane fade show active" id="orders" role="tabpanel" aria-labelledby="orders-tab">
             <div class="d-flex justify-content-between align-items-center mb-3">
                 <h3 class="mb-0">{{ __('messages.resellers.deliveries') }}</h3>
                 <a href="{{ route('resellers.deliveries.create', $reseller) }}" class="btn btn-success">
@@ -287,24 +308,58 @@
                         <tr>
                             <th>{{ __('messages.resellers.report_id') }}</th>
                             <th>{{ __('messages.resellers.status') }}</th>
-                            <th>{{ __('messages.resellers.shipping_cost') }}</th>
+                            <th>{{ __('messages.resellers.total_items') }}</th>
+
+                            @if($reseller->type !== 'consignment')
+                                <th>{{ __('messages.resellers.total_value') }}</th>
+                                <th>{{ __('messages.resellers.shipping_cost') }}</th>
+                                <th>{{ __('messages.resellers.invoice_status') }}</th>
+                            @endif
+
                             <th>{{ __('messages.resellers.created_at') }}</th>
-                            <th>{{ __('messages.resellers.updated_at') }}</th>
                             <th></th>
                         </tr>
                     </thead>
                     <tbody>
                         @foreach($deliveries as $delivery)
+                            @php
+                                $totalItems = $delivery->products->sum('pivot.quantity');
+                                $totalValue = $delivery->products->sum(fn($p) => $p->pivot->quantity * $p->pivot->unit_price);
+                                $totalInvoice = $totalValue + $delivery->shipping_cost;
+                            @endphp
                             <tr>
                                 <td>#{{ $delivery->id }}</td>
                                 <td>{{ $delivery->status }}</td>
-                                <td>{{ number_format($delivery->shipping_cost, 2) }}</td>
+                                <td>{{ $totalItems }}</td>
+
+                                @if($reseller->type !== 'consignment')
+                                    <td>{{ number_format($totalInvoice, 2, ',', ' ') }} €</td>
+                                    <td>{{ number_format($delivery->shipping_cost, 2, ',', ' ') }} €</td>
+                                    <td>
+                                        @if($delivery->invoice)
+                                            <span class="badge 
+                                                @if($delivery->invoice->status === 'paid') bg-success 
+                                                @elseif($delivery->invoice->status === 'partially_paid') bg-warning 
+                                                @else bg-danger @endif">
+                                                {{ ucfirst($delivery->invoice->status) }}
+                                            </span>
+                                        @else
+                                            <span class="badge bg-secondary">-</span>
+                                        @endif
+                                    </td>
+                                @endif
+
                                 <td>{{ $delivery->created_at->format('d/m/Y H:i') }}</td>
-                                <td>{{ $delivery->updated_at->format('d/m/Y H:i') }}</td>
                                 <td class="text-end">
                                     <a href="{{ route('reseller-stock-deliveries.edit', [$reseller, $delivery]) }}" class="btn btn-primary btn-sm">
                                         <i class="bi bi-eye-fill"></i> {{ __('messages.btn.view') }}
                                     </a>
+
+                                    @if($reseller->type !== 'consignment' && $delivery->status === 'shipped' && $delivery->invoice)
+                                        <a href="{{ route('resellers.deliveries.invoice', $delivery) }}" class="btn btn-warning btn-sm">
+                                            <i class="bi bi-file-earmark-pdf-fill"></i> Invoice
+                                        </a>
+                                    @endif
                                 </td>
                             </tr>
                         @endforeach
@@ -317,17 +372,45 @@
             <div class="d-md-none">
                 <div class="row">
                     @foreach($deliveries as $delivery)
+                        @php
+                            $totalItems = $delivery->products->sum('pivot.quantity');
+                            $totalValue = $delivery->products->sum(fn($p) => $p->pivot->quantity * $p->pivot->unit_price);
+                            $totalInvoice = $totalValue + $delivery->shipping_cost;
+                        @endphp
                         <div class="col-12 mb-3">
                             <div class="card shadow-sm">
                                 <div class="card-body p-3">
                                     <h5 class="card-title mb-1">#{{ $delivery->id }}</h5>
                                     <p class="mb-1"><strong>{{ __('messages.resellers.status') }}:</strong> {{ $delivery->status }}</p>
-                                    <p class="mb-1"><strong>{{ __('messages.resellers.shipping_cost') }}:</strong> {{ number_format($delivery->shipping_cost, 2) }}</p>
+                                    <p class="mb-1"><strong>{{ __('messages.resellers.total_items') }}:</strong> {{ $totalItems }}</p>
+
+                                    @if($reseller->type !== 'consignment')
+                                        <p class="mb-1"><strong>{{ __('messages.resellers.total_value') }}:</strong> {{ number_format($totalInvoice, 2, ',', ' ') }} €</p>
+                                        <p class="mb-1"><strong>{{ __('messages.resellers.shipping_cost') }}:</strong> {{ number_format($delivery->shipping_cost, 2, ',', ' ') }} €</p>
+                                        <p class="mb-1"><strong>{{ __('messages.resellers.invoice_status') }}:</strong>
+                                            @if($delivery->invoice)
+                                                <span class="badge 
+                                                    @if($delivery->invoice->status === 'paid') bg-success 
+                                                    @elseif($delivery->invoice->status === 'partially_paid') bg-warning 
+                                                    @else bg-danger @endif">
+                                                    {{ ucfirst($delivery->invoice->status) }}
+                                                </span>
+                                            @else
+                                                <span class="badge bg-secondary">-</span>
+                                            @endif
+                                        </p>
+                                    @endif
+
                                     <p class="mb-1"><strong>{{ __('messages.resellers.created_at') }}:</strong> {{ $delivery->created_at->format('d/m/Y H:i') }}</p>
-                                    <p class="mb-1"><strong>{{ __('messages.resellers.updated_at') }}:</strong> {{ $delivery->updated_at->format('d/m/Y H:i') }}</p>
                                     <a href="{{ route('reseller-stock-deliveries.edit', [$reseller, $delivery]) }}" class="btn btn-primary btn-sm mt-2">
                                         <i class="bi bi-eye-fill"></i> {{ __('messages.btn.view') }}
                                     </a>
+
+                                    @if($reseller->type !== 'consignment' && $delivery->status === 'shipped' && $delivery->invoice)
+                                        <a href="{{ route('resellers.deliveries.invoice', $delivery) }}" class="btn btn-warning btn-sm mt-2">
+                                            <i class="bi bi-file-earmark-pdf-fill"></i> Invoice
+                                        </a>
+                                    @endif
                                 </div>
                             </div>
                         </div>
@@ -336,6 +419,7 @@
                 </div>
             </div>
         </div>
+
 
     </div>
 </div>

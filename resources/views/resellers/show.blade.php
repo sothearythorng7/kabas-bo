@@ -284,6 +284,8 @@
                         <th>#ID</th>
                         <th>{{ __('messages.resellers.status') }}</th>
                         <th>{{ __('messages.resellers.total_items') }}</th>
+                        <th>{{ __('messages.resellers.total_amount') }}</th>
+                        <th>{{ __('messages.resellers.invoice_status') }}</th>
                         <th>{{ __('messages.resellers.created_at') }}</th>
                         <th class="text-end">{{ __('messages.btn.actions') }}</th>
                     </tr>
@@ -292,28 +294,54 @@
                     @foreach($deliveries as $delivery)
                         @php
                             $totalItems = $delivery->products->sum('pivot.quantity');
+                            $invoice = $delivery->invoice; // relation hasOne ou belongsTo sur ResellerStockDelivery
                         @endphp
                         <tr>
                             <td>{{ $delivery->id }}</td>
-                            <td>{{ $delivery->status }}</td>
+                            <td>{{ ucfirst($delivery->status) }}</td>
                             <td>{{ $totalItems }}</td>
+                            <td>
+                                {{ $invoice ? number_format($invoice->total_amount, 2, ',', ' ') . ' €' : '-' }}
+                            </td>
+                            <td>
+                                @if($invoice)
+                                    @php
+                                        $badgeClass = match($invoice->status) {
+                                            'unpaid' => 'danger',
+                                            'paid' => 'success',
+                                            'cancelled' => 'secondary',
+                                            'partially_paid' => 'warning',
+                                            default => 'secondary',
+                                        };
+                                    @endphp
+                                    <span class="badge bg-{{ $badgeClass }}">
+                                        {{ ucfirst(str_replace('_', ' ', $invoice->status)) }}
+                                    </span>
+                                @else
+                                    <span class="badge bg-secondary">-</span>
+                                @endif
+                            </td>
                             <td>{{ $delivery->created_at->format('d/m/Y H:i') }}</td>
                             <td class="text-end">
                                 <a href="{{ route('reseller-stock-deliveries.edit', [$reseller->id, $delivery->id]) }}" class="btn btn-warning btn-sm">
                                     <i class="bi bi-pencil-fill"></i> {{ __('messages.btn.edit') }}
                                 </a>
-                                <a href="{{ route('reseller-stock-deliveries.show', [$reseller->id, $delivery->id]) }}" class="btn btn-info btn-sm">
-                                    <i class="bi bi-eye-fill"></i> {{ __('messages.btn.view') }}
-                                </a>
+                                @if($invoice)
+                                    <a href="{{ route('invoices.download', $invoice->id) }}" class="btn btn-primary btn-sm">
+                                        <i class="bi bi-download"></i> {{ __('messages.btn.invoice') }}
+                                    </a>
+                                @endif
                             </td>
                         </tr>
                     @endforeach
                 </tbody>
             </table>
+
             @if($deliveries instanceof \Illuminate\Pagination\LengthAwarePaginator)
                 {{ $deliveries->links() }}
             @endif
         </div>
+
 
     </div>
 </div>

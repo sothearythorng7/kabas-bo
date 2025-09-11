@@ -159,6 +159,10 @@ class ResellerSalesReportController extends Controller
                 'reseller' => $reseller,
                 'report' => $report,
                 'totalValue' => $totalValue
+            ])->setOptions([
+                'isHtml5ParserEnabled' => true,
+                'isRemoteEnabled' => true,
+                'defaultFont' => 'DejaVu Sans',
             ]);
 
             // Sauvegarde le PDF sur le disque

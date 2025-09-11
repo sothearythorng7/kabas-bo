@@ -7,7 +7,7 @@ use App\Models\ResellerStockDelivery;
 use Illuminate\Support\Facades\Storage;
 use Barryvdh\DomPDF\Facade\Pdf;
 
-class ResellerInvoiceController extends Controller
+class InvoiceController extends Controller
 {
     /**
      * Génère ou télécharge une facture.
@@ -54,5 +54,29 @@ class ResellerInvoiceController extends Controller
         $invoice->update(['file_path' => $filePath]);
 
         return Storage::disk('invoices')->download($filePath);
+    }
+
+    public function show(ResellerInvoice $invoice)
+    {
+        // Vérifie que le fichier existe
+        if (!Storage::disk('invoices')->exists($invoice->file_path)) {
+            abort(404, 'Invoice not found.');
+        }
+
+        // Retourne le fichier en téléchargement
+        return Storage::disk('invoices')->download($invoice->file_path, 'invoice_'.$invoice->id.'.pdf');
+    }
+
+    public function stream(ResellerInvoice $invoice)
+    {
+        if (!Storage::disk('invoices')->exists($invoice->file_path)) {
+            abort(404, 'Invoice not found.');
+        }
+
+        $file = Storage::disk('invoices')->get($invoice->file_path);
+
+        return response($file, 200)
+            ->header('Content-Type', 'application/pdf')
+            ->header('Content-Disposition', 'inline; filename="invoice_'.$invoice->id.'.pdf"');
     }
 }

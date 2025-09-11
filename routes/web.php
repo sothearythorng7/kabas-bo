@@ -22,6 +22,7 @@ use App\Http\Controllers\ResellerContactController;
 use App\Http\Controllers\ResellerStockDeliveryController;
 use App\Http\Controllers\ResellerSalesReportController;
 use App\Http\Controllers\ResellerInvoiceController;
+use App\Http\Controllers\InvoiceController;
 
 
 Route::get('/', function () {
@@ -167,6 +168,9 @@ Route::middleware(['auth', SetUserLocale::class])->group(function () {
 
         Route::get('resellers/{reseller}/deliveries/create', [ResellerStockDeliveryController::class, 'create'])
             ->name('resellers.deliveries.create');
+
+        Route::get('/invoices/{invoice}/download', [InvoiceController::class, 'show'])->name('invoices.download');
+        Route::get('/invoices/{invoice}/view', [InvoiceController::class, 'stream'])->name('invoices.view');
     });
 
 });

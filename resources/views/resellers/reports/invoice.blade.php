@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <title>Facture Sales Report #{{ $report->id }}</title>
     <style>
-        body { font-family: DejaVu Sans, sans-serif; font-size: 12px; }
+        body { font-family: 'DejaVu Sans', sans-serif; font-size: 12px; }
         table { width: 100%; border-collapse: collapse; margin-top: 20px; }
         th, td { border: 1px solid #000; padding: 5px; text-align: left; }
         th { background-color: #f0f0f0; }

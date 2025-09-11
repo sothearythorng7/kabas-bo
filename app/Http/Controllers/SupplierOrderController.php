@@ -128,44 +128,40 @@ class SupplierOrderController extends Controller
         return view('supplier_orders.reception', compact('supplier', 'order'));
     }
 
-    public function storeReception(Request $request, Supplier $supplier, SupplierOrder $order)
-    {
-        $store = Store::find($order->destination_store_id);
-        if (!$store) {
-            return back()->withErrors('Magasin de destination introuvable.');
-        }
-
-        foreach ($request->input('products', []) as $productId => $qtyReceived) {
-            $qtyReceived = (int) $qtyReceived;
-            if ($qtyReceived <= 0) continue;
-
-            $product = Product::find($productId);
-            if (!$product) continue;
-
-            // Mettre à jour la quantité reçue dans le pivot
-            $order->products()->updateExistingPivot($productId, [
-                'quantity_received' => $qtyReceived,
-            ]);
-
-            // Ajouter la quantité reçue au stock global du store
-            $currentStock = $store->products()->where('product_id', $productId)->first()?->pivot->stock_quantity ?? 0;
-            $store->products()->syncWithoutDetaching([
-                $productId => ['stock_quantity' => $currentStock + $qtyReceived]
-            ]);
-
-            // Créer un StockBatch pour tracer la réception
-            StockBatch::create([
-                'product_id'         => $productId,
-                'store_id'           => $store->id,
-                'reseller_id'        => null,
-                'quantity'           => $qtyReceived,
-                'unit_price'         => $order->products()->where('product_id', $productId)->first()->pivot->purchase_price ?? 0,
-                'source_supplier_order_id' => $order->id,
-            ]);
-        }
-
-        $order->update(['status' => 'received']);
-
-        return redirect()->route('suppliers.edit', $supplier)->with('success', 'Commande réceptionnée et stock mis à jour.');
+public function storeReception(Request $request, Supplier $supplier, SupplierOrder $order)
+{
+    $store = Store::find($order->destination_store_id);
+    if (!$store) {
+        return back()->withErrors('Magasin de destination introuvable.');
     }
+
+    foreach ($request->input('products', []) as $productId => $qtyReceived) {
+        $qtyReceived = (int) $qtyReceived;
+        if ($qtyReceived <= 0) continue;
+
+        $product = Product::find($productId);
+        if (!$product) continue;
+
+        // Mettre à jour la quantité reçue dans le pivot de la commande
+        $order->products()->updateExistingPivot($productId, [
+            'quantity_received' => $qtyReceived,
+        ]);
+
+        // Créer un StockBatch pour tracer la réception
+        StockBatch::create([
+            'product_id'               => $productId,
+            'store_id'                 => $store->id,
+            'reseller_id'              => null,
+            'quantity'                 => $qtyReceived,
+            'unit_price'               => $order->products()->where('product_id', $productId)->first()->pivot->purchase_price ?? 0,
+            'source_supplier_order_id' => $order->id,
+            'label'                    => 'Réception commande fournisseur',
+        ]);
+    }
+
+    $order->update(['status' => 'received']);
+
+    return redirect()->route('suppliers.edit', $supplier)->with('success', 'Commande réceptionnée et stock mis à jour.');
+}
+
 }

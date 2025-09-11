@@ -29,12 +29,14 @@
                             <td>{{ $product->ean }}</td>
                             <td>{{ $product->name[app()->getLocale()] ?? reset($product->name) }}</td>
                             <td>
-                                <input type="number" 
-                                       name="products[{{ $product->id }}][quantity]" 
-                                       class="form-control form-control-sm quantity-input" 
-                                       data-product-id="{{ $product->id }}"
-                                       min="0" 
-                                       value="{{ old("products.{$product->id}.quantity") }}">
+                                <input type="number"
+                                    name="products[{{ $product->id }}][quantity]"
+                                    min="0"
+                                    max="{{ $product->available_stock }}"
+                                    value="{{ old("products.$product->id.quantity", 0) }}"
+                                    class="quantity-input"
+                                    data-product-id="{{ $product->id }}">
+                                <small>Stock disponible: {{ $product->available_stock }}</small>
                             </td>
                             <td>
                                 <input type="number" step="0.01" 
@@ -64,10 +66,12 @@
                                     <label class="form-label mb-0">{{ __('messages.resellers.quantity') }}</label>
                                     <input type="number" 
                                            name="products[{{ $product->id }}][quantity]" 
-                                           class="form-control form-control-sm quantity-input" 
+                                           class="form-control form-control-sm quantity-input"
                                            data-product-id="{{ $product->id }}"
-                                           min="0" 
-                                           value="{{ old("products.{$product->id}.quantity") }}">
+                                           min="0"
+                                           max="{{ $product->available_stock }}"
+                                           value="{{ old("products.{$product->id}.quantity", 0) }}">
+                                    <small>Stock disponible: {{ $product->available_stock }}</small>
                                 </div>
 
                                 <div class="mb-2">

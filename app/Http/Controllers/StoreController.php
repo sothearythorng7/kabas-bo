@@ -27,7 +27,10 @@ class StoreController extends Controller
             'email' => 'required|email|max:255',
             'opening_time' => 'nullable|date_format:H:i',
             'closing_time' => 'nullable|date_format:H:i',
+            'is_reseller' => 'sometimes|boolean',
         ]);
+
+        $data['is_reseller'] = $request->has('is_reseller');
 
         Store::create($data);
 
@@ -48,8 +51,9 @@ class StoreController extends Controller
             'email' => 'required|email|max:255',
             'opening_time' => 'nullable|date_format:H:i',
             'closing_time' => 'nullable|date_format:H:i',
+            'is_reseller' => 'sometimes|boolean',
         ]);
-
+        $data['is_reseller'] = $request->has('is_reseller');
         $store->update($data);
 
         return redirect()->route('stores.index')->with('success', 'Store updated successfully.');

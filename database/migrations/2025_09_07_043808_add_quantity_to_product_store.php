@@ -9,12 +9,8 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('product_store', function (Blueprint $table) {
-            if (!Schema::hasColumn('product_store', 'stock_quantity')) {
-                $table->integer('stock_quantity')->default(0)->after('store_id');
-            }
-
             if (!Schema::hasColumn('product_store', 'alert_stock_quantity')) {
-                $table->integer('alert_stock_quantity')->default(0)->after('stock_quantity');
+                $table->integer('alert_stock_quantity')->default(0);
             }
         });
     }
@@ -22,7 +18,7 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('product_store', function (Blueprint $table) {
-            $table->dropColumn(['stock_quantity', 'alert_stock_quantity']);
+            $table->dropColumn(['alert_stock_quantity']);
         });
     }
 };

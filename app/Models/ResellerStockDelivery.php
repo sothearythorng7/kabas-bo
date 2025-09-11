@@ -11,6 +11,7 @@
             'status',
             'shipping_cost',
             'delivered_at',
+            'store_id',
         ];
 
         public const STATUS_OPTIONS = [
@@ -40,5 +41,10 @@
         public function invoice()
         {
             return $this->hasOne(ResellerInvoice::class, 'reseller_stock_delivery_id');
+        }
+
+        public function store()
+        {
+            return $this->belongsTo(Store::class);
         }
     }

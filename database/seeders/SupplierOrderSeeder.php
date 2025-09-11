@@ -7,7 +7,7 @@ use App\Models\Supplier;
 use App\Models\Product;
 use App\Models\Store;
 use App\Models\SupplierOrder;
-use App\Models\StockLot;
+use App\Models\StockBatch;
 
 class SupplierOrderSeeder extends Seeder
 {
@@ -60,16 +60,13 @@ class SupplierOrderSeeder extends Seeder
                     $remaining = $qtyOrdered;
                     while ($remaining > 0) {
                         $lotQty = rand(1, min(10, $remaining));
-                        StockLot::create([
+                        StockBatch::create([
                             'product_id'        => $product->id,
                             'store_id'          => $store->id,
-                            'supplier_id'       => $supplier->id,
-                            'supplier_order_id' => $order->id,
-                            'purchase_price'    => $purchasePrice,
+                            'reseller_id'       => null,        // null car c'est un store
                             'quantity'          => $lotQty,
-                            'quantity_remaining'=> $lotQty,
-                            'batch_number'      => null,
-                            'expiry_date'       => null,
+                            'unit_price'        => $purchasePrice,
+                            'source_delivery_id'=> null,        // ou l'id de la commande fournisseur si tu veux tracer
                         ]);
                         $remaining -= $lotQty;
                     }

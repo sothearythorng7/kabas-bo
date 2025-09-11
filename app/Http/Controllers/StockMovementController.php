@@ -5,7 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Product;
 use App\Models\StockMovement;
 use App\Models\StockMovementItem;
-use App\Models\StockLot;
+use App\Models\StockBatch;
 use App\Models\Store;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -24,15 +24,15 @@ class StockMovementController extends Controller
 
     public function create()
     {
-        $products = Product::with('stores', 'stockLots')->get();
+        $products = Product::with('stores', 'stockBatches')->get();
         $stores = Store::all();
 
         // Calculer le stock réel par magasin pour chaque produit
         $products->map(function ($product) {
             $product->realStock = $product->stores->mapWithKeys(function ($store) use ($product) {
-                $stock = $product->stockLots()
+                $stock = $product->stockBatches()
                     ->where('store_id', $store->id)
-                    ->sum('quantity_remaining');
+                    ->sum('quantity');
                 return [$store->id => $stock];
             });
             return $product;
@@ -83,8 +83,6 @@ class StockMovementController extends Controller
         }
 
         DB::transaction(function () use ($movement) {
-            if (!in_array($movement->type, [StockMovement::TYPE_TRANSFER, StockMovement::TYPE_IN])) return;
-
             $toStore = Store::find($movement->to_store_id);
             if (!$toStore) throw new \Exception("Magasin de destination introuvable.");
 
@@ -92,23 +90,12 @@ class StockMovementController extends Controller
                 $product = Product::find($item->product_id);
                 if (!$product) continue;
 
-                // Créer un StockLot pour le magasin de destination
-                StockLot::create([
-                    'product_id'         => $product->id,
-                    'store_id'           => $toStore->id,
-                    'supplier_id'        => null,
-                    'supplier_order_id'  => null,
-                    'purchase_price'     => $product->price,
-                    'quantity'           => $item->quantity,
-                    'quantity_remaining' => $item->quantity,
-                    'batch_number'       => null,
-                    'expiry_date'        => null,
-                ]);
-
-                // Mettre à jour le stock global pivot
-                $currentStock = $toStore->products()->where('product_id', $product->id)->first()?->pivot->stock_quantity ?? 0;
-                $toStore->products()->syncWithoutDetaching([
-                    $product->id => ['stock_quantity' => $currentStock + $item->quantity]
+                // Créer un StockBatch pour le magasin de destination
+                StockBatch::create([
+                    'product_id' => $product->id,
+                    'store_id'   => $toStore->id,
+                    'quantity'   => $item->quantity,
+                    'label'      => 'Transfert stock',
                 ]);
             }
 
@@ -126,30 +113,19 @@ class StockMovementController extends Controller
         }
 
         DB::transaction(function () use ($movement) {
-            if ($movement->from_store_id) {
-                $fromStore = Store::find($movement->from_store_id);
+            $fromStore = $movement->fromStore;
 
-                foreach ($movement->items as $item) {
-                    $product = Product::find($item->product_id);
-                    if (!$product) continue;
+            foreach ($movement->items as $item) {
+                $product = Product::find($item->product_id);
+                if (!$product || !$fromStore) continue;
 
-                    // Restaurer les lots retirés
-                    StockLot::create([
-                        'product_id'         => $product->id,
-                        'store_id'           => $fromStore->id,
-                        'supplier_id'        => null,
-                        'supplier_order_id'  => null,
-                        'purchase_price'     => $product->price,
-                        'quantity'           => $item->quantity,
-                        'quantity_remaining' => $item->quantity,
-                    ]);
-
-                    // Mise à jour du pivot product_store
-                    $currentStock = $fromStore->products()->where('product_id', $product->id)->first()?->pivot->stock_quantity ?? 0;
-                    $fromStore->products()->syncWithoutDetaching([
-                        $product->id => ['stock_quantity' => $currentStock + $item->quantity]
-                    ]);
-                }
+                // Restaurer le stock dans le magasin source
+                StockBatch::create([
+                    'product_id' => $product->id,
+                    'store_id'   => $fromStore->id,
+                    'quantity'   => $item->quantity,
+                    'label'      => 'Annulation mouvement',
+                ]);
             }
 
             $movement->update(['status' => StockMovement::STATUS_CANCELLED]);

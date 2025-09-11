@@ -6,12 +6,29 @@ use App\Models\Reseller;
 use Illuminate\Http\Request;
 use App\Models\Product;
 use App\Models\ResellerSalesReportAnomaly;
+use App\Models\Store; // N'oublie pas d'importer Store si tu l'utilises
+use Illuminate\Pagination\LengthAwarePaginator;
 
 class ResellerController extends Controller
 {
     public function index()
     {
-        $resellers = Reseller::with('contacts')->paginate(15);
+        // Récupération des resellers et shops
+        $allResellers = Reseller::allWithShops();
+
+        // Pagination manuelle
+        $page = request()->get('page', 1);
+        $perPage = 15;
+        $items = $allResellers->forPage($page, $perPage);
+
+        $resellers = new LengthAwarePaginator(
+            $items,
+            $allResellers->count(),
+            $perPage,
+            $page,
+            ['path' => request()->url(), 'query' => request()->query()]
+        );
+
         return view('resellers.index', compact('resellers'));
     }
 
@@ -32,52 +49,73 @@ class ResellerController extends Controller
         return redirect()->route('resellers.show', $reseller)->with('success', 'Reseller created.');
     }
 
-    public function show(Reseller $reseller)
+    public function show($id)
     {
-        // Charger les relations nécessaires
-        $reseller->load([
+        // Cas particulier pour un shop
+        if (str_starts_with($id, 'shop-')) {
+            $shopId = (int) str_replace('shop-', '', $id);
+            $shop = Store::findOrFail($shopId);
+
+            $reseller = (object)[
+                'id' => $id,
+                'name' => $shop->name,
+                'type' => 'consignment',
+                'contacts' => collect(),
+                'is_shop' => true,
+                'store' => $shop,
+            ];
+
+            $stock = $shop->getCurrentStock();
+
+            $products = Product::whereIn('id', $stock->keys())
+                ->with('brand')
+                ->orderBy('name')
+                ->paginate(20);
+
+            // Récupération des livraisons pour ce shop
+            $deliveries = \App\Models\ResellerStockDelivery::where('store_id', $shopId)
+                ->with(['products','reseller'])
+                ->latest()
+                ->paginate(10);
+
+            $salesReports = collect(); // Pas de rapports pour les shops
+            $anomalies = collect(); // Pas d’anomalies pour les shops
+
+            return view('resellers.show', compact(
+                'reseller','products','deliveries','stock','salesReports','anomalies'
+            ));
+        }
+
+        // Reseller classique
+        $reseller = Reseller::with([
             'contacts',
             'deliveries.products',
-            'deliveries.invoice', // ajout pour le statut de facturation
-            'reports.items.product', // rapports de vente
-        ]);
+            'deliveries.invoice',
+            'reports.items.product',
+        ])->findOrFail($id);
 
-        // Charger le stock une seule fois
         $stock = $reseller->getCurrentStock();
 
-        // Produits en stock
         $products = Product::whereIn('id', $stock->keys())
             ->with('brand')
             ->orderBy('name')
             ->paginate(20);
 
-        // Livraisons avec pagination
         $deliveries = $reseller->deliveries()
-            ->with(['products', 'invoice'])
+            ->with(['products','invoice'])
             ->latest()
             ->paginate(10);
 
-        // Rapports de vente (uniquement pour les consignations)
-        $salesReports = collect();
-        if ($reseller->type === 'consignment') {
-            $salesReports = $reseller->reports()
-                ->with('items.product')
-                ->latest()
-                ->paginate(10);
-        }
+        $salesReports = $reseller->type === 'consignment'
+            ? $reseller->reports()->with('items.product')->latest()->paginate(10)
+            : collect();
 
-        // Anomalies liées aux rapports du revendeur
-        $anomalies = ResellerSalesReportAnomaly::whereHas('report', function($q) use ($reseller) {
+        $anomalies = ResellerSalesReportAnomaly::whereHas('report', function($q) use($reseller){
             $q->where('reseller_id', $reseller->id);
         })->latest()->paginate(10);
 
         return view('resellers.show', compact(
-            'reseller',
-            'products',
-            'deliveries',
-            'stock',
-            'salesReports',
-            'anomalies'
+            'reseller','products','deliveries','stock','salesReports','anomalies'
         ));
     }
 

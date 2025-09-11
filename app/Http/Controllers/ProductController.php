@@ -8,12 +8,12 @@ use App\Models\Category;
 use App\Models\Supplier;
 use App\Models\Store;
 use App\Models\ProductImage;
+use App\Models\StockBatch;
+use App\Models\StockMovement;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
-use App\Models\StockLot;
-use App\Models\StockMovement;
 
 class ProductController extends Controller
 {
@@ -71,7 +71,6 @@ class ProductController extends Controller
             'name.*' => 'required|string',
         ]);
 
-        // Générer les slugs par langue
         $slugs = [];
         foreach ($data['name'] as $locale => $name) {
             $slugs[$locale] = Str::slug($name);
@@ -80,7 +79,6 @@ class ProductController extends Controller
         $product = null;
 
         DB::transaction(function () use ($data, $slugs, &$product) {
-            // Création du produit
             $product = Product::create([
                 'ean' => $data['ean'],
                 'name' => $data['name'],
@@ -95,7 +93,6 @@ class ProductController extends Controller
                 'is_resalable' => false
             ]);
 
-            // Lier automatiquement tous les stores au produit créé
             $stores = Store::all();
             $syncData = [];
             foreach ($stores as $store) {
@@ -104,33 +101,11 @@ class ProductController extends Controller
                     'alert_stock_quantity' => 0
                 ];
             }
-            if ($syncData) {
-                $product->stores()->attach($syncData);
-            }
+            $product->stores()->attach($syncData);
         });
 
-        // Redirection vers l'édition du produit créé
         return redirect()->route('products.edit', $product)
                         ->with('success', __('messages.common.created'));
-    }
-
-
-    public function updateDescriptions(Request $request, Product $product)
-    {
-        $locales = config('app.website_locales', ['en']);
-
-        $data = $request->validate([
-            'description' => 'required|array',
-            'description.*' => 'nullable|string',
-        ]);
-
-        $product->update([
-            'description' => $data['description'],
-        ]);
-
-        return redirect()->route('products.edit', $product)
-                         ->with('success', __('messages.product.descriptions_updated'))
-                         ->withFragment('tab-descriptions');
     }
 
     public function edit(Product $product)
@@ -213,7 +188,7 @@ class ProductController extends Controller
                 'color'          => $data['color'] ?? null,
                 'size'           => $data['size'] ?? null,
                 'is_active'      => $data['is_active'] ?? false,
-                'is_resalable' => $data['is_resalable'] ?? false,
+                'is_resalable'   => $data['is_resalable'] ?? false,
                 'is_best_seller' => $data['is_best_seller'] ?? false,
             ]);
 
@@ -349,40 +324,36 @@ class ProductController extends Controller
         $alertQuantity = $request->alert_stock_quantity ?? 0;
 
         DB::transaction(function() use ($product, $store, $newQuantity, $alertQuantity) {
-            $currentStock = $product->stockLots()
+            $currentStock = $product->stockBatches()
                 ->where('store_id', $store->id)
-                ->sum('quantity_remaining');
+                ->sum('quantity');
 
             $difference = $newQuantity - $currentStock;
 
             if ($difference != 0) {
-                // --- 1. Créer/retirer les lots ---
                 if ($difference > 0) {
-                    StockLot::create([
+                    StockBatch::create([
                         'product_id' => $product->id,
                         'store_id'   => $store->id,
                         'quantity'   => $difference,
-                        'quantity_remaining' => $difference,
                         'label'      => 'Ajustement manuel',
                     ]);
                 } else {
                     $remainingToDeduct = abs($difference);
-                    $lots = $product->stockLots()
+                    $batches = $product->stockBatches()
                         ->where('store_id', $store->id)
-                        ->where('quantity_remaining', '>', 0)
                         ->orderBy('created_at', 'asc')
                         ->get();
 
-                    foreach ($lots as $lot) {
+                    foreach ($batches as $batch) {
                         if ($remainingToDeduct <= 0) break;
-                        $deduct = min($lot->quantity_remaining, $remainingToDeduct);
-                        $lot->quantity_remaining -= $deduct;
-                        $lot->save();
+                        $deduct = min($batch->quantity, $remainingToDeduct);
+                        $batch->quantity -= $deduct;
+                        $batch->save();
                         $remainingToDeduct -= $deduct;
                     }
                 }
 
-                // --- 2. Créer le mouvement de stock ---
                 $movement = StockMovement::create([
                     'type'    => StockMovement::TYPE_ADJUSTMENT,
                     'note'    => 'Ajustement manuel',
@@ -398,67 +369,39 @@ class ProductController extends Controller
                 ]);
             }
 
-            // --- 3. Mettre à jour l’alerte stock pivot ---
             $product->stores()->syncWithoutDetaching([
                 $store->id => ['alert_stock_quantity' => $alertQuantity]
             ]);
         });
 
-
         return back()->with('success', 'Store stock updated.')->withFragment('tab-stores');
     }
 
-    public function attachStore(Request $request, Product $product)
-    {
-        $request->validate([
-            'store_id' => 'required|exists:stores,id',
-            'stock_quantity' => 'required|integer|min:0',
-            'alert_stock_quantity' => 'nullable|integer|min:0',
-        ]);
-        $product->stores()->attach($request->store_id, [
-            'stock_quantity' => $request->stock_quantity,
-            'alert_stock_quantity' => $request->alert_stock_quantity ?? 0,
-        ]);
-        return back()->with('success', 'Store added successfully.')->withFragment('tab-stores');
-    }
-
-    public function detachStore(Product $product, Store $store)
-    {
-        $product->stores()->detach($store->id);
-        return back()->with('success', 'Store detached successfully.')->withFragment('tab-stores');
-    }
-
-
     public function removeStock(Store $store, int $quantity): bool
     {
-        $lots = $this->stockLots()
+        $batches = $this->stockBatches()
             ->where('store_id', $store->id)
-            ->where('quantity_remaining', '>', 0)
-            ->orderBy('created_at', 'asc') // FIFO : lots les plus anciens en premier
+            ->orderBy('created_at', 'asc')
             ->get();
 
         $remaining = $quantity;
 
-        foreach ($lots as $lot) {
+        foreach ($batches as $batch) {
             if ($remaining <= 0) break;
-
-            $toDeduct = min($lot->quantity_remaining, $remaining);
-            $lot->quantity_remaining -= $toDeduct;
-            $lot->save();
-
+            $toDeduct = min($batch->quantity, $remaining);
+            $batch->quantity -= $toDeduct;
+            $batch->save();
             $remaining -= $toDeduct;
         }
 
-        // Mettre à jour le stock global pour compatibilité pivot product_store
-        $totalStock = $this->stockLots()
+        $totalStock = $this->stockBatches()
             ->where('store_id', $store->id)
-            ->sum('quantity_remaining');
+            ->sum('quantity');
 
         $store->products()->syncWithoutDetaching([
             $this->id => ['stock_quantity' => $totalStock]
         ]);
 
-        // Retourne true si tout a été prélevé, false sinon (stock insuffisant)
         return $remaining === 0;
     }
 }

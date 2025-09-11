@@ -10,7 +10,6 @@ return new class extends Migration {
             $table->id();
             $table->foreignId('product_id')->constrained()->cascadeOnDelete();
             $table->foreignId('store_id')->constrained()->cascadeOnDelete();
-            $table->integer('stock_quantity')->default(0);
             $table->timestamps();
             $table->unique(['product_id','store_id']);
         });

@@ -8,10 +8,12 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class ResellerInvoice extends Model
 {
+    // ⚠️ Vérifie bien le nom de ta table. Migration = reseller_invoices
     protected $table = 'resellers_invoices';
 
     protected $fillable = [
         'reseller_id',
+        'store_id',
         'reseller_stock_delivery_id',
         'sales_report_id',
         'total_amount',
@@ -44,6 +46,17 @@ class ResellerInvoice extends Model
         return $this->belongsTo(Reseller::class);
     }
 
+    /**
+     * Le store lié à cette facture
+     */
+    public function store(): BelongsTo
+    {
+        return $this->belongsTo(Store::class);
+    }
+
+    /**
+     * Rapport de ventes lié
+     */
     public function salesReport(): BelongsTo
     {
         return $this->belongsTo(ResellerSalesReport::class, 'sales_report_id');
@@ -67,5 +80,13 @@ class ResellerInvoice extends Model
         }
 
         $this->save();
+    }
+
+    /**
+     * Helper : retourne soit le Reseller, soit le Store
+     */
+    public function getEntity()
+    {
+        return $this->reseller ?? $this->store;
     }
 }

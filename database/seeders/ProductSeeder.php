@@ -7,9 +7,9 @@ use App\Models\Product;
 use App\Models\Brand;
 use App\Models\Store;
 use App\Models\Supplier;
-use App\Models\StockLot;
 use App\Models\Category;
 use Illuminate\Support\Str;
+use App\Models\StockBatch;
 
 class ProductSeeder extends Seeder
 {
@@ -50,6 +50,7 @@ class ProductSeeder extends Seeder
                 'is_active' => true,
                 'is_best_seller' => (bool) rand(0, 1),
                 'slugs' => $slugs,
+                'is_resalable' => $i <= 10 ? true : false
             ]);
 
             // Associer des suppliers aléatoires
@@ -65,24 +66,22 @@ class ProductSeeder extends Seeder
                 $product->categories()->attach($randomCategories->pluck('id')->toArray());
             }
 
-            // Créer des lots pour chaque magasin
+            // Créer des lots / batchs pour chaque magasin ou reseller
             $stores->each(function ($store) use ($product, $suppliers) {
-                $numLots = rand(1, 3);
-                for ($j = 0; $j < $numLots; $j++) {
-                    $supplier = $suppliers->random();
-                    $qty = rand(5, 50);
+                if ($store->is_reseller) { // uniquement les magasins gérés comme revendeurs
+                    $numLots = rand(1, 3);
+                    for ($j = 0; $j < $numLots; $j++) {
+                        $supplier = $suppliers->random();
+                        $qty = 50;
 
-                    StockLot::create([
-                        'product_id' => $product->id,
-                        'store_id' => $store->id,
-                        'supplier_id' => $supplier->id,
-                        'supplier_order_id' => null,
-                        'purchase_price' => rand(20, 200),
-                        'quantity' => $qty,
-                        'quantity_remaining' => $qty,
-                        'batch_number' => 'BATCH-' . strtoupper(Str::random(6)),
-                        'expiry_date' => null,
-                    ]);
+                        StockBatch::create([
+                            'product_id' => $product->id,
+                            'store_id' => $store->id,
+                            'quantity' => $qty,
+                            'unit_price' => rand(20, 200),
+                            'source_delivery_id' => null, // pas de livraison initiale
+                        ]);
+                    }
                 }
             });
         }

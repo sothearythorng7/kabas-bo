@@ -24,9 +24,4 @@ class SupplierOrder extends Model
     {
         return $this->belongsTo(Store::class, 'destination_store_id');
     }
-
-    public function stockLots()
-    {
-        return $this->hasMany(StockLot::class);
-    }
 }

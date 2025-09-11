@@ -8,6 +8,7 @@ class ResellerStockBatch extends Model
 {
     protected $fillable = [
         'reseller_id',
+        'store_id',         // ajouté
         'product_id',
         'quantity',
         'unit_price',
@@ -17,6 +18,11 @@ class ResellerStockBatch extends Model
     public function reseller()
     {
         return $this->belongsTo(Reseller::class);
+    }
+
+    public function store()
+    {
+        return $this->belongsTo(Store::class); // relation pour les shops
     }
 
     public function product()

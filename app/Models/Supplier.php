@@ -26,9 +26,4 @@ class Supplier extends Model
     {
         return $this->hasMany(SupplierOrder::class);
     }
-
-    public function stockLots()
-    {
-        return $this->hasMany(StockLot::class);
-    }
 }

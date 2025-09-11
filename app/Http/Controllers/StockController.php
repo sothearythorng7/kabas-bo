@@ -5,7 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\Product;
 use App\Models\Store;
-use App\Models\StockLot;
+use App\Models\StockBatch;
 use Illuminate\Support\Facades\DB;
 
 class StockController extends Controller
@@ -27,8 +27,8 @@ class StockController extends Controller
         $products = $query->paginate(15)->withQueryString();
         $shops = Store::all();
 
-        // Stock par lot (sum des quantités restantes)
-        $stocks = StockLot::selectRaw('store_id, product_id, SUM(quantity_remaining) as stock_quantity')
+        // Stock par batch (sum des quantités)
+        $stocks = StockBatch::selectRaw('store_id, product_id, SUM(quantity) as stock_quantity')
             ->whereIn('product_id', $products->pluck('id'))
             ->groupBy('store_id', 'product_id')
             ->get()

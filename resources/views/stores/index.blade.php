@@ -14,6 +14,7 @@
                 <tr>
                     <th>ID</th>
                     <th>{{ __('messages.store.name') }}</th>
+                    <th>{{ __('messages.store.is_reseller') }}</th>
                     <th>{{ __('messages.store.address') }}</th>
                     <th>{{ __('messages.store.phone') }}</th>
                     <th>{{ __('messages.store.email') }}</th>
@@ -27,6 +28,13 @@
                     <tr>
                         <td>{{ $store->id }}</td>
                         <td>{{ $store->name }}</td>
+                        <td>
+                            @if($store->is_reseller)
+                                <span class="badge bg-success">{{ __('messages.yes') }}</span>
+                            @else
+                                <span class="badge bg-danger">{{ __('messages.no') }}</span>
+                            @endif
+                        </td>
                         <td>{{ $store->address }}</td>
                         <td>{{ $store->phone }}</td>
                         <td>{{ $store->email }}</td>

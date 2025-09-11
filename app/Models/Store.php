@@ -1,51 +1,60 @@
 <?php
 
-namespace App\Models;
+    namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Model;
+    use Illuminate\Database\Eloquent\Factories\HasFactory;
+    use Illuminate\Database\Eloquent\Model;
 
-class Store extends Model
-{
-    use HasFactory;
-
-    protected $fillable = [
-        'name',
-        'address',
-        'phone',
-        'email',
-        'opening_time',
-        'closing_time',
-        'type',
-    ];
-
-    public function products()
+    class Store extends Model
     {
-        return $this->belongsToMany(Product::class)
-            ->withPivot('stock_quantity')
-            ->withTimestamps();
-    }
+        use HasFactory;
 
-    public function getTotalStock(Store $store)
-    {
-        return $this->stockLots()->where('store_id', $store->id)->sum('quantity_remaining');
-    }
+        protected $fillable = [
+            'name',
+            'address',
+            'phone',
+            'email',
+            'opening_time',
+            'closing_time',
+            'type',
+            'is_reseller',
+        ];
+
+        public function products()
+        {
+            return $this->belongsToMany(Product::class)
+                ->withPivot('stock_quantity')
+                ->withTimestamps();
+        }
+
+        public function getTotalStock()
+        {
+            return $this->stockBatches()->sum('quantity');
+        }
 
 
-    // Nouveau scope pour filtrer les entrepôts
-    public function scopeWarehouse($query)
-    {
-        return $query->where('type', 'warehouse');
-    }
+        // Nouveau scope pour filtrer les entrepôts
+        public function scopeWarehouse($query)
+        {
+            return $query->where('type', 'warehouse');
+        }
 
-    // Idem pour les shops
-    public function scopeShops($query)
-    {
-        return $query->where('type', 'shop');
-    }
+        // Idem pour les shops
+        public function scopeShops($query)
+        {
+            return $query->where('type', 'shop');
+        }
 
-    public function stockLots()
-    {
-        return $this->hasMany(StockLot::class);
+        public function stockBatches()
+        {
+            return $this->hasMany(StockBatch::class);
+        }
+
+        public function getCurrentStock()
+        {
+            return $this->stockBatches()
+                ->select('product_id', \DB::raw('SUM(quantity) as total'))
+                ->groupBy('product_id')
+                ->pluck('total', 'product_id');
+        }
     }
-}

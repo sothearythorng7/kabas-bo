@@ -33,6 +33,8 @@ return [
     'search' => 'Search',
     'reset' => 'Reset',
     'searchBy' => 'Search by name or description',
+    'yes' => 'yes',
+    'no' => 'no',
 
     'stock_value' => [
         'title' => 'Stock value',
@@ -210,6 +212,7 @@ return [
         'stock_quantity' => 'Stock',
         'stock_alert' => 'Alert',
         'stocklow' => 'low stock',
+        'is_reseller' => 'Is Reseller',
     ],
 
     'supplier' => [

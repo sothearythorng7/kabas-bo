@@ -13,24 +13,27 @@ class StoreSeeder extends Seeder
     public function run(): void
     {
         Store::create([
-            'name'    => 'Phnom penh',
+            'name'    => 'Kabas - Phnom penh',
             'type'    => 'shop',
+            'is_reseller' => true,
             'address' => '65 STREET 178',
             'phone'   => '111 222 333', 
             'email'   => 'phnompenh@kabasconceptstore.com',
         ]);
  
         Store::create([
-            'name'    => 'Siem reap',
+            'name'    => 'Kabas - Siem reap',
             'type'    => 'shop',
+            'is_reseller' => true,
             'address' => '65 STREET 178',
             'phone'   => '111 222 333',
             'email'   => 'siemeap@kabasconceptstore.com',
         ]);
 
         Store::create([
-            'name'    => 'Phnom penh - Warehouse',
+            'name'    => 'Kabas - Warehouse',
             'type'    => 'warehouse',
+            'is_reseller' => false,
             'address' => '65 STREET 178',
             'phone'   => '111 222 333',
             'email'   => 'siemeap_warehouse@kabasconceptstore.com',

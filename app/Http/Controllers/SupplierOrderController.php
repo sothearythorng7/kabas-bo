@@ -6,6 +6,7 @@ use App\Models\Supplier;
 use App\Models\SupplierOrder;
 use App\Models\Product;
 use App\Models\Store;
+use App\Models\StockBatch;
 use Illuminate\Http\Request;
 use Barryvdh\DomPDF\Facade\Pdf;
 
@@ -20,7 +21,7 @@ class SupplierOrderController extends Controller
     public function create(Supplier $supplier)
     {
         $products = $supplier->products()->with('brand')->get();
-        $stores = Store::all(); // Récupérer tous les magasins (ou utiliser un scope si nécessaire)
+        $stores = Store::all();
         return view('supplier_orders.create', compact('supplier', 'products', 'stores'));
     }
 
@@ -29,24 +30,20 @@ class SupplierOrderController extends Controller
         $request->validate([
             'products' => 'required|array',
             'products.*.quantity' => 'nullable|integer|min:0',
-            'destination_store_id' => 'required|exists:stores,id', // Validation pour destination_store_id
+            'destination_store_id' => 'required|exists:stores,id',
         ]);
 
-        // Créer la commande
         $order = $supplier->supplierOrders()->create([
             'status' => 'pending',
             'destination_store_id' => $request->destination_store_id,
         ]);
 
         $syncData = [];
-
-        // Charger tous les produits du fournisseur avec pivot
         $supplierProducts = $supplier->products()->get()->keyBy('id');
 
         foreach ($request->input('products') as $productId => $productData) {
             $quantity = (int) ($productData['quantity'] ?? 0);
             if ($quantity <= 0) continue;
-
             if (!isset($supplierProducts[$productId])) continue;
 
             $product = $supplierProducts[$productId];
@@ -60,7 +57,6 @@ class SupplierOrderController extends Controller
             ];
         }
 
-        // Synchroniser les produits avec la commande
         $order->products()->sync($syncData);
 
         return redirect()->route('suppliers.edit', $supplier)->with('success', 'Commande créée avec succès.');
@@ -74,7 +70,7 @@ class SupplierOrderController extends Controller
     public function edit(Supplier $supplier, SupplierOrder $order)
     {
         $products = $supplier->products()->with('brand')->get();
-        $stores = Store::all(); // Récupérer tous les magasins
+        $stores = Store::all();
         return view('supplier_orders.edit', compact('supplier', 'order', 'products', 'stores'));
     }
 
@@ -83,12 +79,10 @@ class SupplierOrderController extends Controller
         $request->validate([
             'products' => 'required|array',
             'products.*.quantity' => 'nullable|integer|min:0',
-            'destination_store_id' => 'required|exists:stores,id', // Validation pour destination_store_id
+            'destination_store_id' => 'required|exists:stores,id',
         ]);
 
-        // Mettre à jour destination_store_id
         $order->update(['destination_store_id' => $request->destination_store_id]);
-
         $order->products()->detach();
 
         foreach ($request->products as $productId => $productData) {
@@ -96,8 +90,6 @@ class SupplierOrderController extends Controller
             if ($quantity <= 0) continue;
 
             $product = Product::findOrFail($productId);
-
-            // Récupérer le prix d'achat depuis le fournisseur
             $purchasePrice = $supplier->products()->where('product_id', $productId)->first()?->pivot->purchase_price ?? 0;
 
             $order->products()->attach($productId, [
@@ -132,7 +124,6 @@ class SupplierOrderController extends Controller
 
     public function receptionForm(Supplier $supplier, SupplierOrder $order)
     {
-        // Charger les produits liés à la commande
         $order->load('products');
         return view('supplier_orders.reception', compact('supplier', 'order'));
     }
@@ -151,35 +142,30 @@ class SupplierOrderController extends Controller
             $product = Product::find($productId);
             if (!$product) continue;
 
-            // 1️⃣ Mettre à jour la quantité reçue dans le pivot supplier_order_product
+            // Mettre à jour la quantité reçue dans le pivot
             $order->products()->updateExistingPivot($productId, [
                 'quantity_received' => $qtyReceived,
             ]);
 
-            // 2️⃣ Ajouter la quantité reçue au stock global du store (compatibilité)
+            // Ajouter la quantité reçue au stock global du store
             $currentStock = $store->products()->where('product_id', $productId)->first()?->pivot->stock_quantity ?? 0;
             $store->products()->syncWithoutDetaching([
                 $productId => ['stock_quantity' => $currentStock + $qtyReceived]
             ]);
 
-            // 3️⃣ Créer un StockLot pour tracer le lot
-            \App\Models\StockLot::create([
+            // Créer un StockBatch pour tracer la réception
+            StockBatch::create([
                 'product_id'         => $productId,
                 'store_id'           => $store->id,
-                'supplier_id'        => $supplier->id,
-                'supplier_order_id'  => $order->id,
-                'purchase_price'     => $order->products()->where('product_id', $productId)->first()->pivot->purchase_price ?? 0,
+                'reseller_id'        => null,
                 'quantity'           => $qtyReceived,
-                'quantity_remaining' => $qtyReceived,
-                'batch_number'       => null, // optionnel, tu peux générer un n° de lot si besoin
-                'expiry_date'        => null, // optionnel si tu gères les DLC
+                'unit_price'         => $order->products()->where('product_id', $productId)->first()->pivot->purchase_price ?? 0,
+                'source_supplier_order_id' => $order->id,
             ]);
         }
 
-        // 4️⃣ Changer le statut de la commande
         $order->update(['status' => 'received']);
 
-        return redirect()->route('suppliers.edit', $supplier)->with('success', 'Commande réceptionnée et stock / lots mis à jour.');
+        return redirect()->route('suppliers.edit', $supplier)->with('success', 'Commande réceptionnée et stock mis à jour.');
     }
-
 }

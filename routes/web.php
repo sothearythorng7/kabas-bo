@@ -164,6 +164,9 @@ Route::middleware(['auth', SetUserLocale::class])->group(function () {
             Route::get('/{invoice}', [ResellerInvoiceController::class, 'show'])->name('show');
             Route::post('/{invoice}/payments', [ResellerInvoiceController::class, 'addPayment'])->name('addPayment');
         });
+
+        Route::get('resellers/{reseller}/deliveries/create', [ResellerStockDeliveryController::class, 'create'])
+            ->name('resellers.deliveries.create');
     });
 
 });

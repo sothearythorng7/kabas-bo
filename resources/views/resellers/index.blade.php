@@ -20,22 +20,50 @@
         <tbody>
         @forelse($resellers as $reseller)
             <tr>
+                {{-- Nom --}}
                 <td>{{ $reseller->name }}</td>
-                <td>{{ ucfirst($reseller->type) }}</td>
+
+                {{-- Type --}}
+                <td>{{ ucfirst($reseller->type ?? 'N/A') }}</td>
+
+                {{-- Contacts --}}
                 <td>
-                    @foreach($reseller->contacts as $c)
-                        <div>{{ $c->name }} ({{ $c->email }})</div>
-                    @endforeach
+                    @if(property_exists($reseller, 'is_shop') && $reseller->is_shop)
+                        <div class="text-muted">-</div>
+                    @else
+                        @foreach($reseller->contacts as $c)
+                            <div>{{ $c->name }} ({{ $c->email ?? '-' }})</div>
+                        @endforeach
+                    @endif
                 </td>
+
+                {{-- Actions --}}
                 <td>
-                    <a href="{{ route('resellers.show', $reseller) }}" class="btn btn-sm btn-info">{{ __('messages.btn.view') }}</a>
-                    <a href="{{ route('resellers.edit', $reseller) }}" class="btn btn-sm btn-warning">{{ __('messages.btn.edit') }}</a>
+                    @php
+                        // Détecte si c'est un shop pour générer l'ID correct pour le lien "view"
+                        $showId = property_exists($reseller, 'is_shop') && $reseller->is_shop
+                            ? $reseller->id      // ex: "shop-123"
+                            : $reseller->id;     // ID du Reseller
+                    @endphp
+
+                    <a href="{{ route('resellers.show', $showId) }}" class="btn btn-sm btn-info">
+                        {{ __('messages.btn.view') }}
+                    </a>
+
+                    @if(!property_exists($reseller, 'is_shop'))
+                        <a href="{{ route('resellers.edit', $reseller) }}" class="btn btn-sm btn-warning">
+                            {{ __('messages.btn.edit') }}
+                        </a>
+                    @endif
                 </td>
             </tr>
         @empty
-            <tr><td colspan="4" class="text-muted">No resellers found.</td></tr>
+            <tr>
+                <td colspan="4" class="text-muted">No resellers found.</td>
+            </tr>
         @endforelse
         </tbody>
+
     </table>
 
     {{ $resellers->links() }}

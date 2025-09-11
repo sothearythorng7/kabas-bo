@@ -34,12 +34,30 @@ class Product extends Model
         'is_best_seller' => 'boolean',
         'is_resalable' => 'boolean',
     ];
-    public function getTotalStock(Store $store)
+
+    // Relation vers les stocks
+    public function stockBatches()
     {
-        return $this->stockLots()->where('store_id', $store->id)->sum('quantity_remaining');
+        return $this->hasMany(StockBatch::class);
     }
 
+    // Stock total pour un store donné
+    public function getTotalStock(Store $store)
+    {
+        return $this->stockBatches()
+            ->where('store_id', $store->id)
+            ->sum('quantity');
+    }
 
+    // Stock total pour un reseller donné
+    public function getResellerStock(Reseller $reseller)
+    {
+        return $this->stockBatches()
+            ->where('reseller_id', $reseller->id)
+            ->sum('quantity');
+    }
+
+    // Relations classiques
     public function brand()      { return $this->belongsTo(Brand::class); }
     public function categories() { return $this->belongsToMany(Category::class)->withTimestamps(); }
     public function suppliers()  {
@@ -49,15 +67,13 @@ class Product extends Model
     }
     public function stores() {
         return $this->belongsToMany(Store::class)
-            ->withPivot('stock_quantity', 'alert_stock_quantity')
+            ->withPivot('alert_stock_quantity')
             ->withTimestamps();
-    }
-    public function stockLots()
-    {
-        return $this->hasMany(StockLot::class);
     }
     public function images()     { return $this->hasMany(ProductImage::class)->orderBy('sort_order'); }
     public function primaryImage(){ return $this->hasOne(ProductImage::class)->where('is_primary', true); }
+
+    // Relation vers les livraisons
     public function resellerDeliveries()
     {
         return $this->belongsToMany(ResellerStockDelivery::class, 'reseller_stock_delivery_product')
@@ -65,45 +81,33 @@ class Product extends Model
                     ->withTimestamps();
     }
 
-
-    public function lots()
-    {
-        return $this->hasMany(StockLot::class);
-    }
-
+    // Retrait de stock (FIFO) pour un store
     public function removeStock(Store $store, int $quantity): bool
     {
-        $lots = $this->stockLots()
+        $batches = $this->stockBatches()
             ->where('store_id', $store->id)
-            ->where('quantity_remaining', '>', 0)
-            ->orderBy('created_at', 'asc') // FIFO
+            ->where('quantity', '>', 0)
+            ->orderBy('created_at', 'asc')
             ->get();
 
         $remaining = $quantity;
 
-        foreach ($lots as $lot) {
+        foreach ($batches as $batch) {
             if ($remaining <= 0) break;
 
-            $toDeduct = min($lot->quantity_remaining, $remaining);
-            $lot->quantity_remaining -= $toDeduct;
-            $lot->save();
+            $toDeduct = min($batch->quantity, $remaining);
+            $batch->quantity -= $toDeduct;
+            $batch->save();
 
             $remaining -= $toDeduct;
         }
 
-        // Mettre à jour le stock global pour compatibilité pivot product_store
-        $totalStock = $this->stockLots()
-            ->where('store_id', $store->id)
-            ->sum('quantity_remaining');
-
-        $store->products()->syncWithoutDetaching([
-            $this->id => ['stock_quantity' => $totalStock]
-        ]);
-
-        return $remaining === 0; // true si tout a été retiré, false sinon
+        // Ne plus toucher au pivot product_store
+        return $remaining === 0;
     }
 
 
+    // Booted pour gérer le price_btob
     protected static function booted()
     {
         static::creating(function ($product) {

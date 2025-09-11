@@ -22,16 +22,22 @@ class ResellerStockDeliveryObserver
 
     protected function generateInvoice(ResellerStockDelivery $delivery)
     {
-        // Seulement pour les buyers
-        if ($delivery->reseller->type !== 'buyer') {
+        $entity = $delivery->reseller ?? $delivery->store;
+
+        // Si aucune entité trouvée, on sort
+        if (!$entity) {
             return;
         }
+
+        $entityType = $delivery->reseller ? 'reseller' : 'store';
+        $entityId   = $entity->id;
 
         // Vérifie si la facture existe déjà
         $invoice = ResellerInvoice::firstOrCreate(
             ['reseller_stock_delivery_id' => $delivery->id],
             [
-                'reseller_id'  => $delivery->reseller_id,
+                'reseller_id'  => $entityType === 'reseller' ? $entityId : null,
+                'store_id'     => $entityType === 'store' ? $entityId : null,
                 'total_amount' => 0, // temporaire
                 'status'       => 'unpaid',
             ]
@@ -39,20 +45,25 @@ class ResellerStockDeliveryObserver
 
         $delivery->load('products');
 
-        $itemsTotal = $delivery->products->sum(fn($p) => ($p->pivot->quantity ?? 0) * ($p->pivot->unit_price ?? 0));
-        $shipping = $delivery->shipping_cost ?? 0;
+        $itemsTotal = $delivery->products->sum(
+            fn($p) => ($p->pivot->quantity ?? 0) * ($p->pivot->unit_price ?? 0)
+        );
+        $shipping    = $delivery->shipping_cost ?? 0;
         $totalAmount = $itemsTotal + $shipping;
 
         $invoice->update(['total_amount' => $totalAmount]);
 
-        // Génération PDF
-        $pdf = Pdf::loadView('invoices.buyer', [
+        // Génération PDF —> dossier séparé suivant le type
+        $view = $entityType === 'reseller' ? 'invoices.buyer' : 'invoices.shop';
+        $folder = $entityType === 'reseller' ? 'buyers' : 'shops';
+
+        $pdf = Pdf::loadView($view, [
             'delivery' => $delivery,
             'invoice'  => $invoice,
         ]);
 
         $fileName = "invoice_{$invoice->id}.pdf";
-        $filePath = "buyers/{$fileName}";
+        $filePath = "{$folder}/{$fileName}";
 
         Storage::disk('invoices')->put($filePath, $pdf->output());
         $invoice->update(['file_path' => $filePath]);

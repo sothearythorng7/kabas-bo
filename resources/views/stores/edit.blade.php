@@ -41,6 +41,12 @@
             <input type="time" name="closing_time" id="closing_time" class="form-control" value="{{ old('closing_time', $store->closing_time) }}">
         </div>
 
+        <div class="mb-3 form-check">
+            <input type="checkbox" name="is_reseller" id="is_reseller" class="form-check-input" value="1" {{ old('is_reseller', $store->is_reseller) ? 'checked' : '' }}>
+            <label for="is_reseller" class="form-check-label">Ce magasin est un revendeur (consignation)</label>
+        </div>
+
+
         <button class="btn btn-success">{{ __('messages.btn.save') }}</button>
         <a href="{{ route('stores.index') }}" class="btn btn-secondary">{{ __('messages.btn.cancel') }}</a>
     </form>

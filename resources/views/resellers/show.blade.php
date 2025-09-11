@@ -184,20 +184,56 @@
 
         {{-- Onglet Rapports --}}
         <div class="tab-pane fade" id="reports" role="tabpanel" aria-labelledby="reports-tab">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h3>{{ __('messages.resellers.sale_reports') }}</h3>
+                <a href="{{ route('resellers.reports.create', $reseller->id) }}" class="btn btn-success">
+                    <i class="bi bi-plus-circle-fill"></i> {{ __('messages.btn.add') }}
+                </a>
+            </div>
+
             <table class="table table-striped mt-3">
                 <thead>
                     <tr>
                         <th>ID</th>
                         <th>{{ __('messages.resellers.created_at') }}</th>
                         <th>{{ __('messages.resellers.total_items') }}</th>
+                        <th>{{ __('messages.resellers.total_amount') }}</th>
+                        <th>{{ __('messages.resellers.invoice_status') }}</th>
+                        <th class="text-end">{{ __('messages.btn.actions') }}</th>
                     </tr>
                 </thead>
                 <tbody>
                     @foreach($salesReports as $report)
+                        @php
+                            $invoice = $report->invoice;
+                        @endphp
                         <tr>
                             <td>{{ $report->id }}</td>
                             <td>{{ $report->created_at->format('d/m/Y') }}</td>
-                            <td>{{ $report->items->sum('quantity') }}</td>
+                            <td>{{ $report->items->sum('quantity_sold') }}</td>
+                            <td>{{ $invoice ? number_format($invoice->total_amount, 2, ',', ' ') . ' $' : '-' }}</td>
+                            <td>
+                                @php
+                                    $badgeClass = match($invoice->status) {
+                                        'unpaid' => 'danger',
+                                        'paid' => 'success',
+                                        'cancelled' => 'danger',
+                                        'partially_paid' => 'warning',
+                                        default => 'secondary',
+                                    };
+                                @endphp
+                                <span class="badge bg-{{ $badgeClass }}">
+                                    {{ ucfirst(str_replace('_', ' ', $invoice->status)) }}
+                                </span>
+                            </td>
+                            <td class="text-end">
+                                <a href="{{ route('resellers.reports.show', [$reseller->id, $report->id]) }}" class="btn btn-info btn-sm">
+                                    <i class="bi bi-eye-fill"></i> {{ __('messages.btn.view') }}
+                                </a>
+                                <a href="{{ route('resellers.reports.invoice', [$reseller->id, $report->id]) }}" class="btn btn-secondary btn-sm">
+                                    <i class="bi bi-file-earmark-text-fill"></i> {{ __('messages.btn.invoice') }}
+                                </a>
+                            </td>
                         </tr>
                     @endforeach
                 </tbody>
@@ -237,15 +273,9 @@
         <div class="tab-pane fade" id="orders" role="tabpanel" aria-labelledby="orders-tab">
             <div class="d-flex justify-content-between align-items-center mb-3">
                 <h3>{{ __('messages.resellers.deliveries') }}</h3>
-                @if(str_starts_with($reseller->id, 'shop-'))
-                    <a href="{{ route('resellers.deliveries.create', $reseller->id) }}" class="btn btn-success">
-                        <i class="bi bi-plus-circle-fill"></i> {{ __('messages.btn.add') }}
-                    </a>
-                @else
-                    <a href="{{ route('resellers.deliveries.create', $reseller->id) }}" class="btn btn-success">
-                        <i class="bi bi-plus-circle-fill"></i> {{ __('messages.btn.add') }}
-                    </a>
-                @endif
+                <a href="{{ route('resellers.deliveries.create', $reseller->id) }}" class="btn btn-success">
+                    <i class="bi bi-plus-circle-fill"></i> {{ __('messages.btn.add') }}
+                </a>
             </div>
 
             <table class="table table-striped mt-3">
@@ -255,7 +285,7 @@
                         <th>{{ __('messages.resellers.status') }}</th>
                         <th>{{ __('messages.resellers.total_items') }}</th>
                         <th>{{ __('messages.resellers.created_at') }}</th>
-                        <th>{{ __('messages.resellers.actions') }}</th>
+                        <th class="text-end">{{ __('messages.btn.actions') }}</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -268,7 +298,7 @@
                             <td>{{ $delivery->status }}</td>
                             <td>{{ $totalItems }}</td>
                             <td>{{ $delivery->created_at->format('d/m/Y H:i') }}</td>
-                            <td  class="text-end">
+                            <td class="text-end">
                                 <a href="{{ route('reseller-stock-deliveries.edit', [$reseller->id, $delivery->id]) }}" class="btn btn-warning btn-sm">
                                     <i class="bi bi-pencil-fill"></i> {{ __('messages.btn.edit') }}
                                 </a>

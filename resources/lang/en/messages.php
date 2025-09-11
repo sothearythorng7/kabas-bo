@@ -277,6 +277,7 @@ return [
         'in_delivery' => 'in this Delivery',
         'tab_general' => 'General info',
         'invoice_status' => 'Invoice status',
+        'total_amount' => 'Total amount'
     ],
     'order' => [
         'received' => 'Received',
@@ -372,6 +373,8 @@ return [
         'export_pdf' => 'Export PDF',
         'receive' => 'Receive',
         "search" => "Search",
+        'invoice' => 'Invoice',
+        'actions' => 'Actions'
     ],
 
     'main' => [

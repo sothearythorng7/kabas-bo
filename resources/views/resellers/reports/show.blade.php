@@ -18,9 +18,9 @@
                 <tr>
                     <th>EAN</th>
                     <th>Product Name</th>
-                    <th>Unit Price (€)</th>
+                    <th>Unit Price</th>
                     <th>Quantity Sold</th>
-                    <th>Total (€)</th>
+                    <th>Total</th>
                 </tr>
             </thead>
             <tbody>

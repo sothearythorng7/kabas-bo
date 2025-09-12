@@ -23,6 +23,11 @@ use App\Http\Controllers\ResellerStockDeliveryController;
 use App\Http\Controllers\ResellerSalesReportController;
 use App\Http\Controllers\ResellerInvoiceController;
 use App\Http\Controllers\InvoiceController;
+use App\Http\Controllers\JournalController;
+use App\Http\Controllers\SupplierPaymentController;
+use App\Http\Controllers\ExpenseController;
+use App\Http\Controllers\ExpenseCategoryController;
+use App\Http\Controllers\StoreDashboardController;
 
 
 Route::get('/', function () {
@@ -171,6 +176,42 @@ Route::middleware(['auth', SetUserLocale::class])->group(function () {
 
         Route::get('/invoices/{invoice}/download', [InvoiceController::class, 'show'])->name('invoices.download');
         Route::get('/invoices/{invoice}/view', [InvoiceController::class, 'stream'])->name('invoices.view');
+
+
+        Route::prefix('stores/{site}')->name('stores.')->group(function () {
+            // Journals (Transactions)
+            Route::get('journals', [JournalController::class, 'index'])->name('journals.index');
+            Route::get('journals/create', [JournalController::class, 'create'])->name('journals.create');
+            Route::post('journals', [JournalController::class, 'store'])->name('journals.store');
+            Route::get('journals/{journal}', [JournalController::class, 'show'])->name('journals.show');
+            Route::delete('journals/{journal}', [JournalController::class, 'destroy'])->name('journals.destroy');
+
+            // Supplier Payments (Sorties liées aux fournisseurs)
+            Route::get('payments', [SupplierPaymentController::class, 'index'])->name('payments.index');
+            Route::get('payments/create', [SupplierPaymentController::class, 'create'])->name('payments.create');
+            Route::post('payments', [SupplierPaymentController::class, 'store'])->name('payments.store');
+            Route::get('payments/{payment}/edit', [SupplierPaymentController::class, 'edit'])->name('payments.edit');
+            Route::put('payments/{payment}', [SupplierPaymentController::class, 'update'])->name('payments.update');
+            Route::delete('payments/{payment}', [SupplierPaymentController::class, 'destroy'])->name('payments.destroy');
+
+            // Expenses (Dépenses générales)
+            Route::get('expenses', [ExpenseController::class, 'index'])->name('expenses.index');
+            Route::get('expenses/create', [ExpenseController::class, 'create'])->name('expenses.create');
+            Route::post('expenses', [ExpenseController::class, 'store'])->name('expenses.store');
+            Route::get('expenses/{expense}/edit', [ExpenseController::class, 'edit'])->name('expenses.edit');
+            Route::put('expenses/{expense}', [ExpenseController::class, 'update'])->name('expenses.update');
+            Route::delete('expenses/{expense}', [ExpenseController::class, 'destroy'])->name('expenses.destroy');
+
+            // Expense Categories (Catégories de dépenses)
+            Route::get('expense-categories', [ExpenseCategoryController::class, 'index'])->name('expense-categories.index');
+            Route::get('expense-categories/create', [ExpenseCategoryController::class, 'create'])->name('expense-categories.create');
+            Route::post('expense-categories', [ExpenseCategoryController::class, 'store'])->name('expense-categories.store');
+            Route::get('expense-categories/{category}/edit', [ExpenseCategoryController::class, 'edit'])->name('expense-categories.edit');
+            Route::put('expense-categories/{category}', [ExpenseCategoryController::class, 'update'])->name('expense-categories.update');
+            Route::delete('expense-categories/{category}', [ExpenseCategoryController::class, 'destroy'])->name('expense-categories.destroy');
+
+            Route::get('dashboard', [StoreDashboardController::class, 'index'])->name('dashboard.index');
+        });
     });
 
 });

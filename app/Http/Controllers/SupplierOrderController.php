@@ -118,6 +118,9 @@ class SupplierOrderController extends Controller
 
     public function generatePdf(Supplier $supplier, SupplierOrder $order)
     {
+        if($reseller->type !== 'buyer') {
+            abort(403, 'Seules les commandes des revendeurs de type buyer sont facturables.');
+        }
         $pdf = Pdf::loadView('supplier_orders.pdf', compact('supplier', 'order'));
         return $pdf->download("commande_{$order->id}.pdf");
     }
@@ -128,40 +131,40 @@ class SupplierOrderController extends Controller
         return view('supplier_orders.reception', compact('supplier', 'order'));
     }
 
-public function storeReception(Request $request, Supplier $supplier, SupplierOrder $order)
-{
-    $store = Store::find($order->destination_store_id);
-    if (!$store) {
-        return back()->withErrors('Magasin de destination introuvable.');
-    }
+    public function storeReception(Request $request, Supplier $supplier, SupplierOrder $order)
+    {
+        $store = Store::find($order->destination_store_id);
+        if (!$store) {
+            return back()->withErrors('Magasin de destination introuvable.');
+        }
 
-    foreach ($request->input('products', []) as $productId => $qtyReceived) {
-        $qtyReceived = (int) $qtyReceived;
-        if ($qtyReceived <= 0) continue;
+        foreach ($request->input('products', []) as $productId => $qtyReceived) {
+            $qtyReceived = (int) $qtyReceived;
+            if ($qtyReceived <= 0) continue;
 
-        $product = Product::find($productId);
-        if (!$product) continue;
+            $product = Product::find($productId);
+            if (!$product) continue;
 
-        // Mettre à jour la quantité reçue dans le pivot de la commande
-        $order->products()->updateExistingPivot($productId, [
-            'quantity_received' => $qtyReceived,
-        ]);
+            // Mettre à jour la quantité reçue dans le pivot de la commande
+            $order->products()->updateExistingPivot($productId, [
+                'quantity_received' => $qtyReceived,
+            ]);
 
-        // Créer un StockBatch pour tracer la réception
-        StockBatch::create([
-            'product_id'               => $productId,
-            'store_id'                 => $store->id,
-            'reseller_id'              => null,
-            'quantity'                 => $qtyReceived,
-            'unit_price'               => $order->products()->where('product_id', $productId)->first()->pivot->purchase_price ?? 0,
-            'source_supplier_order_id' => $order->id,
-            'label'                    => 'Réception commande fournisseur',
-        ]);
-    }
+            // Créer un StockBatch pour tracer la réception
+            StockBatch::create([
+                'product_id'               => $productId,
+                'store_id'                 => $store->id,
+                'reseller_id'              => null,
+                'quantity'                 => $qtyReceived,
+                'unit_price'               => $order->products()->where('product_id', $productId)->first()->pivot->purchase_price ?? 0,
+                'source_supplier_order_id' => $order->id,
+                'label'                    => 'Réception commande fournisseur',
+            ]);
+        }
 
-    $order->update(['status' => 'received']);
+        $order->update(['status' => 'received']);
 
-    return redirect()->route('suppliers.edit', $supplier)->with('success', 'Commande réceptionnée et stock mis à jour.');
+        return redirect()->route('suppliers.edit', $supplier)->with('success', 'Commande réceptionnée et stock mis à jour.');
 }
 
 }

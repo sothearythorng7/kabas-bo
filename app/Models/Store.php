@@ -4,6 +4,10 @@
 
     use Illuminate\Database\Eloquent\Factories\HasFactory;
     use Illuminate\Database\Eloquent\Model;
+    use App\Models\Journal;
+    use App\Models\Payment;
+    use App\Models\Expense;
+    use App\Models\ExpenseCategory;
 
     class Store extends Model
     {
@@ -56,5 +60,37 @@
                 ->select('product_id', \DB::raw('SUM(quantity) as total'))
                 ->groupBy('product_id')
                 ->pluck('total', 'product_id');
+        }
+
+        public function journals()
+        {
+            return $this->hasMany(Journal::class);
+        }
+
+        public function payments()
+        {
+            return $this->hasMany(Payment::class);
+        }
+
+        public function expenses()
+        {
+            return $this->hasMany(Expense::class);
+        }
+
+        public function expenseCategories()
+        {
+            return $this->hasMany(ExpenseCategory::class);
+        }
+
+            // ⚠ Ajouter cette relation pour les paiements fournisseurs
+        public function supplierPayments()
+        {
+            return $this->hasMany(SupplierPayment::class);
+        }
+
+        // ⚠ Ajouter relation pour les dépenses générales
+        public function generalExpenses()
+        {
+            return $this->hasMany(GeneralExpense::class);
         }
     }

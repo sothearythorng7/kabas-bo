@@ -285,7 +285,9 @@
                         <th>{{ __('messages.resellers.status') }}</th>
                         <th>{{ __('messages.resellers.total_items') }}</th>
                         <th>{{ __('messages.resellers.total_amount') }}</th>
+                        @if($resellerType === 'buyer')
                         <th>{{ __('messages.resellers.invoice_status') }}</th>
+                        @endif
                         <th>{{ __('messages.resellers.created_at') }}</th>
                         <th class="text-end">{{ __('messages.btn.actions') }}</th>
                     </tr>
@@ -303,6 +305,7 @@
                             <td>
                                 {{ $invoice ? number_format($invoice->total_amount, 2, ',', ' ') . ' €' : '-' }}
                             </td>
+                            @if($resellerType === 'buyer')
                             <td>
                                 @if($invoice)
                                     @php
@@ -321,12 +324,13 @@
                                     <span class="badge bg-secondary">-</span>
                                 @endif
                             </td>
+                            @endif
                             <td>{{ $delivery->created_at->format('d/m/Y H:i') }}</td>
                             <td class="text-end">
                                 <a href="{{ route('reseller-stock-deliveries.edit', [$reseller->id, $delivery->id]) }}" class="btn btn-warning btn-sm">
                                     <i class="bi bi-pencil-fill"></i> {{ __('messages.btn.edit') }}
                                 </a>
-                                @if($invoice)
+                                @if($resellerType === 'buyer' && $invoice)
                                     <a href="{{ route('invoices.download', $invoice->id) }}" class="btn btn-primary btn-sm">
                                         <i class="bi bi-download"></i> {{ __('messages.btn.invoice') }}
                                     </a>

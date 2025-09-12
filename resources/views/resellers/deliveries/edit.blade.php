@@ -3,22 +3,25 @@
 @section('content')
 <div class="container mt-4">
     <h1>{{ __('messages.resellers.deliveries') }} #{{ $delivery->id }} - {{ __('messages.btn.edit') }}</h1>
-
     @php
-        $totalPaid = $delivery->invoice?->payments->sum('amount') ?? 0;
-        $remaining = max(($delivery->invoice?->total_amount ?? 0) - $totalPaid, 0);
+        $resellerType = $delivery->reseller->type ?? 'buyer';
         $productsCount = $delivery->products->count();
-        $paymentsCount = $delivery->invoice?->payments->count() ?? 0;
+        if($resellerType == 'buyer')
+        {
+            $totalPaid = $delivery->invoice?->payments->sum('amount') ?? 0;
+            $remaining = max(($delivery->invoice?->total_amount ?? 0) - $totalPaid, 0);
+            $paymentsCount = $delivery->invoice?->payments->count() ?? 0;
 
-        // Statut de paiement
-        if(!$delivery->invoice) {
-            $paymentStatus = 'N/A';
-        } elseif($remaining <= 0) {
-            $paymentStatus = 'paid';
-        } elseif($totalPaid > 0) {
-            $paymentStatus = 'partially_paid';
-        } else {
-            $paymentStatus = 'unpaid';
+            // Statut de paiement
+            if(!$delivery->invoice) {
+                $paymentStatus = 'N/A';
+            } elseif($remaining <= 0) {
+                $paymentStatus = 'paid';
+            } elseif($totalPaid > 0) {
+                $paymentStatus = 'partially_paid';
+            } else {
+                $paymentStatus = 'unpaid';
+            }            
         }
     @endphp
 
@@ -34,17 +37,70 @@
                 {{ __('messages.product.products') }} <span class="badge bg-secondary">{{ $productsCount }}</span>
             </button>
         </li>
+        @if($resellerType == 'buyer')
         <li class="nav-item" role="presentation">
             <button class="nav-link" id="payments-tab" data-bs-toggle="tab" data-bs-target="#payments" type="button" role="tab" aria-controls="payments" aria-selected="false">
                 Paiements <span class="badge bg-secondary">{{ $paymentsCount }}</span>
             </button>
         </li>
+        @endif
     </ul>
 
     <div class="tab-content mt-3" id="deliveryTabsContent">
-
         {{-- Onglet Général --}}
         <div class="tab-pane fade show active" id="general" role="tabpanel" aria-labelledby="general-tab">
+            
+                {{-- Infos paiement --}}
+                @if($delivery->invoice && $resellerType == 'buyer')
+                <div class="row g-3 mb-3">
+                    <div class="col-12 col-md-3">
+                        <div class="card text-center bg-success text-white">
+                            <div class="card-body">
+                                <h6 class="card-title">Montant total à payer</h6>
+                                <p class="card-text">${{ number_format($delivery->invoice->total_amount, 2) }}</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-12 col-md-3">
+                        <div class="card text-center bg-info">
+                            <div class="card-body">
+                                <h6 class="card-title">Montant total déjà payé</h6>
+                                <p class="card-text">${{ number_format($totalPaid, 2) }}</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-12 col-md-3">
+                        <div class="card text-center bg-warning">
+                            <div class="card-body">
+                                <h6 class="card-title">Montant restant à payer</h6>
+                                <p class="card-text">${{ number_format($remaining, 2) }}</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-12 col-md-3">
+                        <div class="card text-center bg-secondary text-white">
+                            <div class="card-body">
+                                <h6 class="card-title">Statut de paiement</h6>
+                                <p class="card-text">
+                                    @if($paymentStatus === 'paid')
+                                        <span class="badge bg-success">Payé</span>
+                                    @elseif($paymentStatus === 'partially_paid')
+                                        <span class="badge bg-warning text-dark">Partiellement payé</span>
+                                    @elseif($paymentStatus === 'unpaid')
+                                        <span class="badge bg-danger">Non payé</span>
+                                    @else
+                                        N/A
+                                    @endif
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                @endif
+
             <form action="{{ route('reseller-stock-deliveries.update', [$reseller->id, $delivery->id]) }}" method="POST">
                 @csrf
                 @method('PUT')
@@ -63,26 +119,6 @@
                     <input type="number" step="0.01" name="shipping_cost" id="shipping_cost" class="form-control" value="{{ old('shipping_cost', $delivery->shipping_cost) }}">
                     <small class="text-muted">{{ __('messages.resellers.edit_only_after_creation') ?? 'Only editable after creation' }}</small>
                 </div>
-
-                {{-- Infos paiement --}}
-                @if($delivery->invoice)
-                    <div class="mb-3">
-                        <p><strong>Montant total à payer :</strong> ${{ number_format($delivery->invoice->total_amount, 2) }}</p>
-                        <p><strong>Montant total déjà payé :</strong> ${{ number_format($totalPaid, 2) }}</p>
-                        <p><strong>Montant restant à payer :</strong> ${{ number_format($remaining, 2) }}</p>
-                        <p><strong>Statut de paiement :</strong>
-                            @if($paymentStatus === 'paid')
-                                <span class="badge bg-success">Payé</span>
-                            @elseif($paymentStatus === 'partially_paid')
-                                <span class="badge bg-warning text-dark">Partiellement payé</span>
-                            @elseif($paymentStatus === 'unpaid')
-                                <span class="badge bg-danger">Non payé</span>
-                            @else
-                                N/A
-                            @endif
-                        </p>
-                    </div>
-                @endif
 
                 <button type="submit" class="btn btn-success">{{ __('messages.btn.save') }}</button>
                 <a href="{{ route('resellers.show', $reseller->id) }}" class="btn btn-secondary">
@@ -143,7 +179,7 @@
                 </div>
             </div>
         </div>
-
+        @if($resellerType == 'buyer')
         {{-- Onglet Paiements --}}
         <div class="tab-pane fade" id="payments" role="tabpanel" aria-labelledby="payments-tab">
             @if($paymentsCount > 0)
@@ -199,12 +235,13 @@
                 Ajouter un paiement
             </button>
         </div>
-
+        @endif
     </div>
 </div>
 
 <!-- Modal ajout paiement -->
 <!-- Modal ajout paiement -->
+ @if($resellerType == 'buyer')
 <div class="modal fade" id="addPaymentModal" tabindex="-1" aria-labelledby="addPaymentModalLabel" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
@@ -216,10 +253,10 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
                 </div>
                 <div class="modal-body">
+                    
                     <p><strong>Montant total :</strong> {{ number_format($delivery->invoice?->total_amount ?? 0, 2) }}</p>
                     <p><strong>Déjà payé :</strong> {{ number_format($totalPaid, 2) }}</p>
                     <p><strong>Reste à payer :</strong> {{ number_format($remaining, 2) }}</p>
-
                     <div class="mb-3">
                         <label>Montant</label>
                         <input type="number" step="0.01" name="amount" id="paymentAmount" class="form-control" max="{{ $remaining }}" required>
@@ -227,7 +264,7 @@
                             ⚠️ Le montant ne peut pas dépasser {{ number_format($remaining, 2) }}.
                         </div>
                     </div>
-
+                    
                     <div class="mb-3">
                         <label>Méthode</label>
                         <select name="payment_method" class="form-control" required>
@@ -270,4 +307,5 @@ document.getElementById('paymentAmount')?.addEventListener('input', function() {
 });
 </script>
 @endpush
+@endif
 @endsection

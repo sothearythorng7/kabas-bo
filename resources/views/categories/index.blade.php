@@ -3,7 +3,6 @@
 @section('content')
 <div class="container mt-4">
     <h1 class="crud_title">{{ __('messages.category.title') }}</h1>
-
     {{-- Bouton Ajouter catégorie --}}
     <button type="button" class="btn btn-success mb-3" data-bs-toggle="modal" data-bs-target="#addCategoryModal">
         <i class="bi bi-plus-circle-fill"></i> {{ __('messages.category.btnCreate') }}

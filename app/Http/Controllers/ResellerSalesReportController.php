@@ -27,8 +27,8 @@ class ResellerSalesReportController extends Controller
 
     public function store(Request $request, Reseller $reseller)
     {
-        if ($reseller->type !== 'consignment') {
-            abort(403, 'Only consignment resellers can create sales reports.');
+        if ($reseller->type !== 'consignment' && !($reseller->is_shop ?? false)) {
+            abort(403, 'Only consignment resellers or internal shops can create sales reports.');
         }
 
         $validated = $request->validate([
@@ -38,12 +38,15 @@ class ResellerSalesReportController extends Controller
         ]);
 
         DB::transaction(function () use ($reseller, $validated) {
-            // Crée le rapport
+
+            // --- Création du rapport ---
             $report = ResellerSalesReport::create([
                 'reseller_id' => $reseller->id
             ]);
 
             $productsData = \App\Models\Product::whereIn('id', collect($validated['products'])->pluck('id'))->get()->keyBy('id');
+
+            $totalValue = 0;
 
             foreach ($validated['products'] as $p) {
                 if ($p['quantity'] > 0) {
@@ -57,7 +60,9 @@ class ResellerSalesReportController extends Controller
                         'unit_price'    => $product->price,
                     ]);
 
-                    // Déduction du stock via le système de lots (FIFO)
+                    $totalValue += $p['quantity'] * $product->price;
+
+                    // Déduction du stock (FIFO)
                     $remaining = $p['quantity'];
                     $batches = $reseller->stockBatches()
                         ->where('product_id', $product->id)
@@ -75,7 +80,6 @@ class ResellerSalesReportController extends Controller
                         $remaining -= $deduct;
                     }
 
-                    // Si le restant > 0, créer une anomalie
                     if ($remaining > 0) {
                         \App\Models\ResellerSalesReportAnomaly::create([
                             'report_id'   => $report->id,
@@ -88,14 +92,10 @@ class ResellerSalesReportController extends Controller
             }
 
             // --- Génération de la facture ---
-            $report->load('items.product');
-
-            $totalValue = $report->items->sum(fn($i) => $i->quantity_sold * $i->unit_price);
-
             $invoice = \App\Models\ResellerInvoice::firstOrCreate(
                 [
                     'reseller_id' => $reseller->id,
-                    'reseller_stock_delivery_id' => null, // pas liée à une livraison
+                    'reseller_stock_delivery_id' => null,
                     'sales_report_id' => $report->id,
                 ],
                 [
@@ -105,30 +105,95 @@ class ResellerSalesReportController extends Controller
                 ]
             );
 
-            // Génération du PDF
             $pdf = Pdf::loadView('resellers.reports.invoice', [
                 'reseller'   => $reseller,
                 'report'     => $report,
                 'totalValue' => $totalValue,
+            ])->setOptions([
+                'isHtml5ParserEnabled' => true,
+                'isRemoteEnabled' => true,
+                'defaultFont' => 'DejaVu Sans',
             ]);
 
-            $fileName = "sales_report_{$report->id}.pdf";
-            $filePath = "sales_reports/{$fileName}";
+            $fileName = "sales_reports/sales_report_{$report->id}.pdf";
+            Storage::put($fileName, $pdf->output());
 
-            Storage::put($filePath, $pdf->output());
+            $invoice->update(['file_path' => $fileName, 'total_amount' => $totalValue]);
 
-            $invoice->update(['file_path' => $filePath, 'total_amount' => $totalValue]);
+            // --- Comptabilité dynamique ---
+            $isShop = $reseller->is_shop ?? false;
+
+            if ($isShop) {
+                $shop = $reseller->store;
+
+                // Récupération dynamique des comptes
+                $warehouse = Store::where('type', 'warehouse')->firstOrFail();
+
+                $shopSupplierAccount = $shop->accounts()->where('type', 'supplier')->firstOrFail();
+                $warehouseReceivableAccount = $warehouse->accounts()->where('type', 'receivable')->firstOrFail();
+
+                // 1️⃣ Comptabilité du shop : facture fournisseur
+                $shop->journals()->create([
+                    'date' => now(),
+                    'account_id' => $shopSupplierAccount->id,
+                    'type' => 'expense',
+                    'amount' => $totalValue,
+                    'description' => "Facture fournisseur (ventes consignées) pour rapport #{$report->id}",
+                    'document' => $fileName,
+                ]);
+
+                // 2️⃣ Comptabilité du warehouse : créance client
+                $warehouse->journals()->create([
+                    'date' => now(),
+                    'account_id' => $warehouseReceivableAccount->id,
+                    'type' => 'income',
+                    'amount' => $totalValue,
+                    'description' => "Vente consignée au shop {$shop->name} via rapport #{$report->id}",
+                    'document' => $fileName,
+                ]);
+            }
         });
 
         return redirect()->route('resellers.show', $reseller)
-            ->with('success', 'Sales report recorded, stock updated, and invoice generated.');
+            ->with('success', 'Sales report recorded, stock updated, invoice generated, and accounting entries created.');
     }
 
-        public function show(Reseller $reseller, ResellerSalesReport $report)
-        {
-            $report->load('items.product');
-            return view('resellers.reports.show', compact('reseller', 'report'));
+
+    public function show(Reseller $reseller, ResellerSalesReport $report)
+    {
+        // Charge les items et leurs produits
+        $report->load('items.product');
+
+        // Charge la facture associée et ses paiements
+        $report->load(['invoice.payments']);
+
+        // Calcul des paiements
+        $totalPaid = $report->invoice?->payments->sum('amount') ?? 0;
+        $remaining = max(($report->invoice?->total_amount ?? 0) - $totalPaid, 0);
+
+        // Statut de paiement
+        if (!$report->invoice) {
+            $paymentStatus = 'N/A';
+        } elseif ($remaining <= 0) {
+            $paymentStatus = 'paid';
+        } elseif ($totalPaid > 0) {
+            $paymentStatus = 'partially_paid';
+        } else {
+            $paymentStatus = 'unpaid';
         }
+
+        $paymentsCount = $report->invoice?->payments->count() ?? 0;
+
+        return view('resellers.reports.show', compact(
+            'reseller',
+            'report',
+            'totalPaid',
+            'remaining',
+            'paymentStatus',
+            'paymentsCount'
+        ));
+    }
+
 
 
         public function invoice(Reseller $reseller, ResellerSalesReport $report)

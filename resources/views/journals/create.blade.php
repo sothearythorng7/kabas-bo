@@ -21,8 +21,8 @@
         <div class="mb-3">
             <label class="form-label">Type</label>
             <select name="type" class="form-select" required>
-                <option value="income">Entrée</option>
-                <option value="expense">Sortie</option>
+                <option value="in">Entrée</option>
+                <option value="out">Sortie</option>
             </select>
         </div>
         <div class="mb-3">

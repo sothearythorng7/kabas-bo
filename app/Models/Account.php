@@ -10,10 +10,10 @@ class Account extends Model
     use HasFactory;
 
     protected $fillable = [
-        'site_id',
+        'code',
         'name',
-        'type', // cash, bank, credit, etc.
-        'balance',
+        'description',
+        'type',
     ];
 
     protected $casts = [

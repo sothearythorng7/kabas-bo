@@ -26,7 +26,7 @@ class JournalController extends Controller
         $data = $request->validate([
             'date' => 'required|date',
             'account_id' => 'required|exists:accounts,id',
-            'type' => 'required|in:income,expense',
+            'type' => 'required|in:in,out',
             'amount' => 'required|numeric',
             'description' => 'nullable|string',
         ]);

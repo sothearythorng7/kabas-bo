@@ -11,16 +11,18 @@ class Expense extends Model
 
     protected $fillable = [
         'site_id',
-        'expense_category_id',
+        'category_id',
         'name',
         'description',
         'amount',
-        'expense_date',
+        'incurred_at',
+        'paid_at'
     ];
 
     protected $casts = [
         'amount' => 'decimal:2',
-        'expense_date' => 'datetime',
+        'paid_at' => 'decimal:2',
+        'incurred_at' => 'datetime',
     ];
 
     public function site()
@@ -30,7 +32,7 @@ class Expense extends Model
 
     public function category()
     {
-        return $this->belongsTo(ExpenseCategory::class, 'expense_category_id');
+        return $this->belongsTo(ExpenseCategory::class, 'category_id');
     }
 
     public function documents()

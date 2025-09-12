@@ -12,6 +12,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('store_id')->constrained()->onDelete('cascade');
             $table->enum('type', ['in', 'out']); // entrée ou sortie d'argent
+            $table->unsignedBigInteger('account_id');
             $table->decimal('amount', 15, 2);
             $table->string('reference')->nullable();
             $table->text('description')->nullable();

@@ -12,6 +12,7 @@ class Journal extends Model
     protected $fillable = [
         'store_id',
         'type', // 'in' ou 'out'
+        'account_id',
         'amount',
         'description',
         'reference',
@@ -19,8 +20,18 @@ class Journal extends Model
         'date',
     ];
 
+    protected $casts = [
+        'date' => 'datetime',
+    ];
+
+
     public function store()
     {
         return $this->belongsTo(Store::class);
     }
+
+    public function account()
+    {
+        return $this->hasOne(Account::class, 'id', 'account_id');
+    } 
 }

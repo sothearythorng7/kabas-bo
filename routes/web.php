@@ -29,6 +29,11 @@ use App\Http\Controllers\ExpenseController;
 use App\Http\Controllers\ExpenseCategoryController;
 use App\Http\Controllers\StoreDashboardController;
 
+use App\Http\Controllers\Financial\FinancialAccountController;
+use App\Http\Controllers\Financial\FinancialTransactionController;
+use App\Http\Controllers\Financial\FinancialPaymentMethodController;
+use App\Http\Controllers\Financial\FinancialDashboardController;
+use App\Http\Controllers\Financial\FinancialJournalController;
 
 Route::get('/', function () {
     return auth()->check() ? redirect()->route('dashboard') : redirect()->route('login');
@@ -214,4 +219,19 @@ Route::middleware(['auth', SetUserLocale::class])->group(function () {
         });
     });
 
+
+    Route::prefix('financial/{store}')->name('financial.')->group(function () {
+        Route::resource('accounts', FinancialAccountController::class);
+        Route::resource('payment-methods', FinancialPaymentMethodController::class)
+            ->parameters(['payment-methods' => 'paymentMethod']);
+        Route::resource('transactions', FinancialTransactionController::class);
+
+        // Journaux comptables
+        Route::get('journals', [FinancialJournalController::class, 'index'])->name('journals.index');
+        Route::get('journals/{journal}', [FinancialJournalController::class, 'show'])->name('journals.show');
+
+        // Dashboard
+        Route::get('dashboard', [FinancialDashboardController::class, 'index'])->name('dashboard');
+
+    });
 });

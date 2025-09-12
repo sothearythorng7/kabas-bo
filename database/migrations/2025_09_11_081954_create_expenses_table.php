@@ -11,7 +11,7 @@ return new class extends Migration {
             $table->id();
             $table->unsignedBigInteger('store_id')->nullable()->index();
             $table->unsignedBigInteger('category_id')->nullable()->index();
-            $table->string('title')->nullable();
+            $table->string('name')->nullable();
             $table->text('description')->nullable();
             $table->decimal('amount', 15, 2);
             $table->date('incurred_at')->nullable();

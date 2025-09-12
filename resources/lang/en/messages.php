@@ -41,6 +41,17 @@ return [
     'yes' => 'yes',
     'no' => 'no',
 
+    'financial' => [
+        'accounts' => [
+            'types' => [
+                'asset' => 'Asset',
+                'liability' => 'Liability',
+                'expense' => 'Expense',
+                'revenue' => 'Revenue',
+            ]
+        ]
+    ],
+
     'stock_value' => [
         'title' => 'Stock value',
         'search_placeholder' => 'Search by EAN or name',

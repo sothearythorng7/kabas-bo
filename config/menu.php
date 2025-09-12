@@ -52,7 +52,7 @@ return [
                 return [
                     'label' => $store->name,
                     'icon'  => 'bi-journal-text',
-                    'route' => ['stores.dashboard.index', ['site' => $store->id]],
+                    'route' => ['financial.dashboard', ['store' => $store->id]],
                 ];
             })->toArray();
             return array_merge($staticLinks, $dynamicLinks);

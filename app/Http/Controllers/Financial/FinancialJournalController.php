@@ -12,7 +12,6 @@ class FinancialJournalController extends Controller
     public function index(Store $store)
     {
         $journals = FinancialJournal::where('store_id', $store->id)
-            ->with(['transaction', 'user'])
             ->latest()
             ->paginate(20);
 

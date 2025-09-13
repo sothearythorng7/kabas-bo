@@ -222,16 +222,10 @@ Route::middleware(['auth', SetUserLocale::class])->group(function () {
 
     Route::prefix('financial/{store}')->name('financial.')->group(function () {
         Route::resource('accounts', FinancialAccountController::class);
-        Route::resource('payment-methods', FinancialPaymentMethodController::class)
-            ->parameters(['payment-methods' => 'paymentMethod']);
+        Route::resource('payment-methods', FinancialPaymentMethodController::class)->parameters(['payment-methods' => 'paymentMethod']);
         Route::resource('transactions', FinancialTransactionController::class);
-
-        // Journaux comptables
         Route::get('journals', [FinancialJournalController::class, 'index'])->name('journals.index');
         Route::get('journals/{journal}', [FinancialJournalController::class, 'show'])->name('journals.show');
-
-        // Dashboard
         Route::get('dashboard', [FinancialDashboardController::class, 'index'])->name('dashboard');
-
     });
 });

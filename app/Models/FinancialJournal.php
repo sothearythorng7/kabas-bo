@@ -9,20 +9,26 @@ class FinancialJournal extends Model
 {
     use HasFactory;
 
+    protected $table = 'journals'; // nom exact de la table
+
     protected $fillable = [
-        'site_id',
-        'name',
+        'store_id',
+        'type',      
+        'account_id',
+        'amount',
+        'reference',
         'description',
+        'document_path',
         'date',
     ];
 
     protected $casts = [
-        'date' => 'datetime',
+        'date' => 'date',
     ];
 
-    public function site()
+    public function store()
     {
-        return $this->belongsTo(Site::class);
+        return $this->belongsTo(Store::class);
     }
 
     public function ledgerEntries()

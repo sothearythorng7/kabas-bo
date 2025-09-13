@@ -4,6 +4,7 @@
 <div class="container mt-4">
     <h1 class="crud_title">Détail transaction – {{ $store->name }}</h1>
     @include('financial.layouts.nav')
+
     <div class="card">
         <div class="card-body">
             <h5 class="card-title">{{ $transaction->label }}</h5>
@@ -55,7 +56,7 @@
                 <ul>
                     @foreach($transaction->attachments as $file)
                         <li>
-                            <a href="{{ asset('storage/'.$file->path) }}" target="_blank">{{ $file->filename }}</a>
+                            <a href="{{ $file->url }}" target="_blank">{{ $file->filename }}</a>
                         </li>
                     @endforeach
                 </ul>

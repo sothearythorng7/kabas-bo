@@ -8,18 +8,21 @@ use App\Models\FinancialAccount;
 use App\Models\FinancialPaymentMethod;
 use App\Models\Store;
 use Illuminate\Http\Request;
+use Carbon\Carbon;
 
 class FinancialDashboardController extends Controller
 {
-    public function index(Store $store)
+
+    public function index(Store $store, Request $request)
     {
-        // Solde actuel
+        // --- SOLDE ACTUEL ---
         $lastTransaction = FinancialTransaction::where('store_id', $store->id)
-            ->latest('transaction_date')
+            ->orderBy('transaction_date', 'desc')
+            ->orderBy('id', 'desc')
             ->first();
         $currentBalance = $lastTransaction?->balance_after ?? 0;
 
-        // Entrées et sorties du mois
+        // --- ENTRÉES ET SORTIES DU MOIS ---
         $monthTransactions = FinancialTransaction::where('store_id', $store->id)
             ->whereMonth('transaction_date', now()->month)
             ->get();
@@ -27,7 +30,7 @@ class FinancialDashboardController extends Controller
         $monthCredits = $monthTransactions->where('direction', 'credit')->sum('amount');
         $monthDebits = $monthTransactions->where('direction', 'debit')->sum('amount');
 
-        // Top comptes
+        // --- TOP COMPTES ---
         $topAccounts = FinancialTransaction::where('store_id', $store->id)
             ->selectRaw('account_id, SUM(amount) as total')
             ->groupBy('account_id')
@@ -40,7 +43,7 @@ class FinancialDashboardController extends Controller
                 'total' => $t->total
             ]);
 
-        // Répartition par méthode de paiement
+        // --- RÉPARTITION PAR MÉTHODE DE PAIEMENT ---
         $paymentDistribution = FinancialTransaction::where('store_id', $store->id)
             ->selectRaw('payment_method_id, SUM(amount) as total')
             ->groupBy('payment_method_id')
@@ -48,8 +51,56 @@ class FinancialDashboardController extends Controller
             ->get()
             ->mapWithKeys(fn($t) => [$t->paymentMethod->name => $t->total]);
 
+        // --- DONNÉES DU GRAPHIQUE ---
+        $period = $request->get('period', 'month'); // 'month', '6months', 'all'
+        $startDate = match($period) {
+            'month' => Carbon::now()->startOfMonth(),
+            '6months' => Carbon::now()->subMonths(6)->startOfMonth(),
+            default => FinancialTransaction::where('store_id', $store->id)
+                        ->orderBy('transaction_date')
+                        ->first()?->transaction_date ?? Carbon::now(),
+        };
+
+        $transactions = FinancialTransaction::where('store_id', $store->id)
+            ->where('transaction_date', '>=', $startDate)
+            ->orderBy('transaction_date')
+            ->get();
+
+        $dates = [];
+        $credits = [];
+        $debits = [];
+        $balancePerDay = [];
+
+        $balance = 0;
+        $transactionsGrouped = $transactions->groupBy(fn($t) => $t->transaction_date->format('Y-m-d'));
+
+        foreach ($transactionsGrouped as $date => $dayTransactions) {
+            $dayCredit = $dayTransactions->where('direction', 'credit')->sum('amount');
+            $dayDebit = $dayTransactions->where('direction', 'debit')->sum('amount');
+
+            // Recalcul du solde du jour
+            foreach ($dayTransactions as $t) {
+                $balance = $t->balance_after;
+            }
+
+            $dates[] = $date;
+            $credits[] = $dayCredit;
+            $debits[] = $dayDebit;
+            $balancePerDay[] = $balance;
+        }
+
         return view('financial.dashboard', compact(
-            'store', 'currentBalance', 'monthCredits', 'monthDebits', 'topAccounts', 'paymentDistribution'
+            'store',
+            'currentBalance',
+            'monthCredits',
+            'monthDebits',
+            'topAccounts',
+            'paymentDistribution',
+            'dates',
+            'credits',
+            'debits',
+            'balancePerDay',
+            'period'
         ));
     }
 }

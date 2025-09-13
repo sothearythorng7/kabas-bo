@@ -12,10 +12,6 @@
            href="{{ route('financial.transactions.index', $store->id) }}">Transactions</a>
     </li>
     <li class="nav-item">
-        <a class="nav-link @if(str_contains($currentRoute, 'journals')) active @endif"
-           href="{{ route('financial.journals.index', $store->id) }}">Journaux</a>
-    </li>
-    <li class="nav-item">
         <a class="nav-link @if(str_contains($currentRoute, 'accounts')) active @endif"
            href="{{ route('financial.accounts.index', $store->id) }}">Comptes</a>
     </li>

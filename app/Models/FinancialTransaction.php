@@ -14,6 +14,10 @@ class FinancialTransaction extends Model
         'payment_method_id', 'user_id', 'external_reference'
     ];
 
+    protected $casts = [
+        'transaction_date' => 'datetime',
+    ];
+
     public function account()
     {
         return $this->belongsTo(FinancialAccount::class);
@@ -32,5 +36,11 @@ class FinancialTransaction extends Model
     public function logs()
     {
         return $this->hasMany(FinancialTransactionLog::class, 'transaction_id');
+    }
+
+    // Relation avec l'utilisateur
+    public function user()
+    {
+        return $this->belongsTo(User::class, 'user_id');
     }
 }

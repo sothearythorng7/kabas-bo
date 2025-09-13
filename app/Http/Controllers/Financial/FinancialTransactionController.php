@@ -10,6 +10,8 @@ use App\Models\FinancialJournal;
 use App\Models\Store;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use App\Exports\FinancialTransactionsExport;
+use Maatwebsite\Excel\Facades\Excel;
 
 class FinancialTransactionController extends Controller
 {
@@ -51,6 +53,27 @@ class FinancialTransactionController extends Controller
         $methods = FinancialPaymentMethod::all();
 
         return view('financial.transactions.index', compact('store', 'transactions', 'accounts', 'methods'));
+    }
+
+    public function export(Store $store, Request $request)
+    {
+        $query = FinancialTransaction::where('store_id', $store->id)
+            ->with(['account', 'paymentMethod', 'user']);
+$filters = $request->all();
+        // Appliquer les mêmes filtres que pour l'affichage
+        if ($request->filled('date_from')) $query->whereDate('transaction_date', '>=', $request->date_from);
+        if ($request->filled('date_to')) $query->whereDate('transaction_date', '<=', $request->date_to);
+        if ($request->filled('account_ids')) $query->whereIn('account_id', $request->account_ids);
+        if ($request->filled('amount_min')) $query->where('amount', '>=', $request->amount_min);
+        if ($request->filled('amount_max')) $query->where('amount', '<=', $request->amount_max);
+        if ($request->filled('payment_method_ids')) $query->whereIn('payment_method_id', $request->payment_method_ids);
+
+        $transactions = $query->latest()->get();
+
+        return Excel::download(
+            new FinancialTransactionsExport($store->id, $filters),
+            'transactions.xlsx'
+        );
     }
 
 

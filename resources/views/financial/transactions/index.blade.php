@@ -5,16 +5,24 @@
     <h1 class="mb-4 crud_title">Transactions – {{ $store->name }}</h1>
     @include('financial.layouts.nav')
 
-    <div class="d-flex justify-content-between mb-3">
-        <a href="{{ route('financial.transactions.create', $store->id) }}" class="btn btn-primary">
-            Nouvelle transaction
-        </a>
-
-        <!-- Bouton pour ouvrir le modal de filtres -->
-        <button class="btn btn-secondary" data-bs-toggle="modal" data-bs-target="#filterModal">
-            Filtrer
-        </button>
+    <div class="d-flex justify-content-between mb-3 align-items-center">
+        <div class="btn-toolbar" role="toolbar" aria-label="Barre d'actions">
+            <div class="btn-group me-2" role="group" aria-label="Actions principales">
+                <a href="{{ route('financial.transactions.create', $store->id) }}" class="btn btn-primary">
+                    <i class="bi bi-plus-lg"></i> Nouvelle transaction
+                </a>
+                <a href="{{ route('financial.transactions.export', $store->id) . '?' . request()->getQueryString() }}" class="btn btn-success">
+                    <i class="bi bi-file-earmark-excel"></i> Exporter Excel
+                </a>
+            </div>
+            <div class="btn-group" role="group" aria-label="Filtrer">
+                <button class="btn btn-secondary" data-bs-toggle="modal" data-bs-target="#filterModal">
+                    <i class="bi bi-funnel"></i> Filtrer
+                </button>
+            </div>
+        </div>
     </div>
+
 
     <!-- Modal pour les filtres -->
     <div class="modal fade" id="filterModal" tabindex="-1" aria-labelledby="filterModalLabel" aria-hidden="true">

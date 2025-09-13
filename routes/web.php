@@ -223,9 +223,13 @@ Route::middleware(['auth', SetUserLocale::class])->group(function () {
     Route::prefix('financial/{store}')->name('financial.')->group(function () {
         Route::resource('accounts', FinancialAccountController::class);
         Route::resource('payment-methods', FinancialPaymentMethodController::class)->parameters(['payment-methods' => 'paymentMethod']);
+        // Route pour exporter les transactions en Excel
+        Route::get('transactions/export', [FinancialTransactionController::class, 'export'])->name('transactions.export');
         Route::resource('transactions', FinancialTransactionController::class);
         Route::get('journals', [FinancialJournalController::class, 'index'])->name('journals.index');
         Route::get('journals/{journal}', [FinancialJournalController::class, 'show'])->name('journals.show');
         Route::get('dashboard', [FinancialDashboardController::class, 'index'])->name('dashboard');
+
+
     });
 });

@@ -4,7 +4,7 @@
 <div class="container mt-4">
     <h1>New Sales Report for {{ $reseller->name }}</h1>
 
-    <form action="{{ route('resellers.reports.store', $reseller) }}" method="POST">
+    <form action="{{ route('resellers.reports.store', $reseller->id) }}" method="POST">
         @csrf
 
         <table class="table">
@@ -31,7 +31,7 @@
         </table>
 
         <button type="submit" class="btn btn-success">Save Report</button>
-        <a href="{{ route('resellers.show', $reseller) }}" class="btn btn-secondary">Cancel</a>
+        <a href="{{ route('resellers.show', $reseller->id) }}" class="btn btn-secondary">Cancel</a>
     </form>
 </div>
 @endsection

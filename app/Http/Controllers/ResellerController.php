@@ -49,6 +49,7 @@ class ResellerController extends Controller
         return redirect()->route('resellers.show', $reseller)->with('success', 'Reseller created.');
     }
 
+    /*
     public function show($id)
     {
         // Cas particulier pour un shop
@@ -118,6 +119,84 @@ class ResellerController extends Controller
             'reseller','products','deliveries','stock','salesReports','anomalies'
         ));
     }
+    */
+
+public function show($id)
+{
+    // Cas particulier pour un shop
+    if (str_starts_with($id, 'shop-')) {
+        $shopId = (int) str_replace('shop-', '', $id);
+        $shop = Store::findOrFail($shopId);
+
+        $reseller = (object)[
+            'id' => $id,
+            'name' => $shop->name,
+            'type' => 'consignment',
+            'contacts' => collect(),
+            'is_shop' => true,
+            'store' => $shop,
+        ];
+
+        $stock = $shop->getCurrentStock();
+
+        $products = Product::whereIn('id', $stock->keys())
+            ->with('brand')
+            ->orderBy('name')
+            ->paginate(20);
+
+        $deliveries = \App\Models\ResellerStockDelivery::where('store_id', $shopId)
+            ->with(['products','reseller'])
+            ->latest()
+            ->paginate(10);
+
+        // Ici : on récupère les sales reports du shop
+        $salesReports = \App\Models\ResellerSalesReport::where('store_id', $shopId)
+            ->with('items.product', 'invoice.payments')
+            ->latest()
+            ->paginate(10);
+
+        $anomalies = \App\Models\ResellerSalesReportAnomaly::whereHas('report', function($q) use($shopId){
+            $q->where('store_id', $shopId);
+        })->latest()->paginate(10);
+
+        return view('resellers.show', compact(
+            'reseller','products','deliveries','stock','salesReports','anomalies'
+        ));
+    }
+
+    // Reseller classique
+    $reseller = Reseller::with([
+        'contacts',
+        'deliveries.products',
+        'deliveries.invoice',
+        'reports.items.product',
+    ])->findOrFail($id);
+
+    $stock = $reseller->getCurrentStock();
+
+    $products = Product::whereIn('id', $stock->keys())
+        ->with('brand')
+        ->orderBy('name')
+        ->paginate(20);
+
+    $deliveries = $reseller->deliveries()
+        ->with(['products','invoice'])
+        ->latest()
+        ->paginate(10);
+
+    $salesReports = $reseller->type === 'consignment'
+        ? $reseller->reports()->with('items.product')->latest()->paginate(10)
+        : collect();
+
+    $anomalies = ResellerSalesReportAnomaly::whereHas('report', function($q) use($reseller){
+        $q->where('reseller_id', $reseller->id);
+    })->latest()->paginate(10);
+
+    return view('resellers.show', compact(
+        'reseller','products','deliveries','stock','salesReports','anomalies'
+    ));
+}
+
 
     public function edit(Reseller $reseller)
     {

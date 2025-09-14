@@ -7,7 +7,6 @@
     @php
         $resellerType = $reseller->type ?? 'buyer';
     @endphp
-
     {{-- Onglets --}}
     <ul class="nav nav-tabs" id="resellerTabs" role="tablist">
         <li class="nav-item" role="presentation">

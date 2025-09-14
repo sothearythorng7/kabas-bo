@@ -154,6 +154,8 @@ Route::middleware(['auth', SetUserLocale::class])->group(function () {
         Route::get('resellers/{reseller}/reports/create', [ResellerSalesReportController::class, 'create'])->name('resellers.reports.create');
         Route::post('resellers/{reseller}/reports', [ResellerSalesReportController::class, 'store'])->name('resellers.reports.store');
         Route::get('resellers/{reseller}/reports/{report}', [ResellerSalesReportController::class, 'show'])->name('resellers.reports.show');
+        Route::post('resellers/{reseller}/reports/{report}/payments', [ResellerSalesReportController::class, 'addPayment'])->name('resellers.report.addPayment');
+        
         Route::get('resellers/{reseller}/deliveries/{delivery}/edit', [ResellerStockDeliveryController::class, 'edit'])
             ->name('reseller-stock-deliveries.edit');
 

@@ -4,7 +4,7 @@
 <div class="container mt-4">
     <h1>{{ __('messages.resellers.deliveries') }} #{{ $delivery->id }} - {{ __('messages.btn.edit') }}</h1>
     @php
-        $resellerType = $delivery->reseller->type ?? 'buyer';
+        $resellerType = $delivery->getResellerType();
         $productsCount = $delivery->products->count();
         if($resellerType == 'buyer')
         {
@@ -23,6 +23,7 @@
                 $paymentStatus = 'unpaid';
             }            
         }
+
     @endphp
 
     {{-- Onglets --}}

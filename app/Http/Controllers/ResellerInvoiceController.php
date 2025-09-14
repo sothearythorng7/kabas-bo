@@ -7,6 +7,11 @@ use App\Models\ResellerStockDelivery;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Barryvdh\DomPDF\Facade\Pdf;
+use App\Models\FinancialTransaction;
+use App\Models\FinancialAccount;
+use Carbon\Carbon;
+use App\Models\Store;
+use App\Models\FinancialPaymentMethod;
 
 class ResellerInvoiceController extends Controller
 {
@@ -58,15 +63,66 @@ class ResellerInvoiceController extends Controller
             'reference' => 'nullable|string|max:255',
         ]);
 
-        $invoice->payments()->create([
+        // Création du paiement
+        $payment = $invoice->payments()->create([
             'amount' => $data['amount'],
             'payment_method' => $data['payment_method'],
             'reference' => $data['reference'] ?? null,
             'paid_at' => now(),
         ]);
 
+        $wareHouse = Store::where('type', 'warehouse')->first();
+
+        // Vérifier si le revendeur est un "buyer"
+        $reseller = $invoice->reseller;
+        if ($reseller && $reseller->type === 'buyer' && $wareHouse) {
+  
+            $account = FinancialAccount::where('code', '701')->first();
+            if (!$account) {
+                throw new \Exception("Le compte caisse (701) est introuvable.");
+            }
+
+            // Récupérer la dernière transaction pour calcul du solde
+            $lastTransaction = FinancialTransaction::where('store_id', $wareHouse->id)
+                ->orderBy('transaction_date', 'desc')
+                ->orderBy('id', 'desc')
+                ->first();
+
+            $balanceBefore = $lastTransaction?->balance_after ?? 0;
+            $balanceAfter = $balanceBefore + $payment->amount;
+
+            //Référence pour aller directement sur la commande
+            $url = route('reseller-stock-deliveries.edit', [
+                'reseller' => $reseller->id,
+                'delivery' => $invoice->reseller_stock_delivery_id,
+            ]);
+            $path = parse_url($url, PHP_URL_PATH);
+            $path = ltrim($path, '/');
+
+           $paymentMethod = FinancialPaymentMethod::where('code', strtoupper($data['payment_method']))->first();
+           $paymentMethodId = $paymentMethod ? $paymentMethod->id : 1;
+
+            // Créer la transaction crédit
+            FinancialTransaction::create([
+                'store_id' => $wareHouse->id,
+                'account_id' => $account->id,
+                'amount' => $payment->amount,
+                'currency' => 'EUR',
+                'direction' => 'credit',
+                'balance_before' => $balanceBefore,
+                'balance_after' => $balanceAfter,
+                'label' => "Paiement revendeur #{$reseller->id}",
+                'description' => "Paiement reçu pour facture #{$invoice->id}",
+                'status' => 'validated',
+                'transaction_date' => Carbon::now(),
+                'payment_method_id' => $paymentMethodId,
+                'user_id' => auth()->id(),
+                'external_reference' => $path
+            ]);
+        }
+
         return redirect()->route('reseller-invoices.show', $invoice)
-            ->with('success', 'Paiement enregistré.');
+            ->with('success', 'Paiement enregistré et transaction générée.');
     }
 
 }

@@ -59,7 +59,7 @@ class FinancialTransactionController extends Controller
     {
         $query = FinancialTransaction::where('store_id', $store->id)
             ->with(['account', 'paymentMethod', 'user']);
-$filters = $request->all();
+        $filters = $request->all();
         // Appliquer les mêmes filtres que pour l'affichage
         if ($request->filled('date_from')) $query->whereDate('transaction_date', '>=', $request->date_from);
         if ($request->filled('date_to')) $query->whereDate('transaction_date', '<=', $request->date_to);

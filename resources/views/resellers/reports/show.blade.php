@@ -152,13 +152,15 @@
         </button>
     @endif
 </div>
-
+@php
+    $resellerParam = ($reseller->is_shop ?? false) ? 'shop-'.$reseller->id : $reseller->id;
+@endphp
 {{-- Modal ajout paiement --}}
 @if($report->invoice)
 <div class="modal fade" id="addPaymentModal" tabindex="-1" aria-labelledby="addPaymentModalLabel" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
-            <form action="{{ route('reseller-invoices.addPayment', $report->invoice->id) }}" method="POST">
+            <form action="{{ route('resellers.report.addPayment', ['reseller' => $resellerParam ?? $reseller->id, 'report' => $report]) }}" method="POST">
                 @csrf
                 <div class="modal-header">
                     <h5 class="modal-title" id="addPaymentModalLabel">Ajouter un paiement</h5>

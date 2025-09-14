@@ -49,6 +49,12 @@
                     <th>Statut</th>
                     <td>{{ ucfirst($transaction->status) }}</td>
                 </tr>
+                @if($transaction->external_reference)
+                <tr>
+                    <th>Lien vers la commande</th>
+                    <td><a href="{{ url($transaction->external_reference) }}" class="btn btn-success btn-sm">Voir la commande</a></td>
+                </tr>
+                @endif
             </table>
 
             @if($transaction->attachments->count())

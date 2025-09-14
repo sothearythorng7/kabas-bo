@@ -31,6 +31,15 @@
             return $this->belongsTo(Reseller::class);
         }
 
+        public function getResellerType() {
+            if($this->reseller_id) {
+                return $this->reseller->type;
+            } elseif($this->store_id) {
+                return 'consignement';
+            } 
+            return null;
+        }
+
         public function products()
         {
             return $this->belongsToMany(Product::class, 'reseller_stock_delivery_product')

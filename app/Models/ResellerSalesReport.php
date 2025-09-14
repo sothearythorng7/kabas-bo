@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 class ResellerSalesReport extends Model
 {
     protected $fillable = [
-        'reseller_id',
+        'reseller_id','store_id',
     ];
 
     public function reseller()

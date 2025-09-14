@@ -10,6 +10,7 @@ use App\Models\Store;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use App\Models\FinancialPaymentMethod;
 
 class ResellerStockDeliveryController extends Controller
 {
@@ -106,10 +107,12 @@ class ResellerStockDeliveryController extends Controller
         }
 
         $delivery->load('products');
+        $paymentMethods = FinancialPaymentMethod::all();
 
         return view('resellers.deliveries.edit', [
             'reseller' => $resellerObj,
             'delivery' => $delivery,
+            'paymentMethods' => $paymentMethods
         ]);
     }
 

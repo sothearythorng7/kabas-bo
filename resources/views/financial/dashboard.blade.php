@@ -2,7 +2,7 @@
 
 @section('content')
 <div class="container mt-4">
-    <h1 class="crud_title mb-4">Dashboard financier – {{ $store->name }}</h1>
+    <h1 class="crud_title mb-4">@lang('Dashboard financier') - {{ $store->name }}</h1>
     @include('financial.layouts.nav')
 
     <!-- Résumé financier -->
@@ -55,7 +55,7 @@
         <div class="col-md-6">
             <div class="card mb-4">
                 <div class="card-body">
-                    <h4 class="card-title mb-3">Top 5 comptes utilisés</h4>
+                    <h4 class="card-title mb-3">@t("Top 5 comptes utilisés")</h4>
                     <ul class="list-group list-group-flush">
                         @foreach($topAccounts as $acc)
                             <li class="list-group-item d-flex justify-content-between align-items-center">

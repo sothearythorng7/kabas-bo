@@ -1,6 +1,10 @@
 <?php
 
 return [
+    'Dashboard financier' => 'Dashboard financier',
+
+
+    
     'menu' => [
         'dashboard' => 'Dashboard',
         'catalog' => 'Catalog',
@@ -405,4 +409,7 @@ return [
         'updated' => ':name updated successfully.',
         'deleted' => ':name deleted successfully.',
     ],
+    "Top 5 comptes utilisés" => "Top 5",
+    "Période" => "Période",
+    "Top 5 comptes utilisés" => "Top 5 comptes utilisés",
 ];

@@ -39,7 +39,7 @@ return [
     ],
     [
         'label' => 'messages.menu.accounting',
-        'icon' => 'bi-truck',
+        'icon'  => 'bi-truck',
         'dynamic_submenu' => function() {
             $staticLinks = [
                 [
@@ -57,5 +57,42 @@ return [
             })->toArray();
             return array_merge($staticLinks, $dynamicLinks);
         }
-    ]
+    ],
+    // Nouveau menu pour la configuration
+    [
+        'label' => 'messages.menu.settings',
+        'icon'  => 'bi-gear',
+        'submenu' => [
+            [
+                'label' => 'messages.menu.roles',
+                'icon'  => 'bi-shield-lock',
+                'route' => 'roles.index',
+            ],
+            [
+                'label' => 'messages.menu.users',
+                'icon'  => 'bi-people',
+                'route' => 'users.index',
+            ],
+            [
+                'label' => 'messages.menu.stores',
+                'icon'  => 'bi-shop-window',
+                'route' => 'stores.index',
+            ],
+            [
+                'label' => 'messages.menu.suppliers',
+                'icon'  => 'bi-truck',
+                'route' => 'suppliers.index',
+            ],
+            [
+                'label' => 'messages.menu.categories',
+                'icon'  => 'bi-tags',
+                'route' => 'categories.index',
+            ],
+            [
+                'label' => 'messages.menu.brands',
+                'icon'  => 'bi-award',
+                'route' => 'brands.index',
+            ],
+        ],
+    ],
 ];

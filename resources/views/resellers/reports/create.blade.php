@@ -10,7 +10,7 @@
         <table class="table">
             <thead>
                 <tr>
-                    <th>@t("product")</th>
+                    <th>@t("messages.product")</th>
                     <th>@t("Stock Available")</th>
                     <th>@t("Quantity Sold")</th>
                 </tr>

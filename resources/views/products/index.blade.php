@@ -34,14 +34,14 @@
             <thead>
                 <tr>
                     <th></th> <!-- Warning column -->
-                    <th>EAN</th>
-                    <th>{{ __('messages.product.name') }}</th>
-                    <th>Brand</th>
-                    <th>Price</th>
-                    <th>Price BtoB</th> <!-- Nouvelle colonne -->
-                    <th>Active</th>
-                    <th>Best</th>
-                    <th>Resalable</th>
+                    <th>@t("product.ean")</th>
+                    <th>@t("Product name")</th>
+                    <th>@t("product.brand_label")</th>
+                    <th>@t("product.price")</th>
+                    <th>@t("product.price_btob")</th> <!-- Nouvelle colonne -->
+                    <th>@t("product.active")</th>
+                    <th>@t("Best")</th>
+                    <th>@t("Resalable")</th>
                     <th></th>
                 </tr>
             </thead>
@@ -122,19 +122,19 @@
                             @endif
                             {{ $p->name[app()->getLocale()] ?? reset($p->name) }}
                         </h5>
-                        <p class="mb-1"><strong>EAN:</strong> {{ $p->ean }}</p>
-                        <p class="mb-1"><strong>Brand:</strong> {{ $p->brand?->name ?? '-' }}</p>
-                        <p class="mb-1"><strong>Price:</strong> {{ number_format($p->price, 2) }}</p>
-                        <p class="mb-1"><strong>Price BtoB:</strong> 
+                        <p class="mb-1"><strong>@t("ean"):</strong> {{ $p->ean }}</p>
+                        <p class="mb-1"><strong>@t("brand_label"):</strong> {{ $p->brand?->name ?? '-' }}</p>
+                        <p class="mb-1"><strong>@t("price"):</strong> {{ number_format($p->price, 2) }}</p>
+                        <p class="mb-1"><strong>@t("price_btob"):</strong> 
                             @if($p->price_btob !== null)
                                 {{ number_format($p->price_btob, 2) }}
                             @else
                                 -
                             @endif
                         </p>
-                        <p class="mb-1"><strong>Active:</strong> {{ $p->is_active ? 'Yes' : 'No' }}</p>
-                        <p class="mb-1"><strong>Best:</strong> {{ $p->is_best_seller ? 'Yes' : 'No' }}</p>
-                        <p class="mb-1"><strong>Resalable:</strong> {{ $p->is_resalable ? 'Yes' : 'No' }}</p>
+                        <p class="mb-1"><strong>@t("active"):</strong> {{ $p->is_active ? 'Yes' : 'No' }}</p>
+                        <p class="mb-1"><strong>@t("Best"):</strong> {{ $p->is_best_seller ? 'Yes' : 'No' }}</p>
+                        <p class="mb-1"><strong>@t("Resalable"):</strong> {{ $p->is_resalable ? 'Yes' : 'No' }}</p>
                         <div class="d-flex justify-content-between mt-2">
                             <a href="{{ route('products.edit', $p) }}" class="btn btn-warning btn-sm">Edit</a>
                             <form action="{{ route('products.destroy', $p) }}" method="POST">

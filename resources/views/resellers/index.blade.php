@@ -59,7 +59,7 @@
             </tr>
         @empty
             <tr>
-                <td colspan="4" class="text-muted">No resellers found.</td>
+                <td colspan="4" class="text-muted">@t("No resellers found.")</td>
             </tr>
         @endforelse
         </tbody>

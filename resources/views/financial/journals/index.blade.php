@@ -2,15 +2,15 @@
 
 @section('content')
 <div class="container mt-4">
-    <h1 class="crud_title">Journaux comptables – {{ $store->name }}</h1>
+    <h1 class="crud_title">@t("Journaux comptables") – {{ $store->name }}</h1>
     @include('financial.layouts.nav')
     <table class="table table-striped">
         <thead>
             <tr>
-                <th>Date</th>
-                <th>Transaction</th>
-                <th>Utilisateur</th>
-                <th>Action</th>
+                <th>@t("date")</th>
+                <th>@t("Transaction")</th>
+                <th>@t("Utilisateur")</th>
+                <th>@t("Action")</th>
                 <th></th>
             </tr>
         </thead>
@@ -26,7 +26,7 @@
                 </td>
             </tr>
         @empty
-            <tr><td colspan="5" class="text-center">Aucun journal</td></tr>
+            <tr><td colspan="5" class="text-center">@t("Aucun journal")</td></tr>
         @endforelse
         </tbody>
     </table>

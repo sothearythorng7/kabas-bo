@@ -15,12 +15,12 @@
             <div class="tab-pane fade show active" id="tab-general" role="tabpanel">
                 <div class="row">
                     <div class="col-md-3 mb-3">
-                        <label class="form-label">EAN</label>
+                        <label class="form-label">@t("product.ean")</label>
                         <input type="text" name="ean" class="form-control @error('ean') is-invalid @enderror" value="{{ old('ean') }}" required>
                         @error('ean') <div class="invalid-feedback">{{ $message }}</div> @enderror
                     </div>
                     <div class="col-md-3 mb-3">
-                        <label class="form-label">Brand</label>
+                        <label class="form-label">@t("product.brand_label")</label>
                         <select name="brand_id" class="form-select">
                             <option value="">--</option>
                             @foreach($brands as $b)
@@ -29,12 +29,12 @@
                         </select>
                     </div>
                     <div class="col-md-3 mb-3">
-                        <label class="form-label">Price</label>
+                        <label class="form-label">@t("product.price")</label>
                         <input type="number" step="0.01" name="price" class="form-control @error('price') is-invalid @enderror" value="{{ old('price', 0) }}">
                         @error('price') <div class="invalid-feedback">{{ $message }}</div> @enderror
                     </div>
                     <div class="col-md-3 mb-3">
-                        <label class="form-label">Price BtoB</label>
+                        <label class="form-label">@t("product.price_btob")</label>
                         <input type="number" step="0.01" name="price" class="form-control @error('price_btob') is-invalid @enderror" value="{{ old('price_btob', 0) }}">
                         @error('price_btob') <div class="invalid-feedback">{{ $message }}</div> @enderror
                     </div>
@@ -55,7 +55,7 @@
                     @foreach($locales as $locale)
                         <div class="tab-pane fade @if($i===0) show active @endif" id="name-{{ $locale }}" role="tabpanel">
                             <div class="mb-3">
-                                <label class="form-label">Name ({{ strtoupper($locale) }})</label>
+                                <label class="form-label">@t("product.name") ({{ strtoupper($locale) }})</label>
                                 <input type="text" name="name[{{ $locale }}]" class="form-control" value="{{ old("name.$locale") }}" required>
                             </div>
                         </div>
@@ -65,22 +65,22 @@
 
                 <div class="row">
                     <div class="col-md-6 mb-3">
-                        <label class="form-label">Color</label>
+                        <label class="form-label">@t("product.color")</label>
                         <input type="text" name="color" class="form-control" value="{{ old('color') }}">
                     </div>
                     <div class="col-md-6 mb-3">
-                        <label class="form-label">Size</label>
+                        <label class="form-label">@t("product.size")</label>
                         <input type="text" name="size" class="form-control" value="{{ old('size') }}">
                     </div>
                 </div>
 
                 <div class="form-check form-switch mb-2">
                     <input class="form-check-input" type="checkbox" name="is_active" id="is_active" value="1" {{ old('is_active', true) ? 'checked' : '' }}>
-                    <label class="form-check-label" for="is_active">Active</label>
+                    <label class="form-check-label" for="is_active">@t("active")</label>
                 </div>
                 <div class="form-check form-switch mb-2">
                     <input class="form-check-input" type="checkbox" name="is_best_seller" id="is_best_seller" value="1" {{ old('is_best_seller', false) ? 'checked' : '' }}>
-                    <label class="form-check-label" for="is_best_seller">Best seller</label>
+                    <label class="form-check-label" for="is_best_seller">@t("Best seller")</label>
                 </div>
             </div>
         </div>

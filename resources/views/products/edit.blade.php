@@ -54,7 +54,7 @@
                 @csrf @method('PUT')
                 <div class="row">
                     <div class="col-md-3 mb-3">
-                        <label class="form-label">EAN</label>
+                        <label class="form-label">@t("ean")</label>
                         <input type="text" name="ean" class="form-control @error('ean') is-invalid @enderror" value="{{ old('ean', $product->ean) }}" required>
                         @error('ean') <div class="invalid-feedback">{{ $message }}</div> @enderror
                     </div>
@@ -202,45 +202,49 @@
         {{-- Stores --}}
         <div class="tab-pane fade" id="tab-stores" role="tabpanel">
             <h5>{{ __('messages.product.stores') }}</h5>
-            <table class="table table-bordered align-middle">
-                <thead>
-                    <tr>
-                        <th>{{ __('messages.store.name') }}</th>
-                        <th style="width: 150px;">{{ __('messages.store.stock_quantity') }}</th>
-                        <th style="width: 150px;">{{ __('messages.store.stock_alert') }}</th>
-                        <th style="width: 120px;"></th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @forelse($product->stores as $store)
-                        @php
-                            $realStock = $product->lots
-                                ->where('store_id', $store->id)
-                                ->sum('quantity_remaining');
-                        @endphp
-                        <tr>
-                            <td>{{ $store->name }}</td>
-                            <form action="{{ route('products.stores.updateStock', [$product, $store]) }}" method="POST" class="d-flex">
-                                @csrf
-                                @method('PUT')
-                                <td>
-                                    <input type="number" min="0" name="stock_quantity" class="form-control form-control-sm" 
-                                           value="{{ $realStock }}">
-                                </td>
-                                <td>
-                                    <input type="number" min="0" name="alert_stock_quantity" class="form-control form-control-sm" 
-                                           placeholder="Alert" value="{{ $store->pivot->alert_stock_quantity }}">
-                                </td>
-                                <td>
-                                    <button class="btn btn-sm btn-success ms-2"><i class="bi bi-check"></i></button>
-                                </td>
-                            </form>
-                        </tr>
-                    @empty
-                        <tr><td colspan="3" class="text-muted">{{ __('messages.product.no_store') }}</td></tr>
-                    @endforelse
-                </tbody>
-            </table>
+<table class="table table-bordered align-middle">
+    <thead>
+        <tr>
+            <th>{{ __('messages.store.name') }}</th>
+            <th style="width: 150px;">{{ __('messages.store.stock_quantity') }}</th>
+            <th style="width: 150px;">{{ __('messages.store.stock_alert') }}</th>
+            <th style="width: 120px;"></th>
+        </tr>
+    </thead>
+    <tbody>
+        @forelse($product->stores as $store)
+            @php
+                // Nouveau calcul basé sur les batches
+                $realStock = $product->stockBatches()
+                    ->where('store_id', $store->id)
+                    ->sum('quantity');
+            @endphp
+            <tr>
+                <td>{{ $store->name }}</td>
+                <form action="{{ route('products.stores.updateStock', [$product, $store]) }}" method="POST" class="d-flex">
+                    @csrf
+                    @method('PUT')
+                    <td>
+                        <input type="number" min="0" name="stock_quantity" class="form-control form-control-sm" 
+                               value="{{ $realStock }}">
+                    </td>
+                    <td>
+                        <input type="number" min="0" name="alert_stock_quantity" class="form-control form-control-sm" 
+                               placeholder="Alert" value="{{ $store->pivot->alert_stock_quantity }}">
+                    </td>
+                    <td>
+                        <button class="btn btn-sm btn-success ms-2"><i class="bi bi-check"></i></button>
+                    </td>
+                </form>
+            </tr>
+        @empty
+            <tr>
+                <td colspan="4" class="text-muted">{{ __('messages.product.no_store') }}</td>
+            </tr>
+        @endforelse
+    </tbody>
+</table>
+
         </div>
 
         {{-- Photos --}}

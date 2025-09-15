@@ -132,20 +132,20 @@
                             </div>
                             <div class="modal-body">
                                 <div class="mb-3">
-                                    <label for="name" class="form-label">Nom</label>
+                                    <label for="name" class="form-label">@t("Nom")</label>
                                     <input type="text" class="form-control" name="name" required>
                                 </div>
                                 <div class="mb-3">
-                                    <label for="email" class="form-label">Email</label>
+                                    <label for="email" class="form-label">@t("email")</label>
                                     <input type="email" class="form-control" name="email">
                                 </div>
                                 <div class="mb-3">
-                                    <label for="phone" class="form-label">Téléphone</label>
+                                    <label for="phone" class="form-label">@t("Téléphone")</label>
                                     <input type="text" class="form-control" name="phone">
                                 </div>
                             </div>
                             <div class="modal-footer">
-                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">@t("Fermer")</button>
                                 <button type="submit" class="btn btn-primary">{{ __('messages.btn.save') }}</button>
                             </div>
                         </div>

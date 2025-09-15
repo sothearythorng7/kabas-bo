@@ -10,9 +10,9 @@
         <table class="table">
             <thead>
                 <tr>
-                    <th>Product</th>
-                    <th>Stock Available</th>
-                    <th>Quantity Sold</th>
+                    <th>@t("product")</th>
+                    <th>@t("Stock Available")</th>
+                    <th>@t("Quantity Sold")</th>
                 </tr>
             </thead>
             <tbody>
@@ -30,8 +30,8 @@
             </tbody>
         </table>
 
-        <button type="submit" class="btn btn-success">Save Report</button>
-        <a href="{{ route('resellers.show', $reseller->id) }}" class="btn btn-secondary">Cancel</a>
+        <button type="submit" class="btn btn-success">@t("Save Report")</button>
+        <a href="{{ route('resellers.show', $reseller->id) }}" class="btn btn-secondary">@t("cancel")</a>
     </form>
 </div>
 @endsection

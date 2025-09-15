@@ -57,7 +57,7 @@
                     <div class="col-12 col-md-3">
                         <div class="card text-center bg-success text-white">
                             <div class="card-body">
-                                <h6 class="card-title">Montant total à payer</h6>
+                                <h6 class="card-title">@t("Montant total à payer")</h6>
                                 <p class="card-text">${{ number_format($delivery->invoice->total_amount, 2) }}</p>
                             </div>
                         </div>
@@ -66,7 +66,7 @@
                     <div class="col-12 col-md-3">
                         <div class="card text-center bg-info">
                             <div class="card-body">
-                                <h6 class="card-title">Montant total déjà payé</h6>
+                                <h6 class="card-title">@t("Montant total déjà payé")</h6>
                                 <p class="card-text">${{ number_format($totalPaid, 2) }}</p>
                             </div>
                         </div>
@@ -75,7 +75,7 @@
                     <div class="col-12 col-md-3">
                         <div class="card text-center bg-warning">
                             <div class="card-body">
-                                <h6 class="card-title">Montant restant à payer</h6>
+                                <h6 class="card-title">@t("Montant restant à payer")</h6>
                                 <p class="card-text">${{ number_format($remaining, 2) }}</p>
                             </div>
                         </div>
@@ -84,14 +84,14 @@
                     <div class="col-12 col-md-3">
                         <div class="card text-center bg-secondary text-white">
                             <div class="card-body">
-                                <h6 class="card-title">Statut de paiement</h6>
+                                <h6 class="card-title">@t("Statut de paiement")</h6>
                                 <p class="card-text">
                                     @if($paymentStatus === 'paid')
-                                        <span class="badge bg-success">Payé</span>
+                                        <span class="badge bg-success">@t("Payé")</span>
                                     @elseif($paymentStatus === 'partially_paid')
-                                        <span class="badge bg-warning text-dark">Partiellement payé</span>
+                                        <span class="badge bg-warning text-dark">@t("Partiellement payé")</span>
                                     @elseif($paymentStatus === 'unpaid')
-                                        <span class="badge bg-danger">Non payé</span>
+                                        <span class="badge bg-danger">@t("Non payé")</span>
                                     @else
                                         N/A
                                     @endif
@@ -189,10 +189,10 @@
                     <table class="table table-striped">
                         <thead>
                             <tr>
-                                <th>Date</th>
-                                <th>Montant</th>
-                                <th>Méthode</th>
-                                <th>Référence</th>
+                                <th>@t("date")</th>
+                                <th>@t("Montant")</th>
+                                <th>@t("Méthode")</th>
+                                <th>@t("Référence")</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -215,10 +215,10 @@
                             <div class="col-12 mb-3">
                                 <div class="card shadow-sm">
                                     <div class="card-body p-3">
-                                        <p class="mb-1"><strong>Date :</strong> {{ $payment->paid_at->format('d/m/Y H:i') }}</p>
-                                        <p class="mb-1"><strong>Montant :</strong> {{ number_format($payment->amount, 2) }}</p>
-                                        <p class="mb-1"><strong>Méthode :</strong> {{ ucfirst($payment->payment_method) }}</p>
-                                        <p class="mb-1"><strong>Référence :</strong> {{ $payment->reference }}</p>
+                                        <p class="mb-1"><strong>@t("date") :</strong> {{ $payment->paid_at->format('d/m/Y H:i') }}</p>
+                                        <p class="mb-1"><strong>@t("Montant") :</strong> {{ number_format($payment->amount, 2) }}</p>
+                                        <p class="mb-1"><strong>@t("Méthode") :</strong> {{ ucfirst($payment->payment_method) }}</p>
+                                        <p class="mb-1"><strong>@t("Référence") :</strong> {{ $payment->reference }}</p>
                                     </div>
                                 </div>
                             </div>
@@ -227,13 +227,13 @@
                 </div>
             @else
                 <div class="alert alert-info">
-                    Aucun paiement enregistré pour cette livraison.
+                    @t("Aucun paiement enregistré pour cette livraison.")
                 </div>
             @endif
 
             <!-- Bouton modal pour ajouter paiement -->
             <button type="button" class="btn btn-primary mt-3" data-bs-toggle="modal" data-bs-target="#addPaymentModal">
-                Ajouter un paiement
+                @t("Ajouter un paiement")
             </button>
         </div>
         @endif
@@ -250,43 +250,43 @@
             <form action="{{ route('reseller-invoices.addPayment', $delivery->invoice->id) }}" method="POST">
                 @csrf
                 <div class="modal-header">
-                    <h5 class="modal-title" id="addPaymentModalLabel">Ajouter un paiement</h5>
+                    <h5 class="modal-title" id="addPaymentModalLabel">@t("Ajouter un paiement")</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
                 </div>
                 <div class="modal-body">
                     
-                    <p><strong>Montant total :</strong> {{ number_format($delivery->invoice?->total_amount ?? 0, 2) }}</p>
-                    <p><strong>Déjà payé :</strong> {{ number_format($totalPaid, 2) }}</p>
-                    <p><strong>Reste à payer :</strong> {{ number_format($remaining, 2) }}</p>
+                    <p><strong>@t("Montant total"):</strong> {{ number_format($delivery->invoice?->total_amount ?? 0, 2) }}</p>
+                    <p><strong>@t("Déjà payé") :</strong> {{ number_format($totalPaid, 2) }}</p>
+                    <p><strong>@t("Reste à payer") :</strong> {{ number_format($remaining, 2) }}</p>
                     <div class="mb-3">
                         <label>Montant</label>
                         <input type="number" step="0.01" name="amount" id="paymentAmount" class="form-control" max="{{ $remaining }}" required>
                         <div id="amountWarning" class="text-danger mt-1" style="display:none;">
-                            ⚠️ Le montant ne peut pas dépasser {{ number_format($remaining, 2) }}.
+                            ⚠️ @t("Le montant ne peut pas dépasser") {{ number_format($remaining, 2) }}.
                         </div>
                     </div>
                     
                     <div class="mb-3">
                         <label>Méthode</label>
                         <select name="payment_method" class="form-control" required>
-                            <option value="cash">Cash</option>
-                            <option value="transfer">Virement</option>
+                            <option value="cash">@t("cash")</option>
+                            <option value="transfer">@t("Virement")</option>
                         </select>
                     </div>
 
                     <div class="mb-3">
-                        <label>Référence</label>
+                        <label>@t("Référence")</label>
                         <input type="text" name="reference" class="form-control">
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
-                    <button type="submit" class="btn btn-primary">Enregistrer</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">@t("Annuler")</button>
+                    <button type="submit" class="btn btn-primary">@t("Enregistrer")</button>
                 </div>
             </form>
             @else
                 <div class="alert alert-warning">
-                    ⚠️ Cette livraison n’a pas encore de facture.
+                    ⚠️ @t("Cette livraison n’a pas encore de facture").
                 </div>
             @endif
         </div>

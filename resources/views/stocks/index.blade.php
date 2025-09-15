@@ -13,13 +13,13 @@
             </div>
             <div class="col-md-2">
                 <button type="submit" class="btn btn-primary w-100">
-                    <i class="bi bi-search"></i> Rechercher
+                    <i class="bi bi-search"></i> @t("Rechercher")
                 </button>
             </div>
             @if(request('q'))
             <div class="col-md-2">
                 <a href="{{ route('stocks.index') }}" class="btn btn-secondary w-100">
-                    <i class="bi bi-x-circle"></i> Réinitialiser
+                    <i class="bi bi-x-circle"></i> @t("Réinitialiser")
                 </a>
             </div>
             @endif

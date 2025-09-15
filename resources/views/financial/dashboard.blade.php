@@ -10,7 +10,7 @@
         <div class="col-md-4">
             <div class="card text-white bg-success mb-3">
                 <div class="card-body">
-                    <h5 class="card-title">Solde actuel</h5>
+                    <h5 class="card-title">@t("Solde actuel")</h5>
                     <p class="card-text display-6">{{ number_format($currentBalance, 2) }} €</p>
                 </div>
             </div>
@@ -18,7 +18,7 @@
         <div class="col-md-4">
             <div class="card text-white bg-info mb-3">
                 <div class="card-body">
-                    <h5 class="card-title">Entrées ce mois</h5>
+                    <h5 class="card-title">@t("Entrées ce mois")</h5>
                     <p class="card-text display-6">{{ number_format($monthCredits, 2) }} €</p>
                 </div>
             </div>
@@ -26,7 +26,7 @@
         <div class="col-md-4">
             <div class="card text-white bg-danger mb-3">
                 <div class="card-body">
-                    <h5 class="card-title">Sorties ce mois</h5>
+                    <h5 class="card-title">@t("Sorties ce mois")</h5>
                     <p class="card-text display-6">{{ number_format($monthDebits, 2) }} €</p>
                 </div>
             </div>
@@ -38,11 +38,11 @@
         <div class="card-body">
             <div class="row mb-3">
                 <div class="col-md-3">
-                    <label for="periodSelect" class="form-label">Période</label>
+                    <label for="periodSelect" class="form-label">@t("Période")</label>
                     <select id="periodSelect" class="form-select">
-                        <option value="month" {{ $period == 'month' ? 'selected' : '' }}>Mois en cours</option>
-                        <option value="6months" {{ $period == '6months' ? 'selected' : '' }}>6 derniers mois</option>
-                        <option value="all" {{ $period == 'all' ? 'selected' : '' }}>Tout</option>
+                        <option value="month" {{ $period == 'month' ? 'selected' : '' }}>@t("Mois en cours")</option>
+                        <option value="6months" {{ $period == '6months' ? 'selected' : '' }}>@t("6 derniers mois")</option>
+                        <option value="all" {{ $period == 'all' ? 'selected' : '' }}>@t("Tout")</option>
                     </select>
                 </div>
             </div>
@@ -71,7 +71,7 @@
         <div class="col-md-6">
             <div class="card mb-4">
                 <div class="card-body">
-                    <h4 class="card-title mb-3">Répartition par méthode de paiement</h4>
+                    <h4 class="card-title mb-3">@t("Répartition par méthode de paiement")</h4>
                     <ul class="list-group list-group-flush">
                         @foreach($paymentDistribution as $method => $amount)
                             <li class="list-group-item d-flex justify-content-between align-items-center">
@@ -107,7 +107,7 @@ document.addEventListener('DOMContentLoaded', function() {
             labels: @json($dates),
             datasets: [
                 {
-                    label: 'Entrées',
+                    label: '@t("Entrées")',
                     data: @json($credits),
                     backgroundColor: 'rgba(54, 162, 235, 0.5)',
                     borderColor: 'rgba(54, 162, 235, 1)',
@@ -115,7 +115,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     type: 'bar',
                 },
                 {
-                    label: 'Sorties',
+                    label: '@t("Sorties")',
                     data: @json($debits),
                     backgroundColor: 'rgba(255, 99, 132, 0.5)',
                     borderColor: 'rgba(255, 99, 132, 1)',
@@ -123,7 +123,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     type: 'bar',
                 },
                 {
-                    label: 'Solde',
+                    label: '@t("Solde")',
                     data: @json($balancePerDay),
                     type: 'line',
                     borderColor: 'rgba(75, 192, 192, 1)',

@@ -2,7 +2,7 @@
 
 @section('content')
 <div class="container mt-4">
-    <h1 class="crud_title">Journal financier - {{ $site->name }}</h1>
+    <h1 class="crud_title">@t("Journal financier") - {{ $site->name }}</h1>
     <ul class="nav nav-tabs mb-4">
         <li class="nav-item">
             <a class="nav-link" href="{{ route('stores.dashboard.index', $site) }}">Informations générales</a>

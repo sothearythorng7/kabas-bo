@@ -2,7 +2,7 @@
 
 @section('content')
 <div class="container mt-4">
-    <h1 class="crud_title">Détail transaction – {{ $store->name }}</h1>
+    <h1 class="crud_title">@t("Détail transaction") – {{ $store->name }}</h1>
     @include('financial.layouts.nav')
 
     <div class="card">
@@ -12,53 +12,53 @@
 
             <table class="table table-sm">
                 <tr>
-                    <th>Date</th>
+                    <th>@t("date")</th>
                     <td>{{ $transaction->transaction_date->format('d/m/Y') }}</td>
                 </tr>
                 <tr>
-                    <th>Compte</th>
+                    <th>@t("Compte")</th>
                     <td>{{ $transaction->account->code }} - {{ $transaction->account->name }}</td>
                 </tr>
                 <tr>
-                    <th>Type</th>
+                    <th>@t("type")</th>
                     <td>{{ ucfirst($transaction->direction) }}</td>
                 </tr>
                 <tr>
-                    <th>Montant</th>
+                    <th>@t("Montant")</th>
                     <td class="{{ $transaction->direction === 'debit' ? 'text-danger' : 'text-success' }}">
                         {{ $transaction->direction === 'debit' ? '-' : '+' }} {{ number_format($transaction->amount, 2) }} {{ $transaction->currency }}
                     </td>
                 </tr>
                 <tr>
-                    <th>Méthode de paiement</th>
+                    <th>@t("Méthode de paiement")</th>
                     <td>{{ $transaction->paymentMethod->name }}</td>
                 </tr>
                 <tr>
-                    <th>Solde avant</th>
+                    <th>@t("Solde avant")</th>
                     <td>{{ number_format($transaction->balance_before, 2) }} {{ $transaction->currency }}</td>
                 </tr>
                 <tr>
-                    <th>Solde après</th>
+                    <th>@t("Solde après")</th>
                     <td>{{ number_format($transaction->balance_after, 2) }} {{ $transaction->currency }}</td>
                 </tr>
                 <tr>
-                    <th>Utilisateur</th>
+                    <th>@t("Utilisateur")</th>
                     <td>{{ $transaction->user?->name }}</td>
                 </tr>
                 <tr>
-                    <th>Statut</th>
+                    <th>@t("Statut")</th>
                     <td>{{ ucfirst($transaction->status) }}</td>
                 </tr>
                 @if($transaction->external_reference)
                 <tr>
-                    <th>Lien vers la commande</th>
-                    <td><a href="{{ url($transaction->external_reference) }}" class="btn btn-success btn-sm">Voir la commande</a></td>
+                    <th>@t("Lien vers la commande")</th>
+                    <td><a href="{{ url($transaction->external_reference) }}" class="btn btn-success btn-sm">@t("Voir la commande")</a></td>
                 </tr>
                 @endif
             </table>
 
             @if($transaction->attachments->count())
-                <h5 class="mt-4">Pièces jointes</h5>
+                <h5 class="mt-4">@t("Pièces jointes")</h5>
                 <ul>
                     @foreach($transaction->attachments as $file)
                         <li>
@@ -71,8 +71,8 @@
     </div>
 
     <div class="mt-3">
-        <a href="{{ route('financial.transactions.edit', [$store->id, $transaction->id]) }}" class="btn btn-warning">Modifier</a>
-        <a href="{{ route('financial.transactions.index', $store->id) }}" class="btn btn-secondary">Retour</a>
+        <a href="{{ route('financial.transactions.edit', [$store->id, $transaction->id]) }}" class="btn btn-warning">@t("Modifier")</a>
+        <a href="{{ route('financial.transactions.index', $store->id) }}" class="btn btn-secondary">@t("Retour")</a>
     </div>
 </div>
 @endsection

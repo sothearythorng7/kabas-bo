@@ -10,13 +10,13 @@
             <div class="card-body d-flex flex-column justify-content-between h-100">
                 <div>
                     <div class="text-xs font-weight-bold text-primary text-uppercase mb-1" style="font-size:1.5em;">
-                        Factures à payer
+                        @t("Factures à payer")
                     </div>
                     <div class="h5 mb-0 font-weight-bold text-gray-800" style="font-size:5em;">
                         {{ $invoicesToPayCount ?? 0 }}
                     </div>
                     <div class="h5 mb-0 font-weight-bold text-gray-800" style="font-size:1em">
-                        Montant total : ${{ number_format($invoicesToPayTotal ?? 0, 2) }}
+                        @t("Montant total") : ${{ number_format($invoicesToPayTotal ?? 0, 2) }}
                     </div>
                 </div>
                 <div class="text-end">
@@ -32,7 +32,7 @@
             <div class="card-body d-flex flex-column justify-content-between h-100">
                 <div>
                     <div class="text-xs font-weight-bold text-danger text-uppercase mb-1" style="font-size:1.5em;">
-                        Produits hors-stock
+                        @t("Produits hors-stock")
                     </div>
                     <div class="h5 mb-0 font-weight-bold text-gray-800" style="font-size:5em;">
                         {{ 3 }}
@@ -56,7 +56,7 @@
                         </div>
                         <div class="h5 mb-0 font-weight-bold text-gray-800" style="font-size:5em;">$155</div>
                         <div class="h5 mb-0 font-weight-bold text-gray-800" style="font-size:1em">
-                            Nombre de clients: 15
+                            @t("Nombre de clients"): 15
                         </div>
                     </div>
                 </div>
@@ -87,7 +87,7 @@
     <div class="col-md-6">
         <div class="card shadow mb-4">
             <div class="card-header">
-                Factures par statut (exemple)
+                @t("Factures par statut") (exemple)
             </div>
             <div class="card-body">
                 <canvas id="invoicesChart" width="400" height="150"></canvas>
@@ -99,7 +99,7 @@
     <div class="col-md-6">
         <div class="card shadow mb-4">
             <div class="card-header">
-                Chiffre d'affaires mensuel (exemple)
+                @t("Chiffre d'affaires mensuel") (exemple)
             </div>
             <div class="card-body">
                 <canvas id="revenueChart" width="400" height="150"></canvas>
@@ -117,9 +117,9 @@
     new Chart(ctxBar, {
         type: 'bar',
         data: {
-            labels: ['À payer', 'Payé', 'Remboursé', 'Annulé'],
+            labels: ["@t("À payer")", '@t("Payé")', '@t("Remboursé")', '@t("Annulé")'],
             datasets: [{
-                label: 'Nombre de factures',
+                label: '@t("Nombre de factures")',
                 data: [12, 8, 5, 2],
                 backgroundColor: [
                     'rgba(78, 115, 223, 0.5)',

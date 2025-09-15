@@ -1,12 +1,12 @@
 <table>
     <thead>
         <tr>
-            <th>Date</th>
-            <th>Libellé</th>
-            <th>Compte</th>
-            <th>Montant</th>
-            <th>Méthode</th>
-            <th>Solde après</th>
+            <th>@t("date")</th>
+            <th>@t("Libellé")</th>
+            <th>@t("Compte")</th>
+            <th>@t("Montant")</th>
+            <th>@t("Méthode")</th>
+            <th>@t("Solde après")</th>
         </tr>
     </thead>
     <tbody>

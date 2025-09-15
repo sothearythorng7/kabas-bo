@@ -9,15 +9,15 @@
         <div class="btn-toolbar" role="toolbar" aria-label="Barre d'actions">
             <div class="btn-group me-2" role="group" aria-label="Actions principales">
                 <a href="{{ route('financial.transactions.create', $store->id) }}" class="btn btn-primary">
-                    <i class="bi bi-plus-lg"></i> Nouvelle transaction
+                    <i class="bi bi-plus-lg"></i> @t("Nouvelle transaction")
                 </a>
                 <a href="{{ route('financial.transactions.export', $store->id) . '?' . request()->getQueryString() }}" class="btn btn-success">
-                    <i class="bi bi-file-earmark-excel"></i> Exporter Excel
+                    <i class="bi bi-file-earmark-excel"></i> @t("Exporter Excel")
                 </a>
             </div>
             <div class="btn-group" role="group" aria-label="Filtrer">
                 <button class="btn btn-secondary" data-bs-toggle="modal" data-bs-target="#filterModal">
-                    <i class="bi bi-funnel"></i> Filtrer
+                    <i class="bi bi-funnel"></i> @t("Filtrer")
                 </button>
             </div>
         </div>
@@ -30,7 +30,7 @@
             <div class="modal-content">
                 <form method="GET" action="{{ route('financial.transactions.index', $store->id) }}">
                     <div class="modal-header">
-                        <h5 class="modal-title" id="filterModalLabel">Filtres des transactions</h5>
+                        <h5 class="modal-title" id="filterModalLabel">@t("Filtres des transactions")</h5>
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
                     </div>
                     <div class="modal-body">
@@ -38,7 +38,7 @@
 
                             <!-- Filtre par date -->
                             <div class="col-md-6">
-                                <label for="date_from" class="form-label">Date depuis</label>
+                                <label for="date_from" class="form-label">@t("Date depuis")</label>
                                 <input type="date" id="date_from" name="date_from" class="form-control" value="{{ request('date_from') }}">
                             </div>
                             <div class="col-md-6">
@@ -56,22 +56,22 @@
                                         </option>
                                     @endforeach
                                 </select>
-                                <small class="text-muted">Maintenez Ctrl (Cmd sur Mac) pour sélectionner plusieurs comptes</small>
+                                <small class="text-muted">@t("Maintenez Ctrl (Cmd sur Mac) pour sélectionner plusieurs comptes")</small>
                             </div>
 
                             <!-- Filtre par montant -->
                             <div class="col-md-3">
-                                <label for="amount_min" class="form-label">Montant min</label>
+                                <label for="amount_min" class="form-label">@t("Montant min")</label>
                                 <input type="number" step="0.01" id="amount_min" name="amount_min" class="form-control" value="{{ request('amount_min') }}">
                             </div>
                             <div class="col-md-3">
-                                <label for="amount_max" class="form-label">Montant max</label>
+                                <label for="amount_max" class="form-label">@t("Montant max")</label>
                                 <input type="number" step="0.01" id="amount_max" name="amount_max" class="form-control" value="{{ request('amount_max') }}">
                             </div>
 
                             <!-- Filtre par méthodes de paiement -->
                             <div class="col-md-6">
-                                <label for="payment_method_ids" class="form-label">Méthode(s) de paiement</label>
+                                <label for="payment_method_ids" class="form-label">@t("Méthode(s) de paiement")</label>
                                 <select id="payment_method_ids" name="payment_method_ids[]" class="form-select" multiple>
                                     @foreach($methods as $method)
                                         <option value="{{ $method->id }}" @if(collect(request('payment_method_ids'))->contains($method->id)) selected @endif>
@@ -79,14 +79,14 @@
                                         </option>
                                     @endforeach
                                 </select>
-                                <small class="text-muted">Maintenez Ctrl (Cmd sur Mac) pour sélectionner plusieurs méthodes</small>
+                                <small class="text-muted">@t("Maintenez Ctrl (Cmd sur Mac) pour sélectionner plusieurs méthodes")</small>
                             </div>
 
                         </div>
                     </div>
                     <div class="modal-footer">
-                        <a href="{{ route('financial.transactions.index', $store->id) }}" class="btn btn-outline-secondary">Réinitialiser</a>
-                        <button type="submit" class="btn btn-primary">Appliquer les filtres</button>
+                        <a href="{{ route('financial.transactions.index', $store->id) }}" class="btn btn-outline-secondary">@t("Réinitialiser")</a>
+                        <button type="submit" class="btn btn-primary">@t("Appliquer les filtres")</button>
                     </div>
                 </form>
             </div>
@@ -97,12 +97,12 @@
     <table class="table table-striped">
         <thead>
             <tr>
-                <th>Date</th>
-                <th>Libellé</th>
-                <th>Compte</th>
-                <th>Montant</th>
-                <th>Méthode</th>
-                <th>Solde après</th>
+                <th>@t("date")</th>
+                <th>@t("Libellé")</th>
+                <th>@t("Compte")</th>
+                <th>@t("Montant")</th>
+                <th>@t("Méthode")</th>
+                <th>@t("Solde après")</th>
                 <th></th>
             </tr>
         </thead>
@@ -127,7 +127,7 @@
                 </td>
             </tr>
         @empty
-            <tr><td colspan="7" class="text-center">Aucune transaction</td></tr>
+            <tr><td colspan="7" class="text-center">@t("Aucune transaction")</td></tr>
         @endforelse
         </tbody>
     </table>

@@ -6,24 +6,20 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
     {
-        Schema::create('supplier_orders', function (Blueprint $table) {
+        Schema::create('purchase_price_histories', function (Blueprint $table) {
             $table->id();
             $table->foreignId('supplier_id')->constrained()->cascadeOnDelete();
-            $table->string('status')->default('pending');
-            $table->timestamps();
+            $table->foreignId('product_id')->constrained()->cascadeOnDelete();
+            $table->decimal('old_price', 15, 4);
+            $table->decimal('new_price', 15, 4);
+            $table->timestamp('changed_at')->useCurrent();
         });
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
-        Schema::dropIfExists('supplier_orders');
+        Schema::dropIfExists('purchase_price_histories');
     }
 };

@@ -7,6 +7,7 @@ use App\Models\SupplierOrder;
 use App\Models\Product;
 use App\Models\Store;
 use App\Models\StockBatch;
+use App\Models\PurchasePriceHistory;
 use Illuminate\Http\Request;
 use Barryvdh\DomPDF\Facade\Pdf;
 
@@ -64,7 +65,7 @@ class SupplierOrderController extends Controller
 
     public function show(Supplier $supplier, SupplierOrder $order)
     {
-        $order->load('products.brand'); // charge aussi la marque pour la vue
+        $order->load('products.brand');
         return view('supplier_orders.show', compact('supplier', 'order'));
     }
 
@@ -123,6 +124,7 @@ class SupplierOrderController extends Controller
         return $pdf->download("commande_{$order->id}.pdf");
     }
 
+    // Réception physique
     public function receptionForm(Supplier $supplier, SupplierOrder $order)
     {
         $order->load('products');
@@ -143,13 +145,11 @@ class SupplierOrderController extends Controller
             $product = Product::find($productId);
             if (!$product) continue;
 
-            // Mettre à jour la quantité reçue dans le pivot
             $order->products()->updateExistingPivot($productId, [
                 'quantity_received' => $qtyReceived,
             ]);
 
-            // Créer un StockBatch
-            StockBatch::create([
+            $b = StockBatch::create([
                 'product_id'               => $productId,
                 'store_id'                 => $store->id,
                 'reseller_id'              => null,
@@ -160,9 +160,111 @@ class SupplierOrderController extends Controller
             ]);
         }
 
-        // Nouveau statut après réception
         $order->update(['status' => 'waiting_invoice']);
 
         return redirect()->route('suppliers.edit', $supplier)->with('success', 'Commande réceptionnée et en attente de facture.');
     }
+
+    public function receptionInvoiceForm(Supplier $supplier, SupplierOrder $order)
+    {
+        $order->load('products');
+        return view('supplier_orders.invoice_reception', compact('supplier', 'order'));
+    }
+
+    public function storeInvoiceReception(Request $request, Supplier $supplier, SupplierOrder $order)
+    {
+        $request->validate([
+            'products' => 'required|array',
+            'products.*.price_invoiced' => 'required|numeric|min:0',
+            'update_reference_price' => 'nullable|array',
+        ]);
+
+        $order->load('products');
+
+        foreach ($request->input('products') as $productId => $data) {
+            $product = $order->products->find($productId);
+            if (!$product) continue;
+
+            $priceInvoiced = (float) $data['price_invoiced'];
+            $expectedPrice  = $product->pivot->purchase_price;
+
+            // Mettre à jour le prix du lot
+            StockBatch::where('source_supplier_order_id', $order->id)
+                      ->where('product_id', $productId)
+                      ->update(['unit_price' => $priceInvoiced]);
+
+            // Mise à jour du prix d'achat de référence si demandé
+            if (!empty($request->input('update_reference_price')[$productId])) {
+                $oldPrice = $expectedPrice;
+
+                PurchasePriceHistory::create([
+                    'supplier_id' => $supplier->id,
+                    'product_id' => $productId,
+                    'old_price' => $oldPrice,
+                    'new_price' => $priceInvoiced,
+                    'changed_at' => now(),
+                ]);
+
+                $supplier->products()->updateExistingPivot($productId, [
+                    'purchase_price' => $priceInvoiced,
+                ]);
+            }
+        }
+
+        $order->update(['status' => 'received']);
+
+        return redirect()->route('suppliers.edit', $supplier)->with('success', 'Réception de facture enregistrée.');
+    }
+
+    // app/Http/Controllers/SupplierOrderController.php
+
+    public function overview(Request $request)
+    {
+        $perPage = 10;
+
+        $statuses = ['pending', 'waiting_reception', 'waiting_invoice', 'received'];
+        $ordersByStatus = [];
+
+        foreach ($statuses as $status) {
+            $ordersByStatus[$status] = SupplierOrder::with(['supplier', 'products', 'destinationStore'])
+                ->where('status', $status)
+                ->latest()
+                ->paginate($perPage, ['*'], $status);
+        }
+
+        // Montant cumulé prévisionnel des commandes non reçues
+        $totalPendingAmount = SupplierOrder::with('products')
+            ->whereIn('status', ['pending', 'waiting_reception', 'waiting_invoice'])
+            ->get()
+            ->sum(function($order) {
+                return $order->products->sum(function($p) {
+                    return ($p->pivot->purchase_price ?? 0) * ($p->pivot->quantity_ordered ?? 0);
+                });
+            });
+
+        // Pour chaque commande, calculer les totaux nécessaires par statut
+        foreach ($ordersByStatus as $status => $orders) {
+            foreach ($orders as $order) {
+                $items = $order->products;
+                if (in_array($status, ['pending','waiting_reception'])) {
+                    $order->totalOrdered = '-';
+                    $order->totalReceived = '-';
+                    $order->totalAmount = $items->sum(fn($p) => ($p->pivot->purchase_price ?? 0) * ($p->pivot->quantity_ordered ?? 0));
+                } elseif ($status == 'waiting_invoice') {
+                    $order->totalOrdered = $items->sum(fn($p) => $p->pivot->quantity_ordered ?? 0);
+                    $order->totalReceived = '-';
+                    $order->totalAmount = $items->sum(fn($p) => ($p->pivot->purchase_price ?? 0) * ($p->pivot->quantity_ordered ?? 0));
+                } else { // received
+                    $order->totalOrdered = $items->sum(fn($p) => $p->pivot->quantity_ordered ?? 0);
+                    $order->totalReceived = $items->sum(fn($p) => $p->pivot->quantity_received ?? 0);
+                    $order->totalAmount = $items->sum(fn($p) => ($p->pivot->purchase_price ?? 0) * ($p->pivot->quantity_ordered ?? 0));
+                    $order->totalInvoiced = $items->sum(fn($p) => ($p->pivot->price_invoiced ?? $p->pivot->purchase_price ?? 0) * ($p->pivot->quantity_ordered ?? 0));
+                }
+            }
+        }
+
+        return view('supplier_orders.overview', compact('ordersByStatus', 'totalPendingAmount'));
+    }
+
+
 }

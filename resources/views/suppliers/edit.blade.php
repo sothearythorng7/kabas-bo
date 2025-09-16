@@ -255,6 +255,11 @@
                                                     <i class="bi bi-file-earmark-pdf-fill"></i> PDF
                                                 </a>
                                             </li>
+                                            <li>
+                                                <a class="dropdown-item" href="{{ route('supplier-orders.invoiceReception', [$supplier, $order]) }}">
+                                                    <i class="bi bi-receipt"></i> Réception de facture
+                                                </a>
+                                            </li>
                                         @endif
                                     </ul>
                                 </div>

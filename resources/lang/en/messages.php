@@ -27,7 +27,9 @@ return [
         'back' =>'Back',
         'supplier_payments' => 'Supplier Payments',
         'expense_categories' => 'Expense categories',
-        'journals' => 'Journals'
+        'journals' => 'Journals',
+        'suppliers_overview' => 'Overview',
+        'suppliers_list' => 'Suppliers list'
     ],
     'dashboard' => 'Dashboard',
     'shops' => 'Shops',
@@ -323,7 +325,10 @@ return [
         'saved' => 'Category saved successfully.',
         'deleted' => 'Category deleted successfully.',
     ],
-
+    'supplier_orders' => [
+        'total_expected_amount' => 'Total expected amount',
+        'overview_title' => 'Supplier orders overview',
+    ],
     'supplier_order' => [
         'quantity_ordered' => 'Quantity Ordered',
         'status' => 'Status',
@@ -337,6 +342,9 @@ return [
         'destination_store' => 'Destination Store',
         'select_destination' => 'Select Destination Store',
         'received_quantity' => 'Received Quantity',
+        'general' => 'General',
+        'ordered_products' => 'Ordered Products',
+        'price_invoiced' => 'Price Invoiced'
     ],
 
     'stock_movement' => [
@@ -555,4 +563,8 @@ return [
     "Annulé" => "Cancel",
     "Nombre de factures" => "invoice count",
     "Product name" => "Product name",
+    "Theoretical amount" => "Expected amount",
+    "Total billed" => "Total billed",
+    "Total ordered" => "Total ordered",
+    "Total received" => "Total received",
 ];

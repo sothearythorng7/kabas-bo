@@ -69,6 +69,7 @@ Route::middleware(['auth', SetUserLocale::class])->group(function () {
         Route::delete('products/{product}/suppliers/{supplier}', [ProductController::class, 'detachSupplier'])->name('products.suppliers.detach');
         Route::put('products/{product}/suppliers/{supplier}/price', [ProductController::class, 'updateSupplierPrice'])->name('products.suppliers.updatePrice');
         Route::put('/suppliers/{supplier}/products/{product}/purchase-price', [SupplierController::class, 'updatePurchasePrice'])->name('suppliers.updatePurchasePrice');
+        Route::get('/supplier-orders/overview', [SupplierOrderController::class, 'overview'])->name('supplier-orders.overview');
 
         // Stock Value
         Route::get('stock-value', [App\Http\Controllers\StockValueController::class, 'index'])->name('stock-value');
@@ -141,7 +142,15 @@ Route::middleware(['auth', SetUserLocale::class])->group(function () {
                 ->name('supplier-orders.storeReception');
             // Génération PDF
             Route::get('orders/{order}/pdf', [SupplierOrderController::class, 'generatePdf'])->name('supplier-orders.pdf');
+           
+            // --- Réception de facture ---
+            // Formulaire de réception de facture
+            Route::get('orders/{order}/invoice-reception', [SupplierOrderController::class, 'receptionInvoiceForm'])
+                ->name('supplier-orders.invoiceReception');
 
+            // Stocker la réception de facture
+            Route::post('orders/{order}/invoice-reception', [SupplierOrderController::class, 'storeInvoiceReception'])
+                ->name('supplier-orders.storeInvoiceReception');
 
         });
 

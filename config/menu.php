@@ -34,8 +34,19 @@ return [
     ],
     [
         'label' => 'messages.menu.suppliers',
-        'icon'  => 'bi-truck',
-        'route' => 'suppliers.index',
+        'icon'  => 'bi-truck',  
+        'submenu' => [
+            [
+                'label' => 'messages.menu.suppliers_overview',
+                'icon'  => 'bi-eye',
+                'route' => 'supplier-orders.overview',
+            ],
+            [
+                'label' => 'messages.menu.suppliers_list',
+                'icon'  => 'bi-list',
+                'route' => 'suppliers.index',
+            ],
+        ]
     ],
     [
         'label' => 'messages.menu.accounting',

@@ -28,21 +28,35 @@
 
                 <!-- Desktop -->
                 <div class="d-none d-md-block">
-                    <table class="table table-striped">
+                    <table class="table table-striped table-hover">
                         <thead>
                             <tr>
+                                <th></th> <!-- dropdown column -->
                                 <th>Nom</th>
                                 <th>Type</th>
                                 <th>Commande liée</th>
                                 <th>Montant total</th>
                                 <th>Statut</th>
                                 <th>Date de création</th>
-                                <th>Actions</th>
                             </tr>
                         </thead>
                         <tbody>
                             @forelse($invoicesByStatus[$status] as $invoice)
                                 <tr>
+                                    <td>
+                                        <div class="dropdown">
+                                            <button class="btn btn-sm btn-primary dropdown-toggle" type="button" id="actionsDropdown{{ $invoice->id }}" data-bs-toggle="dropdown" aria-expanded="false">
+                                                <i class="bi bi-three-dots-vertical"></i>
+                                            </button>
+                                            <ul class="dropdown-menu" aria-labelledby="actionsDropdown{{ $invoice->id }}">
+                                                <li>
+                                                    <a class="dropdown-item" href="{{ route('reseller-invoices.show', $invoice) }}">
+                                                        <i class="bi bi-info-circle"></i> Détails
+                                                    </a>
+                                                </li>
+                                            </ul>
+                                        </div>
+                                    </td>
                                     <td>{{ $invoice->reseller?->name ?? $invoice->store?->name ?? '—' }}</td>
                                     <td>{{ $invoice->reseller?->type ?? ($invoice->store ? 'store' : '—') }}</td>
                                     <td>
@@ -70,9 +84,6 @@
                                         </span>
                                     </td>
                                     <td>{{ $invoice->created_at->format('d/m/Y H:i') }}</td>
-                                    <td>
-                                        <a href="{{ route('reseller-invoices.show', $invoice) }}" class="btn btn-sm btn-info">Détails</a>
-                                    </td>
                                 </tr>
                             @empty
                                 <tr>
@@ -90,6 +101,20 @@
                             <div class="col-12 mb-3">
                                 <div class="card shadow-sm">
                                     <div class="card-body p-3">
+                                        <div class="d-flex justify-content-end mb-2">
+                                            <div class="dropdown">
+                                                <button class="btn btn-sm btn-primary dropdown-toggle" type="button" id="actionsDropdownMobile{{ $invoice->id }}" data-bs-toggle="dropdown" aria-expanded="false">
+                                                    <i class="bi bi-three-dots-vertical"></i>
+                                                </button>
+                                                <ul class="dropdown-menu" aria-labelledby="actionsDropdownMobile{{ $invoice->id }}">
+                                                    <li>
+                                                        <a class="dropdown-item" href="{{ route('reseller-invoices.show', $invoice) }}">
+                                                            <i class="bi bi-info-circle"></i> Détails
+                                                        </a>
+                                                    </li>
+                                                </ul>
+                                            </div>
+                                        </div>
                                         <h5 class="card-title mb-1">{{ $invoice->reseller?->name ?? $invoice->store?->name ?? '—' }}</h5>
                                         <p class="mb-1"><strong>Type:</strong> {{ $invoice->reseller?->type ?? ($invoice->store ? 'store' : '—') }}</p>
                                         <p class="mb-1">
@@ -119,9 +144,6 @@
                                             </span>
                                         </p>
                                         <p class="mb-2"><strong>Créée le:</strong> {{ $invoice->created_at->format('d/m/Y H:i') }}</p>
-                                        <a href="{{ route('reseller-invoices.show', $invoice) }}" class="btn btn-sm btn-info">
-                                            Détails
-                                        </a>
                                     </div>
                                 </div>
                             </div>

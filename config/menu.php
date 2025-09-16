@@ -79,11 +79,6 @@ return [
                 'route' => 'stores.index',
             ],
             [
-                'label' => 'messages.menu.suppliers',
-                'icon'  => 'bi-truck',
-                'route' => 'suppliers.index',
-            ],
-            [
                 'label' => 'messages.menu.categories',
                 'icon'  => 'bi-tags',
                 'route' => 'categories.index',

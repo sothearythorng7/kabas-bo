@@ -64,6 +64,7 @@ class SupplierOrderController extends Controller
 
     public function show(Supplier $supplier, SupplierOrder $order)
     {
+        $order->load('products.brand'); // charge aussi la marque pour la vue
         return view('supplier_orders.show', compact('supplier', 'order'));
     }
 
@@ -118,9 +119,6 @@ class SupplierOrderController extends Controller
 
     public function generatePdf(Supplier $supplier, SupplierOrder $order)
     {
-        if($reseller->type !== 'buyer') {
-            abort(403, 'Seules les commandes des revendeurs de type buyer sont facturables.');
-        }
         $pdf = Pdf::loadView('supplier_orders.pdf', compact('supplier', 'order'));
         return $pdf->download("commande_{$order->id}.pdf");
     }
@@ -145,12 +143,12 @@ class SupplierOrderController extends Controller
             $product = Product::find($productId);
             if (!$product) continue;
 
-            // Mettre à jour la quantité reçue dans le pivot de la commande
+            // Mettre à jour la quantité reçue dans le pivot
             $order->products()->updateExistingPivot($productId, [
                 'quantity_received' => $qtyReceived,
             ]);
 
-            // Créer un StockBatch pour tracer la réception
+            // Créer un StockBatch
             StockBatch::create([
                 'product_id'               => $productId,
                 'store_id'                 => $store->id,
@@ -162,9 +160,9 @@ class SupplierOrderController extends Controller
             ]);
         }
 
-        $order->update(['status' => 'received']);
+        // Nouveau statut après réception
+        $order->update(['status' => 'waiting_invoice']);
 
-        return redirect()->route('suppliers.edit', $supplier)->with('success', 'Commande réceptionnée et stock mis à jour.');
-}
-
+        return redirect()->route('suppliers.edit', $supplier)->with('success', 'Commande réceptionnée et en attente de facture.');
+    }
 }

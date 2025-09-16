@@ -22,56 +22,55 @@ class SupplierOrderSeeder extends Seeder
             return;
         }
 
+        $statusOptions = ['pending', 'waiting_reception', 'waiting_invoice'];
+
         foreach ($suppliers as $supplier) {
-            // Lier quelques produits au fournisseur
             $supplierProducts = $products->random(rand(5, 10));
 
             foreach ($supplierProducts as $product) {
                 $purchasePrice = rand(50, 200);
-
-                // Attacher le produit au fournisseur avec un prix d'achat
                 $supplier->products()->syncWithoutDetaching([
                     $product->id => ['purchase_price' => $purchasePrice]
                 ]);
 
-                // Générer 1 à 3 commandes fournisseur
                 for ($c = 0; $c < rand(1, 3); $c++) {
                     $store = $stores->random();
-
                     $qtyOrdered = rand(5, 30);
+                    $status = $statusOptions[array_rand($statusOptions)];
+
+                    // Correction : quantité reçue logique
+                    $qtyReceived = $status === 'waiting_invoice' ? $qtyOrdered : 0;
 
                     $order = SupplierOrder::create([
                         'supplier_id' => $supplier->id,
                         'destination_store_id' => $store->id,
-                        'status' => 'received',
+                        'status' => $status,
                     ]);
 
-                    // Attacher le produit à la commande
                     $order->products()->attach($product->id, [
                         'purchase_price'    => $purchasePrice,
                         'sale_price'        => $product->price,
                         'quantity_ordered'  => $qtyOrdered,
-                        'quantity_received' => $qtyOrdered,
+                        'quantity_received' => $qtyReceived,
                         'created_at'        => now(),
                         'updated_at'        => now(),
                     ]);
 
-                    // Générer des lots pour ce produit
-                    $remaining = $qtyOrdered;
+                    // Générer des lots uniquement si des articles sont reçus
+                    $remaining = $qtyReceived;
                     while ($remaining > 0) {
                         $lotQty = rand(1, min(10, $remaining));
                         StockBatch::create([
-                            'product_id'        => $product->id,
-                            'store_id'          => $store->id,
-                            'reseller_id'       => null,        // null car c'est un store
-                            'quantity'          => $lotQty,
-                            'unit_price'        => $purchasePrice,
-                            'source_delivery_id'=> null,        // ou l'id de la commande fournisseur si tu veux tracer
+                            'product_id'         => $product->id,
+                            'store_id'           => $store->id,
+                            'reseller_id'        => null,
+                            'quantity'           => $lotQty,
+                            'unit_price'         => $purchasePrice,
+                            'source_delivery_id' => null,
                         ]);
                         $remaining -= $lotQty;
                     }
 
-                    // Stock d'alerte aléatoire
                     $alertQty = rand(1, max(1, $qtyOrdered));
                     $store->products()->syncWithoutDetaching([
                         $product->id => ['alert_stock_quantity' => $alertQty]

@@ -119,14 +119,24 @@ a[aria-expanded="true"] .caret { transform: rotate(180deg); }
     border-bottom:solid 1px #0d6efd;
     margin-bottom:20px;
 }
+.dropdown-noarrow.dropdown-toggle::after {
+  display: none !important;
+  content: none !important;
+}
+
+.table-hover > tbody > tr:hover {
+    background-color: #C0C0C0 !important;
+    --bs-table-hover-bg: #C0C0C0 !important;
+    cursor:pointer;
+}
+
 @media(max-width:767.98px){#sidebar-wrapper{transform:translateX(-100%);}#wrapper.toggled #sidebar-wrapper{transform:translateX(0);}#page-content-wrapper{margin-left:0!important;}#menu-open{display:block;}#menu-close{display:inline-block;} }
 @media(min-width:768px){#sidebar-wrapper{transform:translateX(0);}#wrapper.toggled #sidebar-wrapper{transform:translateX(0);}#page-content-wrapper{margin-left:var(--sidebar-max);}#menu-close{display:none!important;} }
 </style>
-
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" crossorigin="anonymous"></script>
-@stack('scripts')
 @else
 @yield('content')
 @endif
+
+@stack('scripts')
 </body>
 </html>

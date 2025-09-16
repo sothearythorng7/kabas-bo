@@ -28,129 +28,83 @@
         </form>
     </div>
 
-    <!-- Desktop -->
-    <div class="d-none d-md-block">
-        <table class="table table-striped">
-            <thead>
-                <tr>
-                    <th></th> <!-- Warning column -->
-                    <th>@t("product.ean")</th>
-                    <th>@t("Product name")</th>
-                    <th>@t("product.brand_label")</th>
-                    <th>@t("product.price")</th>
-                    <th>@t("product.price_btob")</th> <!-- Nouvelle colonne -->
-                    <th>@t("product.active")</th>
-                    <th>@t("Best")</th>
-                    <th>@t("Resalable")</th>
-                    <th></th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach($products as $p)
-                @php
-                    $lowStockStores = [];
-                    foreach($p->stores as $store) {
-                        if($store->pivot->stock_quantity <= $store->pivot->alert_stock_quantity) {
-                            $lowStockStores[] = $store->name . ', ' . __('messages.store.stocklow') . ': ' . $store->pivot->stock_quantity;
-                        }
-                    }
-                @endphp
-                <tr>
-                    <td>
-                        @if(count($lowStockStores))
-                            <i class="bi bi-exclamation-triangle-fill text-warning" 
-                            data-bs-toggle="tooltip" 
-                            data-bs-placement="top" 
-                            title="{{ implode("\n", $lowStockStores) }}"></i>
-                        @endif
-                    </td>
-                    <td>{{ $p->ean }}</td>
-                    <td>{{ $p->name[app()->getLocale()] ?? reset($p->name) }}</td>
-                    <td>{{ $p->brand?->name ?? '-' }}</td>
-                    <td>{{ number_format($p->price, 2) }}</td>
-                    <td>
-                        @if($p->price_btob !== null)
-                            {{ number_format($p->price_btob, 2) }}
-                        @else
-                            -
-                        @endif
-                    </td>
-                    <td style="text-center">{{ $p->is_active ? 'Yes' : 'No' }}</td>
-                    <td style="text-center">{{ $p->is_best_seller ? 'Yes' : 'No' }}</td>
-                    <td style="text-center">{{ $p->is_resalable ? 'Yes' : 'No' }}</td>
-                    <td class="d-flex justify-content-end gap-1">
-                        <a href="{{ route('products.edit', $p) }}" class="btn btn-warning btn-sm">
-                            <i class="bi bi-pencil-fill"></i> {{ __('messages.btn.edit') }}
-                        </a>
-                        <form action="{{ route('products.destroy', $p) }}" method="POST" style="display:inline;">
-                            @csrf @method('DELETE')
-                            <button type="submit" class="btn btn-danger btn-sm"
-                                onclick="return confirm('{{ __('messages.product.confirm_delete') }}')">
-                                <i class="bi bi-trash-fill"></i> {{ __('messages.btn.delete') }}
-                            </button>
-                        </form>
-                    </td>
-                </tr>
-                @endforeach
-            </tbody>
-        </table>
-
-        {{ $products->links() }}
-    </div>
-
-    <!-- Mobile -->
-    <div class="d-md-none">
-        <div class="row">
+    <table class="table table-striped table-hover">
+        <thead>
+            <tr>
+                <th></th>
+                <th></th>
+                <th>@t("product.ean")</th>
+                <th>@t("Product name")</th>
+                <th>@t("product.brand_label")</th>
+                <th>@t("product.price")</th>
+                <th>@t("product.price_btob")</th> <!-- Nouvelle colonne -->
+                <th>@t("product.active")</th>
+                <th>@t("Best")</th>
+                <th>@t("Resalable")</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
             @foreach($products as $p)
             @php
                 $lowStockStores = [];
                 foreach($p->stores as $store) {
                     if($store->pivot->stock_quantity <= $store->pivot->alert_stock_quantity) {
-                        $lowStockStores[] = $store->name . ', stock bas: ' . $store->pivot->stock_quantity;
+                        $lowStockStores[] = $store->name . ', ' . __('messages.store.stocklow') . ': ' . $store->pivot->stock_quantity;
                     }
                 }
             @endphp
-            <div class="col-12 mb-3">
-                <div class="card shadow-sm">
-                    <div class="card-body p-3">
-                        <h5 class="card-title mb-1">
-                            @if(count($lowStockStores))
-                                <i class="bi bi-exclamation-triangle-fill text-warning" 
-                                   data-bs-toggle="tooltip" 
-                                   data-bs-placement="top" 
-                                   title="{{ implode("\n", $lowStockStores) }}"></i>
-                            @endif
-                            {{ $p->name[app()->getLocale()] ?? reset($p->name) }}
-                        </h5>
-                        <p class="mb-1"><strong>@t("ean"):</strong> {{ $p->ean }}</p>
-                        <p class="mb-1"><strong>@t("brand_label"):</strong> {{ $p->brand?->name ?? '-' }}</p>
-                        <p class="mb-1"><strong>@t("price"):</strong> {{ number_format($p->price, 2) }}</p>
-                        <p class="mb-1"><strong>@t("price_btob"):</strong> 
-                            @if($p->price_btob !== null)
-                                {{ number_format($p->price_btob, 2) }}
-                            @else
-                                -
-                            @endif
-                        </p>
-                        <p class="mb-1"><strong>@t("active"):</strong> {{ $p->is_active ? 'Yes' : 'No' }}</p>
-                        <p class="mb-1"><strong>@t("Best"):</strong> {{ $p->is_best_seller ? 'Yes' : 'No' }}</p>
-                        <p class="mb-1"><strong>@t("Resalable"):</strong> {{ $p->is_resalable ? 'Yes' : 'No' }}</p>
-                        <div class="d-flex justify-content-between mt-2">
-                            <a href="{{ route('products.edit', $p) }}" class="btn btn-warning btn-sm">Edit</a>
-                            <form action="{{ route('products.destroy', $p) }}" method="POST">
-                                @csrf @method('DELETE')
-                                <button type="submit" class="btn btn-danger btn-sm"
-                                        onclick="return confirm('{{ __('messages.product.confirm_delete') }}')">Delete</button>
-                            </form>
-                        </div>
+            <tr>
+                <td>
+                    <div class="dropdown">
+                        <button class="btn btn-sm btn-primary dropdown-toggle dropdown-noarrow " type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="bi bi-three-dots-vertical"></i>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-start">
+                            <li>
+                                <a href="{{ route('products.edit', $p) }}" class="dropdown-item">
+                                    <i class="bi bi-pencil-fill"></i> {{ __('messages.btn.edit') }}
+                                </a>
+                            </li>
+                            <li>
+                                <form action="{{ route('products.destroy', $p) }}" method="POST" onsubmit="return confirm('{{ __('messages.product.confirm_delete') }}')">
+                                    @csrf @method('DELETE')
+                                    <button type="submit" class="dropdown-item text-danger">
+                                        <i class="bi bi-trash-fill"></i> {{ __('messages.btn.delete') }}
+                                    </button>
+                                </form>
+                            </li>
+                        </ul>
                     </div>
-                </div>
-            </div>
+                </td>
+                <td>
+                    @if(count($lowStockStores))
+                        <i class="bi bi-exclamation-triangle-fill text-warning" 
+                           data-bs-toggle="tooltip" 
+                           data-bs-placement="top" 
+                           title="{{ implode("\n", $lowStockStores) }}"></i>
+                    @endif
+                </td>
+                <td>{{ $p->ean }}</td>
+                <td>{{ $p->name[app()->getLocale()] ?? reset($p->name) }}</td>
+                <td>{{ $p->brand?->name ?? '-' }}</td>
+                <td>{{ number_format($p->price, 2) }}</td>
+                <td>
+                    @if($p->price_btob !== null)
+                        {{ number_format($p->price_btob, 2) }}
+                    @else
+                        -
+                    @endif
+                </td>
+                <td style="text-center">{{ $p->is_active ? 'Yes' : 'No' }}</td>
+                <td style="text-center">{{ $p->is_best_seller ? 'Yes' : 'No' }}</td>
+                <td style="text-center">{{ $p->is_resalable ? 'Yes' : 'No' }}</td>
+            </tr>
             @endforeach
+        </tbody>
+    </table>
 
-            {{ $products->links() }}
-        </div>
-    </div>
+    {{ $products->links() }}
 </div>
 
 @push('scripts')

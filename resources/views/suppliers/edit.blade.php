@@ -64,8 +64,7 @@
                 </button>
             </div>
 
-            {{-- Version desktop --}}
-            <div class="d-none d-md-block">
+            <div class="d-block">
                 <table class="table table-striped">
                     <thead>
                         <tr>
@@ -100,41 +99,11 @@
                     </tbody>
                 </table>
             </div>
-
-            {{-- Version mobile --}}
-            <div class="d-md-none">
-                <div class="row">
-                    @foreach($supplier->contacts as $contact)
-                        <div class="col-12 mb-3">
-                            <div class="card shadow-sm">
-                                <div class="card-body p-3">
-                                    <h5 class="card-title mb-1">{{ $contact->first_name }} {{ $contact->last_name }}</h5>
-                                    <p class="card-text mb-1"><strong>{{ __('messages.supplier.email') }}:</strong> {{ $contact->email }}</p>
-                                    <p class="card-text mb-2"><strong>{{ __('messages.supplier.phone') }}:</strong> {{ $contact->phone }}</p>
-                                    <div class="d-flex gap-1 justify-content-end">
-                                        <button class="btn btn-warning btn-sm" data-bs-toggle="modal" data-bs-target="#editContactModal{{ $contact->id }}">
-                                            <i class="bi bi-pencil-fill"></i> {{ __('messages.btn.edit') }}
-                                        </button>
-                                        <form action="{{ route('contacts.destroy', [$supplier, $contact]) }}" method="POST" style="display:inline;">
-                                            @csrf
-                                            @method('DELETE')
-                                            <button class="btn btn-danger btn-sm" onclick="return confirm('{{ __('messages.supplier.confirm_delete_contact') }}')">
-                                                <i class="bi bi-trash-fill"></i> {{ __('messages.btn.delete') }}
-                                            </button>
-                                        </form>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    @endforeach
-                </div>
-            </div>
         </div>
 
         {{-- Onglet Produits --}}
         <div class="tab-pane fade" id="products" role="tabpanel" aria-labelledby="products-tab">
-            {{-- Version desktop --}}
-            <div class="d-none d-md-block">
+            <div class="d-block">
                 <table class="table table-striped">
                     <thead>
                         <tr>
@@ -184,47 +153,6 @@
                 </table>
                 {{ $products->links() }}
             </div>
-
-            {{-- Version mobile --}}
-            <div class="d-md-none">
-                <div class="row">
-                    @foreach($products as $p)
-                        @php
-                            $lowStockStores = [];
-                            foreach($p->stores as $store) {
-                                if($store->pivot->stock_quantity <= $store->pivot->alert_stock_quantity) {
-                                    $lowStockStores[] = $store->name . ', stock bas: ' . $store->pivot->stock_quantity;
-                                }
-                            }
-                        @endphp
-                        <div class="col-12 mb-3">
-                            <div class="card shadow-sm">
-                                <div class="card-body p-3">
-                                    <h5 class="card-title mb-1">
-                                        @if(count($lowStockStores))
-                                            <i class="bi bi-exclamation-triangle-fill text-warning"
-                                               data-bs-toggle="tooltip"
-                                               title="{{ implode("\n", $lowStockStores) }}"></i>
-                                        @endif
-                                        {{ $p->name[app()->getLocale()] ?? reset($p->name) }}
-                                    </h5>
-                                    <p class="mb-1"><strong>EAN:</strong> {{ $p->ean }}</p>
-                                    <p class="mb-1"><strong>Brand:</strong> {{ $p->brand?->name ?? '-' }}</p>
-                                    <p class="mb-1"><strong>Price:</strong> {{ number_format($p->price, 2) }}</p>
-                                    <p class="mb-1"><strong>Purchase Price:</strong></p>
-                                    <form action="{{ route('suppliers.updatePurchasePrice', [$supplier, $p]) }}" method="POST" class="d-flex">
-                                        @csrf
-                                        @method('PUT')
-                                        <input type="number" step="0.01" name="purchase_price" value="{{ $p->pivot->purchase_price ?? 0 }}" class="form-control form-control-sm me-2">
-                                        <button type="submit" class="btn btn-sm btn-success"><i class="bi bi-floppy-fill"></i></button>
-                                    </form>
-                                </div>
-                            </div>
-                        </div>
-                    @endforeach
-                    {{ $products->links() }}
-                </div>
-            </div>
         </div>
 
         {{-- Onglet Commandes --}}
@@ -236,114 +164,130 @@
                 </a>
             </div>
 
-            {{-- Version desktop --}}
-            <div class="d-none d-md-block">
-                <table class="table table-striped">
-                    <thead>
-                        <tr>
-                            <th>ID</th>
-                            <th>{{ __('messages.supplier.status') }}</th>
-                            <th>{{ __('messages.supplier.created_at') }}</th>
-                            <th>{{ __('messages.supplier.updated_at') }}</th>
-                            <th></th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach($orders as $order)
-                            <tr>
-                                <td>#{{ $order->id }}</td>
-                                <td>
-                                    @if($order->status == 'pending')
-                                        <span class="badge bg-warning">{{ __('messages.order.pending') }}</span>
-                                    @elseif($order->status == 'waiting_reception')
-                                        <span class="badge bg-info">{{ __('messages.order.waiting_reception') }}</span>
-                                    @else
-                                        <span class="badge bg-success">{{ __('messages.order.received') }}</span>
-                                    @endif
-                                </td>
-                                <td>{{ $order->created_at->format('d/m/Y H:i') }}</td>
-                                <td>{{ $order->updated_at->format('d/m/Y H:i') }}</td>
-                                <td class="text-end d-flex gap-1 justify-content-end">
-                                    <a href="{{ route('supplier-orders.show', [$supplier, $order]) }}" class="btn btn-primary btn-sm">
-                                        <i class="bi bi-eye-fill"></i> {{ __('messages.btn.view') }}
-                                    </a>
-                                    @if($order->status === 'pending')
-                                        <a href="{{ route('supplier-orders.edit', [$supplier, $order]) }}" class="btn btn-warning btn-sm">
-                                            <i class="bi bi-pencil-fill"></i> {{ __('messages.btn.edit') }}
-                                        </a>
-                                        <form action="{{ route('supplier-orders.validate', [$supplier, $order]) }}" method="POST" style="display:inline;">
-                                            @csrf
-                                            @method('PUT')
-                                            <button class="btn btn-success btn-sm">
-                                                <i class="bi bi-check-circle-fill"></i> {{ __('messages.btn.validate') }}
-                                            </button>
-                                        </form>
-                                    @elseif($order->status === 'waiting_reception')
-                                        <a href="{{ route('supplier-orders.pdf', [$supplier, $order]) }}" class="btn btn-secondary btn-sm">
-                                            <i class="bi bi-file-earmark-pdf-fill"></i> PDF
-                                        </a>
-                                        <a href="{{ route('supplier-orders.reception', [$supplier, $order]) }}" class="btn btn-success btn-sm">
-                                            <i class="bi bi-box-seam"></i> {{ __('messages.order.reception') }}
-                                        </a>
-                                    @endif
-                                </td>
-                            </tr>
-                        @endforeach
-                    </tbody>
-                </table>
-                {{ $orders->links() }}
+            {{-- Filtre par statut --}}
+            <div class="d-block mb-3">
+                <form method="GET" class="d-flex align-items-center gap-2 flex-wrap">
+                    <input type="hidden" name="tab" value="orders">
+                    <label for="statusFilter" class="mb-0 me-1">{{ __('messages.supplier.filter_status') }}:</label>
+                    <select name="status" id="statusFilter" class="form-select form-select-sm" style="width:auto;" onchange="this.form.submit()">
+                        <option value="">{{ __('messages.supplier.all_statuses') }}</option>
+                        <option value="pending" {{ request('status')=='pending' ? 'selected' : '' }}>
+                            {{ __('messages.order.pending') }}
+                        </option>
+                        <option value="waiting_reception" {{ request('status')=='waiting_reception' ? 'selected' : '' }}>
+                            {{ __('messages.order.waiting_reception') }}
+                        </option>
+                        <option value="waiting_invoice" {{ request('status')=='waiting_invoice' ? 'selected' : '' }}>
+                            {{ __('messages.order.waiting_invoice') }}
+                        </option>
+                    </select>
+                </form>
             </div>
 
-            {{-- Version mobile --}}
-            <div class="d-md-none">
-                <div class="row">
+            <table class="table table-striped text-center table-hover">
+                <thead>
+                    <tr>
+                        <th></th>
+                        <th>ID</th>
+                        <th>{{ __('messages.supplier.status') }}</th>
+                        <th>{{ __('messages.supplier.created_at') }}</th>
+                        <th>Destination</th>
+                        <th>Total commandé</th>
+                        <th>Total reçu</th>
+                        <th>Montant théorique</th>
+                    </tr>
+                </thead>
+                <tbody>
                     @foreach($orders as $order)
-                        <div class="col-12 mb-3">
-                            <div class="card shadow-sm">
-                                <div class="card-body p-3">
-                                    <h5 class="card-title mb-1">#{{ $order->id }}</h5>
-                                    <p class="card-text mb-1">
-                                        <strong>{{ __('messages.supplier.status') }}:</strong>
-                                        @if($order->status == 'pending')
-                                            <span class="badge bg-warning">{{ __('messages.order.pending') }}</span>
-                                        @elseif($order->status == 'waiting_reception')
-                                            <span class="badge bg-info">{{ __('messages.order.waiting_reception') }}</span>
-                                        @else
-                                            <span class="badge bg-success">{{ __('messages.order.received') }}</span>
-                                        @endif
-                                    </p>
-                                    <p class="card-text mb-1"><strong>{{ __('messages.supplier.created_at') }}:</strong> {{ $order->created_at->format('d/m/Y H:i') }}</p>
-                                    <div class="d-flex gap-1 justify-content-end mt-2">
-                                        <a href="{{ route('supplier-orders.show', [$supplier, $order]) }}" class="btn btn-primary btn-sm">
-                                            <i class="bi bi-eye-fill"></i>
-                                        </a>
+                        @php
+                            $items = $order->products ?? collect();
+                            $totalOrdered = ($order->status === 'received' || $order->status === 'waiting_invoice') 
+                                ? $items->sum(fn($item) => $item->pivot->quantity_ordered ?? 0) 
+                                : '-';
+                            $totalReceived = ($order->status === 'received' || $order->status === 'waiting_invoice') 
+                                ? $items->sum(fn($item) => $item->pivot->quantity_received ?? 0) 
+                                : '-';
+                            $totalAmount = ($order->status === 'received' || $order->status === 'waiting_invoice') 
+                                ? $items->sum(fn($item) => ($item->pivot->purchase_price ?? 0) * ($item->pivot->quantity_received ?? 0)) 
+                                : '-';
+                        @endphp
+                        <tr>
+                            <td>
+                                <div class="dropdown">
+                                    <button class="btn btn-sm btn-primary dropdown-toggle dropdown-noarrow" type="button" id="actionsDropdown{{ $order->id }}" data-bs-toggle="dropdown" aria-expanded="false">
+                                        <i class="bi bi-three-dots-vertical"></i>
+                                    </button>
+                                    <ul class="dropdown-menu" aria-labelledby="actionsDropdown{{ $order->id }}">
+                                        <li>
+                                            <a class="dropdown-item" href="{{ route('supplier-orders.show', [$supplier, $order]) }}">
+                                                <i class="bi bi-eye-fill"></i> {{ __('messages.btn.view') }}
+                                            </a>
+                                        </li>
                                         @if($order->status === 'pending')
-                                            <a href="{{ route('supplier-orders.edit', [$supplier, $order]) }}" class="btn btn-warning btn-sm">
-                                                <i class="bi bi-pencil-fill"></i>
-                                            </a>
-                                            <form action="{{ route('supplier-orders.validate', [$supplier, $order]) }}" method="PUT" style="display:inline;">
-                                                @csrf
-                                                @method('PUT')
-                                                <button class="btn btn-success btn-sm">
-                                                    <i class="bi bi-check-circle-fill"></i>
-                                                </button>
-                                            </form>
+                                            <li>
+                                                <a class="dropdown-item" href="{{ route('supplier-orders.edit', [$supplier, $order]) }}">
+                                                    <i class="bi bi-pencil-fill"></i> {{ __('messages.btn.edit') }}
+                                                </a>
+                                            </li>
+                                            <li>
+                                                <form action="{{ route('supplier-orders.validate', [$supplier, $order]) }}" method="POST">
+                                                    @csrf
+                                                    @method('PUT')
+                                                    <button class="dropdown-item" type="submit">
+                                                        <i class="bi bi-check-circle-fill"></i> {{ __('messages.btn.validate') }}
+                                                    </button>
+                                                </form>
+                                            </li>
                                         @elseif($order->status === 'waiting_reception')
-                                            <a href="{{ route('supplier-orders.pdf', [$supplier, $order]) }}" class="btn btn-secondary btn-sm">
-                                                <i class="bi bi-file-earmark-pdf-fill"></i>
-                                            </a>
-                                            <a href="{{ route('supplier-orders.reception', [$supplier, $order]) }}" class="btn btn-success btn-sm">
-                                                <i class="bi bi-box-seam"></i>
-                                            </a>
+                                            <li>
+                                                <a class="dropdown-item" href="{{ route('supplier-orders.pdf', [$supplier, $order]) }}">
+                                                    <i class="bi bi-file-earmark-pdf-fill"></i> PDF
+                                                </a>
+                                            </li>
+                                            <li>
+                                                <a class="dropdown-item" href="{{ route('supplier-orders.reception', [$supplier, $order]) }}">
+                                                    <i class="bi bi-box-seam"></i> {{ __('messages.order.reception') }}
+                                                </a>
+                                            </li>
+                                        @elseif($order->status === 'waiting_invoice')
+                                            <li>
+                                                <a class="dropdown-item" href="{{ route('supplier-orders.pdf', [$supplier, $order]) }}">
+                                                    <i class="bi bi-file-earmark-pdf-fill"></i> PDF
+                                                </a>
+                                            </li>
                                         @endif
-                                    </div>
+                                    </ul>
                                 </div>
-                            </div>
-                        </div>
+                            </td>
+                            <td>#{{ $order->id }}</td>
+                            <td>
+                                @if($order->status == 'pending')
+                                    <span class="badge bg-warning">{{ __('messages.order.pending') }}</span>
+                                @elseif($order->status == 'waiting_reception')
+                                    <span class="badge bg-info">{{ __('messages.order.waiting_reception') }}</span>
+                                @elseif($order->status == 'waiting_invoice')
+                                    <span class="badge bg-secondary">{{ __('messages.order.waiting_invoice') }}</span>
+                                @else
+                                    <span class="badge bg-success">{{ __('messages.order.received') }}</span>
+                                @endif
+                            </td>
+                            <td>{{ $order->created_at->format('d/m/y') }}</td>
+                            <td>{{ $order->destinationStore?->name ?? '-' }}</td>
+                            <td>{{ $totalOrdered }}</td>
+                            <td>{{ $totalReceived }}</td>
+                            <td>
+                                @if($totalAmount !== '-')
+                                    ${{ number_format($totalAmount, 2) }}
+                                @else
+                                    -
+                                @endif
+                            </td>
+                        </tr>
                     @endforeach
-                </div>
-                {{ $orders->links() }}
-            </div>
+                </tbody>
+            </table>
+
+            {{ $orders->appends(request()->query())->links() }}
         </div>
     </div>
 </div>
@@ -428,4 +372,45 @@
     </div>
 </div>
 @endforeach
+
+
 @endsection
+
+@push('scripts')
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    // Affiche l'onglet correspondant au hash dans l'URL
+    var hash = window.location.hash;
+    if(hash) {
+        var tabTriggerEl = document.querySelector('button[data-bs-target="' + hash + '"]');
+        if(tabTriggerEl) {
+            var tab = new bootstrap.Tab(tabTriggerEl);
+            console.log(tab);
+            tab.show();
+        }
+    }
+    // 2. Met à jour le hash quand on change d'onglet
+    var tabButtons = document.querySelectorAll('#supplierTabs button[data-bs-toggle="tab"]');
+    tabButtons.forEach(function(btn){
+        btn.addEventListener('shown.bs.tab', function(e){
+            history.replaceState(null, null, e.target.getAttribute('data-bs-target'));
+        });
+    });
+
+    // 3. Ajoute le hash aux liens de pagination pour conserver l'onglet
+    var paginationLinks = document.querySelectorAll('#orders .pagination a');
+    paginationLinks.forEach(function(link){
+        // enlève un hash existant s'il y en a
+        var url = new URL(link.href);
+        url.hash = window.location.hash || '#orders';
+        link.href = url.toString();
+    });
+
+    // Initialiser tooltips pour alertes stock
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    tooltipTriggerList.map(function (tooltipTriggerEl) {
+      return new bootstrap.Tooltip(tooltipTriggerEl)
+    });
+});
+</script>
+@endpush

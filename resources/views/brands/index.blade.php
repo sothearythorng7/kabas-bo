@@ -9,60 +9,48 @@
     </a>
 
     <div class="d-none d-md-block">
-        <table class="table table-striped">
+        <table class="table table-striped table-hover">
             <thead>
                 <tr>
-                    <th>ID</th>
+                    <th></th> {{-- Dropdown actions --}}
+                    <th class="text-center">ID</th>
                     <th>{{ __('messages.brand.name') }}</th>
-                    <th></th>
                 </tr>
             </thead>
             <tbody>
                 @foreach($brands as $brand)
                 <tr>
-                    <td>{{ $brand->id }}</td>
-                    <td>{{ $brand->name }}</td>
-                    <td class="d-flex justify-content-end gap-1">
-                        <a href="{{ route('brands.edit', $brand) }}" class="btn btn-warning btn-sm">
-                            <i class="bi bi-pencil-fill"></i> {{ __('messages.btn.edit') }}
-                        </a>
-                        <form action="{{ route('brands.destroy', $brand) }}" method="POST" style="display:inline;">
-                            @csrf
-                            @method('DELETE')
-                            <button type="submit" class="btn btn-danger btn-sm" 
-                                onclick="return confirm('{{ __('messages.brand.confirm_delete') }}')">
-                                <i class="bi bi-trash-fill"></i> {{ __('messages.btn.delete') }}
+                    <td style="width: 1%; white-space: nowrap;" class="text-start">
+                        <div class="dropdown">
+                            <button class="btn btn-primary btn-sm dropdown-toggle" type="button" id="dropdownBrand{{ $brand->id }}" data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="bi bi-three-dots-vertical"></i>
                             </button>
-                        </form>
+                            <ul class="dropdown-menu" aria-labelledby="dropdownBrand{{ $brand->id }}">
+                                <li>
+                                    <a class="dropdown-item" href="{{ route('brands.edit', $brand) }}">
+                                        <i class="bi bi-pencil-fill"></i> {{ __('messages.btn.edit') }}
+                                    </a>
+                                </li>
+                                <li>
+                                    <form action="{{ route('brands.destroy', $brand) }}" method="POST" onsubmit="return confirm('{{ __('messages.brand.confirm_delete') }}')">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button class="dropdown-item text-danger" type="submit">
+                                            <i class="bi bi-trash-fill"></i> {{ __('messages.btn.delete') }}
+                                        </button>
+                                    </form>
+                                </li>
+                            </ul>
+                        </div>
                     </td>
+                    <td class="text-center">{{ $brand->id }}</td>
+                    <td>{{ $brand->name }}</td>
                 </tr>
                 @endforeach
             </tbody>
         </table>
     </div>
 
-    {{-- Mobile view --}}
-    <div class="d-md-none">
-        <div class="row">
-            @foreach($brands as $brand)
-            <div class="col-12 mb-3">
-                <div class="card shadow-sm">
-                    <div class="card-body p-3">
-                        <h5 class="card-title mb-1">{{ $brand->name }}</h5>
-                        <div class="d-flex justify-content-between mt-2">
-                            <a href="{{ route('brands.edit', $brand) }}" class="btn btn-warning btn-sm">Edit</a>
-                            <form action="{{ route('brands.destroy', $brand) }}" method="POST">
-                                @csrf
-                                @method('DELETE')
-                                <button type="submit" class="btn btn-danger btn-sm"
-                                    onclick="return confirm('{{ __('messages.brand.confirm_delete') }}')">Delete</button>
-                            </form>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            @endforeach
-        </div>
-    </div>
+    {{ $brands->links() }}
 </div>
 @endsection

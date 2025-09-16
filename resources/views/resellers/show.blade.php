@@ -7,6 +7,7 @@
     @php
         $resellerType = $reseller->type ?? 'buyer';
     @endphp
+
     {{-- Onglets --}}
     <ul class="nav nav-tabs" id="resellerTabs" role="tablist">
         <li class="nav-item" role="presentation">
@@ -65,59 +66,50 @@
                 @endif
             </div>
 
-            {{-- Desktop --}}
-            <div class="d-none d-md-block">
-                <table class="table table-striped">
-                    <thead>
-                        <tr>
-                            <th>{{ __('messages.resellers.name') }}</th>
-                            <th>{{ __('messages.resellers.email') }}</th>
-                            <th>{{ __('messages.resellers.phone') }}</th>
-                            <th></th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach($reseller->contacts as $contact)
-                            <tr>
-                                <td>{{ $contact->name }}</td>
-                                <td>{{ $contact->email }}</td>
-                                <td>{{ $contact->phone }}</td>
-                                <td class="text-end">
-                                    @if($resellerType !== 'shop')
-                                    <button class="btn btn-warning btn-sm" data-bs-toggle="modal" data-bs-target="#editContactModal{{ $contact->id }}">
-                                        <i class="bi bi-pencil-fill"></i> {{ __('messages.btn.edit') }}
-                                    </button>
-                                    <form action="{{ route('resellers.contacts.destroy', [$reseller->id ?? 0, $contact]) }}" method="POST" style="display:inline;">
-                                        @csrf
-                                        @method('DELETE')
-                                        <button class="btn btn-danger btn-sm" onclick="return confirm('{{ __('messages.resellers.confirm_delete_contact') }}')">
-                                            <i class="bi bi-trash-fill"></i> {{ __('messages.btn.delete') }}
-                                        </button>
-                                    </form>
-                                    @endif
-                                </td>
-                            </tr>
-                        @endforeach
-                    </tbody>
-                </table>
-            </div>
-
-            {{-- Mobile --}}
-            <div class="d-md-none">
-                <div class="row">
+            <table class="table table-striped table-hover">
+                <thead>
+                    <tr>
+                        <th></th> {{-- Dropdown --}}
+                        <th>{{ __('messages.resellers.name') }}</th>
+                        <th>{{ __('messages.resellers.email') }}</th>
+                        <th>{{ __('messages.resellers.phone') }}</th>
+                    </tr>
+                </thead>
+                <tbody>
                     @foreach($reseller->contacts as $contact)
-                        <div class="col-12 mb-3">
-                            <div class="card shadow-sm">
-                                <div class="card-body p-3">
-                                    <h5 class="card-title mb-1">{{ $contact->name }}</h5>
-                                    <p class="card-text mb-1"><strong>{{ __('messages.resellers.email') }}:</strong> {{ $contact->email }}</p>
-                                    <p class="card-text mb-2"><strong>{{ __('messages.resellers.phone') }}:</strong> {{ $contact->phone }}</p>
+                        <tr>
+                            <td class="text-center">
+                                @if($resellerType !== 'shop')
+                                <div class="dropdown">
+                                    <button class="btn btn-primary btn-sm dropdown-toggle" type="button" id="dropdownContact{{ $contact->id }}" data-bs-toggle="dropdown" aria-expanded="false">
+                                        <i class="bi bi-three-dots-vertical"></i>
+                                    </button>
+                                    <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="dropdownContact{{ $contact->id }}">
+                                        <li>
+                                            <button class="dropdown-item" data-bs-toggle="modal" data-bs-target="#editContactModal{{ $contact->id }}">
+                                                <i class="bi bi-pencil-fill"></i> {{ __('messages.btn.edit') }}
+                                            </button>
+                                        </li>
+                                        <li>
+                                            <form action="{{ route('resellers.contacts.destroy', [$reseller->id ?? 0, $contact]) }}" method="POST" onsubmit="return confirm('{{ __('messages.resellers.confirm_delete_contact') }}')">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button class="dropdown-item text-danger" type="submit">
+                                                    <i class="bi bi-trash-fill"></i> {{ __('messages.btn.delete') }}
+                                                </button>
+                                            </form>
+                                        </li>
+                                    </ul>
                                 </div>
-                            </div>
-                        </div>
+                                @endif
+                            </td>
+                            <td>{{ $contact->name }}</td>
+                            <td>{{ $contact->email }}</td>
+                            <td>{{ $contact->phone }}</td>
+                        </tr>
                     @endforeach
-                </div>
-            </div>
+                </tbody>
+            </table>
 
             {{-- Modal Ajouter Contact --}}
             @if($resellerType !== 'shop')
@@ -158,12 +150,12 @@
         {{-- Onglet Produits --}}
         @if(in_array($resellerType, ['consignment', 'shop']))
         <div class="tab-pane fade" id="products" role="tabpanel" aria-labelledby="products-tab">
-            <table class="table table-striped mt-3">
+            <table class="table table-striped table-hover mt-3">
                 <thead>
                     <tr>
                         <th>{{ __('messages.product.name') }}</th>
                         <th>{{ __('messages.product.brand') }}</th>
-                        <th>{{ __('messages.resellers.stock') }}</th>
+                        <th class="text-center">{{ __('messages.resellers.stock') }}</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -171,7 +163,7 @@
                         <tr>
                             <td>{{ $product->name[app()->getLocale()] ?? reset($product->name) }}</td>
                             <td>{{ $product->brand->name ?? '-' }}</td>
-                            <td>{{ $stock[$product->id] ?? 0 }}</td>
+                            <td class="text-center">{{ $stock[$product->id] ?? 0 }}</td>
                         </tr>
                     @endforeach
                 </tbody>
@@ -190,27 +182,44 @@
                 </a>
             </div>
 
-            <table class="table table-striped mt-3">
+            <table class="table table-striped table-hover mt-3">
                 <thead>
                     <tr>
-                        <th>ID</th>
+                        <th></th> {{-- Dropdown --}}
+                        <th class="text-center">ID</th>
                         <th>{{ __('messages.resellers.created_at') }}</th>
-                        <th>{{ __('messages.resellers.total_items') }}</th>
-                        <th>{{ __('messages.resellers.total_amount') }}</th>
+                        <th class="text-center">{{ __('messages.resellers.total_items') }}</th>
+                        <th class="text-center">{{ __('messages.resellers.total_amount') }}</th>
                         <th>{{ __('messages.resellers.invoice_status') }}</th>
-                        <th class="text-end">{{ __('messages.btn.actions') }}</th>
                     </tr>
                 </thead>
                 <tbody>
                     @foreach($salesReports as $report)
-                        @php
-                            $invoice = $report->invoice;
-                        @endphp
+                        @php $invoice = $report->invoice; @endphp
                         <tr>
-                            <td>{{ $report->id }}</td>
+                            <td style="width: 1%; white-space: nowrap;" class="text-start">
+                                <div class="dropdown">
+                                    <button class="btn btn-primary btn-sm dropdown-toggle" type="button" id="dropdownReport{{ $report->id }}" data-bs-toggle="dropdown" aria-expanded="false">
+                                        <i class="bi bi-three-dots-vertical"></i>
+                                    </button>
+                                    <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="dropdownReport{{ $report->id }}">
+                                        <li>
+                                            <a class="dropdown-item" href="{{ route('resellers.reports.show', [$reseller->id, $report->id]) }}">
+                                                <i class="bi bi-eye-fill"></i> {{ __('messages.btn.view') }}
+                                            </a>
+                                        </li>
+                                        <li>
+                                            <a class="dropdown-item" href="{{ route('resellers.reports.invoice', [$reseller->id, $report->id]) }}">
+                                                <i class="bi bi-file-earmark-text-fill"></i> {{ __('messages.btn.invoice') }}
+                                            </a>
+                                        </li>
+                                    </ul>
+                                </div>
+                            </td>
+                            <td class="text-center">{{ $report->id }}</td>
                             <td>{{ $report->created_at->format('d/m/Y') }}</td>
-                            <td>{{ $report->items->sum('quantity_sold') }}</td>
-                            <td>{{ $invoice ? number_format($invoice->total_amount, 2, ',', ' ') . ' $' : '-' }}</td>
+                            <td class="text-center">{{ $report->items->sum('quantity_sold') }}</td>
+                            <td class="text-center">{{ $invoice ? number_format($invoice->total_amount, 2, ',', ' ') . ' $' : '-' }}</td>
                             <td>
                                 @php
                                     $badgeClass = match($invoice->status) {
@@ -225,14 +234,6 @@
                                     {{ ucfirst(str_replace('_', ' ', $invoice->status)) }}
                                 </span>
                             </td>
-                            <td class="text-end">
-                                <a href="{{ route('resellers.reports.show', [$reseller->id, $report->id]) }}" class="btn btn-info btn-sm">
-                                    <i class="bi bi-eye-fill"></i> {{ __('messages.btn.view') }}
-                                </a>
-                                <a href="{{ route('resellers.reports.invoice', [$reseller->id, $report->id]) }}" class="btn btn-secondary btn-sm">
-                                    <i class="bi bi-file-earmark-text-fill"></i> {{ __('messages.btn.invoice') }}
-                                </a>
-                            </td>
                         </tr>
                     @endforeach
                 </tbody>
@@ -244,10 +245,10 @@
 
         {{-- Onglet Anomalies --}}
         <div class="tab-pane fade" id="anomalies" role="tabpanel" aria-labelledby="anomalies-tab">
-            <table class="table table-striped mt-3">
+            <table class="table table-striped table-hover mt-3">
                 <thead>
                     <tr>
-                        <th>ID</th>
+                        <th class="text-center">ID</th>
                         <th>{{ __('messages.resellers.created_at') }}</th>
                         <th>{{ __('messages.resellers.details') }}</th>
                     </tr>
@@ -255,7 +256,7 @@
                 <tbody>
                     @foreach($anomalies as $anomaly)
                         <tr>
-                            <td>{{ $anomaly->id }}</td>
+                            <td class="text-center">{{ $anomaly->id }}</td>
                             <td>{{ $anomaly->created_at->format('d/m/Y') }}</td>
                             <td>{{ $anomaly->details ?? '-' }}</td>
                         </tr>
@@ -277,33 +278,52 @@
                 </a>
             </div>
 
-            <table class="table table-striped mt-3">
+            <table class="table table-striped table-hover mt-3">
                 <thead>
                     <tr>
-                        <th>#ID</th>
+                        <th></th> {{-- Dropdown --}}
+                        <th class="text-center">#ID</th>
                         <th>{{ __('messages.resellers.status') }}</th>
-                        <th>{{ __('messages.resellers.total_items') }}</th>
-                        <th>{{ __('messages.resellers.total_amount') }}</th>
+                        <th class="text-center">{{ __('messages.resellers.total_items') }}</th>
+                        <th class="text-center">{{ __('messages.resellers.total_amount') }}</th>
                         @if($resellerType === 'buyer')
                         <th>{{ __('messages.resellers.invoice_status') }}</th>
                         @endif
                         <th>{{ __('messages.resellers.created_at') }}</th>
-                        <th class="text-end">{{ __('messages.btn.actions') }}</th>
                     </tr>
                 </thead>
                 <tbody>
                     @foreach($deliveries as $delivery)
                         @php
                             $totalItems = $delivery->products->sum('pivot.quantity');
-                            $invoice = $delivery->invoice; // relation hasOne ou belongsTo sur ResellerStockDelivery
+                            $invoice = $delivery->invoice;
                         @endphp
                         <tr>
-                            <td>{{ $delivery->id }}</td>
-                            <td>{{ ucfirst($delivery->status) }}</td>
-                            <td>{{ $totalItems }}</td>
-                            <td>
-                                {{ $invoice ? number_format($invoice->total_amount, 2, ',', ' ') . ' €' : '-' }}
+                            <td style="width: 1%; white-space: nowrap;" class="text-start">
+                                <div class="dropdown">
+                                    <button class="btn btn-primary btn-sm dropdown-toggle" type="button" id="dropdownDelivery{{ $delivery->id }}" data-bs-toggle="dropdown" aria-expanded="false">
+                                        <i class="bi bi-three-dots-vertical"></i>
+                                    </button>
+                                    <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="dropdownDelivery{{ $delivery->id }}">
+                                        <li>
+                                            <a class="dropdown-item" href="{{ route('reseller-stock-deliveries.edit', [$reseller->id, $delivery->id]) }}">
+                                                <i class="bi bi-pencil-fill"></i> {{ __('messages.btn.edit') }}
+                                            </a>
+                                        </li>
+                                        @if($resellerType === 'buyer' && $invoice)
+                                        <li>
+                                            <a class="dropdown-item" href="{{ route('invoices.download', $invoice->id) }}">
+                                                <i class="bi bi-download"></i> {{ __('messages.btn.invoice') }}
+                                            </a>
+                                        </li>
+                                        @endif
+                                    </ul>
+                                </div>
                             </td>
+                            <td class="text-center">{{ $delivery->id }}</td>
+                            <td>{{ ucfirst($delivery->status) }}</td>
+                            <td class="text-center">{{ $totalItems }}</td>
+                            <td class="text-center">{{ $invoice ? number_format($invoice->total_amount, 2, ',', ' ') . ' €' : '-' }}</td>
                             @if($resellerType === 'buyer')
                             <td>
                                 @if($invoice)
@@ -325,16 +345,6 @@
                             </td>
                             @endif
                             <td>{{ $delivery->created_at->format('d/m/Y H:i') }}</td>
-                            <td class="text-end">
-                                <a href="{{ route('reseller-stock-deliveries.edit', [$reseller->id, $delivery->id]) }}" class="btn btn-warning btn-sm">
-                                    <i class="bi bi-pencil-fill"></i> {{ __('messages.btn.edit') }}
-                                </a>
-                                @if($resellerType === 'buyer' && $invoice)
-                                    <a href="{{ route('invoices.download', $invoice->id) }}" class="btn btn-primary btn-sm">
-                                        <i class="bi bi-download"></i> {{ __('messages.btn.invoice') }}
-                                    </a>
-                                @endif
-                            </td>
                         </tr>
                     @endforeach
                 </tbody>
@@ -344,8 +354,6 @@
                 {{ $deliveries->links() }}
             @endif
         </div>
-
-
     </div>
 </div>
 @endsection

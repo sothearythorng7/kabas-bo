@@ -23,7 +23,6 @@
         </div>
     </div>
 
-
     <!-- Modal pour les filtres -->
     <div class="modal fade" id="filterModal" tabindex="-1" aria-labelledby="filterModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-lg">
@@ -94,21 +93,38 @@
     </div>
 
     <!-- Tableau des transactions -->
-    <table class="table table-striped">
+    <table class="table table-hover table-striped">
         <thead>
             <tr>
+                <th></th> <!-- Dropdown actions -->
                 <th>@t("date")</th>
                 <th>@t("Libellé")</th>
                 <th>@t("Compte")</th>
                 <th>@t("Montant")</th>
                 <th>@t("Méthode")</th>
                 <th>@t("Solde après")</th>
-                <th></th>
             </tr>
         </thead>
         <tbody>
         @forelse($transactions as $t)
             <tr>
+                <td>
+                    <div class="dropdown">
+                        <button class="btn btn-primary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="bi bi-three-dots-vertical"></i>
+                        </button>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="{{ route('financial.transactions.show', [$store->id, $t->id]) }}">Voir</a></li>
+                            <li><a class="dropdown-item" href="{{ route('financial.transactions.edit', [$store->id, $t->id]) }}">Modifier</a></li>
+                            <li>
+                                <form method="POST" action="{{ route('financial.transactions.destroy', [$store->id, $t->id]) }}" class="m-0 p-0">
+                                    @csrf @method('DELETE')
+                                    <button class="dropdown-item" onclick="return confirm('Supprimer ?')">Supprimer</button>
+                                </form>
+                            </li>
+                        </ul>
+                    </div>
+                </td>
                 <td>{{ $t->transaction_date->format('d/m/Y') }}</td>
                 <td>{{ $t->label }}</td>
                 <td>{{ $t->account->code }} - {{ $t->account->name }}</td>
@@ -117,14 +133,6 @@
                 </td>
                 <td>{{ $t->paymentMethod->name }}</td>
                 <td>{{ number_format($t->balance_after, 2) }} {{ $t->currency }}</td>
-                <td class="text-end">
-                    <a href="{{ route('financial.transactions.show', [$store->id, $t->id]) }}" class="btn btn-sm btn-info">Voir</a>
-                    <a href="{{ route('financial.transactions.edit', [$store->id, $t->id]) }}" class="btn btn-sm btn-warning">Modifier</a>
-                    <form method="POST" action="{{ route('financial.transactions.destroy', [$store->id, $t->id]) }}" class="d-inline">
-                        @csrf @method('DELETE')
-                        <button class="btn btn-sm btn-danger" onclick="return confirm('Supprimer ?')">Supprimer</button>
-                    </form>
-                </td>
             </tr>
         @empty
             <tr><td colspan="7" class="text-center">@t("Aucune transaction")</td></tr>

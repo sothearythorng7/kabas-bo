@@ -11,7 +11,7 @@ class SupplierController extends Controller
 {
     public function index()
     {
-        $suppliers = Supplier::with('contacts')->get();
+        $suppliers = Supplier::with('contacts')->paginate(20);
         return view('suppliers.index', compact('suppliers'));
     }
 
@@ -38,19 +38,26 @@ class SupplierController extends Controller
         return redirect()->route('suppliers.index')->with('success', 'Supplier created');
     }
 
-    public function edit(Supplier $supplier)
-    {
-        // On charge les relations nécessaires pour la page
-        $supplier->load(['contacts', 'products.stores', 'products.brand']);
+public function edit(Supplier $supplier, Request $request)
+{
+    // Charger les relations nécessaires pour la page
+    $supplier->load(['contacts', 'products.stores', 'products.brand']);
 
-        // Produits paginés (déjà présent chez toi)
-        $products = $supplier->products()->with(['stores', 'brand'])->paginate(10);
+    // Produits paginés
+    $products = $supplier->products()->with(['stores', 'brand'])->paginate(10);
 
-        // 👉 AJOUT : commandes fournisseurs paginées
-        $orders = $supplier->supplierOrders()->latest()->paginate(10);
+    // Commandes paginées avec filtrage par statut
+    $query = $supplier->supplierOrders()->latest();
 
-        return view('suppliers.edit', compact('supplier', 'products', 'orders'));
+    if ($request->filled('status') && in_array($request->status, ['pending','waiting_reception','waiting_invoice'])) {
+        $query->where('status', $request->status);
     }
+
+    $orders = $query->paginate(10)->appends($request->only('status'));
+
+    return view('suppliers.edit', compact('supplier', 'products', 'orders'));
+}
+
 
     public function update(Request $request, Supplier $supplier)
     {

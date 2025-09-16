@@ -254,6 +254,8 @@ return [
         'created_at' => 'Created At',
         'updated_at' => 'Updated At',
         'orders' => 'Orders',
+        'filter_status'=> 'Filter status',
+        'all_statuses' => 'All Statuses',
     ],
     'resellers' => [
         'title' => "Resellers management",
@@ -306,6 +308,7 @@ return [
         'cancelled' => 'Cancelled',
         'ready_to_ship' => 'Ready to ship',
         'shipped' => 'Shipped',
+        'waiting_invoice' => 'Waiting Invoice'
     ],
 
     'category' => [

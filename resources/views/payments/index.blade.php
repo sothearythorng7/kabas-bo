@@ -24,23 +24,46 @@
         <i class="bi bi-plus-circle-fill"></i> @t("Ajouter un paiement")
     </a>
 
-    <table class="table table-striped">
+    <table class="table table-striped table-hover">
         <thead>
             <tr>
+                <th></th> {{-- Dropdown / Actions --}}
                 <th>@t("Fournisseur")</th>
                 <th>@t("Référence")</th>
-                <th>@t("Montant")</th>
+                <th class="text-center">@t("Montant")</th>
                 <th>@t("Date échéance")</th>
                 <th>@t("Document")</th>
-                <th class="text-end">Actions</th>
             </tr>
         </thead>
         <tbody>
             @foreach($payments as $payment)
             <tr>
+                <td class="text-center">
+                    <div class="dropdown">
+                        <button class="btn btn-primary btn-sm dropdown-toggle" type="button" id="dropdownPayment{{ $payment->id }}" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="bi bi-three-dots-vertical"></i>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="dropdownPayment{{ $payment->id }}">
+                            <li>
+                                <a class="dropdown-item" href="{{ route('stores.payments.edit', [$site, $payment]) }}">
+                                    <i class="bi bi-pencil-fill"></i> @t("Modifier")
+                                </a>
+                            </li>
+                            <li>
+                                <form action="{{ route('stores.payments.destroy', [$site, $payment]) }}" method="POST" onsubmit="return confirm('@t("Supprimer ce paiement ?")')">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button class="dropdown-item text-danger" type="submit">
+                                        <i class="bi bi-trash-fill"></i> @t("Supprimer")
+                                    </button>
+                                </form>
+                            </li>
+                        </ul>
+                    </div>
+                </td>
                 <td>{{ $payment->supplier_name }}</td>
                 <td>{{ $payment->reference }}</td>
-                <td>{{ number_format($payment->amount, 2, ',', ' ') }} €</td>
+                <td class="text-center">{{ number_format($payment->amount, 2, ',', ' ') }} €</td>
                 <td>{{ $payment->due_date?->format('d/m/Y') ?? '-' }}</td>
                 <td>
                     @if($payment->document)
@@ -48,18 +71,6 @@
                     @else
                         -
                     @endif
-                </td>
-                <td class="text-end">
-                    <a href="{{ route('stores.payments.edit', [$site, $payment]) }}" class="btn btn-warning btn-sm">
-                        <i class="bi bi-pencil-fill"></i> Modifier
-                    </a>
-                    <form action="{{ route('stores.payments.destroy', [$site, $payment]) }}" method="POST" style="display:inline;">
-                        @csrf
-                        @method('DELETE')
-                        <button class="btn btn-danger btn-sm" onclick="return confirm("@t("'Supprimer ce paiement ?'")")">
-                            <i class="bi bi-trash-fill"></i> @t("Supprimer")
-                        </button>
-                    </form>
                 </td>
             </tr>
             @endforeach

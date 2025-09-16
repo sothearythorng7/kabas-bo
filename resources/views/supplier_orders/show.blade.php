@@ -4,7 +4,16 @@
 <div class="container mt-4">
     <h1 class="crud_title">{{ __('messages.supplier_order.show_title') }} - {{ $supplier->name }}</h1>
 
-    <p><strong>{{ __('messages.supplier_order.status') }}:</strong> {{ ucfirst($order->status) }}</p>
+    <p><strong>{{ __('messages.supplier_order.status') }}:</strong>
+        @if($order->status === 'pending')
+            <span class="badge bg-warning">{{ __('messages.order.pending') }}</span>
+        @elseif($order->status === 'waiting_reception')
+            <span class="badge bg-info">{{ __('messages.order.waiting_reception') }}</span>
+        @else
+            <span class="badge bg-success">{{ __('messages.order.received') }}</span>
+        @endif
+    </p>
+
     <p><strong>{{ __('messages.supplier_order.created_at') }}:</strong> {{ $order->created_at->format('d/m/Y H:i') }}</p>
 
     {{-- Liste produits --}}
@@ -18,50 +27,23 @@
                     <th>{{ __('messages.product.purchase_price') }}</th>
                     <th>{{ __('messages.product.price') }}</th>
                     <th>{{ __('messages.supplier_order.quantity_ordered') }}</th>
-                    @if($order->status === 'waiting_for_reception')
-                        <th>{{ __('messages.supplier_order.quantity_received') }}</th>
-                    @endif
+                    <th>{{ __('messages.supplier_order.received_quantity') }}</th>
                 </tr>
             </thead>
             <tbody>
                 @foreach($order->products as $product)
-                <tr>
-                    <td>{{ $product->ean }}</td>
-                    <td>{{ $product->name[app()->getLocale()] ?? reset($product->name) }}</td>
-                    <td>{{ $product->brand?->name ?? '-' }}</td>
-                    <td>{{ number_format($product->pivot->purchase_price, 2) }}</td>
-                    <td>{{ number_format($product->price, 2) }}</td>
-                    <td>{{ $product->pivot->quantity_ordered }}</td>
-                    @if($order->status === 'waiting_for_reception')
-                        <td>{{ $product->pivot->quantity_received ?? $product->pivot->quantity_ordered }}</td>
-                    @endif
-                </tr>
+                    <tr>
+                        <td>{{ $product->ean }}</td>
+                        <td>{{ $product->name[app()->getLocale()] ?? reset($product->name) }}</td>
+                        <td>{{ $product->brand?->name ?? '-' }}</td>
+                        <td>{{ number_format($product->pivot->purchase_price, 2) }}</td>
+                        <td>{{ number_format($product->price, 2) }}</td>
+                        <td>{{ $product->pivot->quantity_ordered }}</td>
+                        <td>{{ $product->pivot->quantity_received ?? '-' }}</td>
+                    </tr>
                 @endforeach
             </tbody>
         </table>
-    </div>
-
-    {{-- Version mobile --}}
-    <div class="d-md-none">
-        <div class="row">
-            @foreach($order->products as $product)
-            <div class="col-12 mb-3">
-                <div class="card shadow-sm">
-                    <div class="card-body p-3">
-                        <h5 class="card-title">{{ $product->name[app()->getLocale()] ?? reset($product->name) }}</h5>
-                        <p class="mb-1"><strong>EAN:</strong> {{ $product->ean }}</p>
-                        <p class="mb-1"><strong>Brand:</strong> {{ $product->brand?->name ?? '-' }}</p>
-                        <p class="mb-1"><strong>{{ __('messages.product.purchase_price') }}:</strong> {{ number_format($product->pivot->purchase_price, 2) }}</p>
-                        <p class="mb-1"><strong>{{ __('messages.product.price') }}:</strong> {{ number_format($product->price, 2) }}</p>
-                        <p class="mb-1"><strong>{{ __('messages.supplier_order.quantity_ordered') }}:</strong> {{ $product->pivot->quantity_ordered }}</p>
-                        @if($order->status === 'waiting_for_reception')
-                        <p class="mb-1"><strong>{{ __('messages.supplier_order.quantity_received') }}:</strong> {{ $product->pivot->quantity_received ?? $product->pivot->quantity_ordered }}</p>
-                        @endif
-                    </div>
-                </div>
-            </div>
-            @endforeach
-        </div>
     </div>
 
     <div class="mt-3">
@@ -79,7 +61,7 @@
             </form>
         @endif
 
-        @if($order->status === 'waiting_for_reception')
+        @if(in_array($order->status, ['waiting_reception', 'received']))
             <a href="{{ route('supplier-orders.pdf', [$supplier, $order]) }}" class="btn btn-primary">
                 <i class="bi bi-file-earmark-pdf-fill"></i> {{ __('messages.supplier_order.pdf') }}
             </a>

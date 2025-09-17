@@ -29,7 +29,8 @@ return [
         'expense_categories' => 'Expense categories',
         'journals' => 'Journals',
         'suppliers_overview' => 'Overview',
-        'suppliers_list' => 'Suppliers list'
+        'suppliers_list' => 'Suppliers list',
+        'invoice_overview' => 'Invoice Overview'
     ],
     'dashboard' => 'Dashboard',
     'shops' => 'Shops',
@@ -582,4 +583,10 @@ return [
     'Paid' => 'Paid',
     "Download Invoice" => "Download Invoice",
     "Total unpaid received orders" => "Total unpaid received orders",
+    "Invoices Overview" => "Invoices Overview",
+    "Supplier Invoices to Pay" => "Supplier Invoices to Pay",
+    "Total amount remaining to pay" => "Total amount remaining to pay",
+    "Received Date" => "Received Date",
+    "Invoiced Amount" => "Invoiced Amount",
+    'destination_store' => 'Destination store',
 ];

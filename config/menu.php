@@ -54,9 +54,9 @@ return [
         'dynamic_submenu' => function() {
             $staticLinks = [
                 [
-                    'label' => 'messages.menu.supplier_payments',
-                    'icon'  => 'bi-star',
-                    'route' => 'reseller-invoices.index',
+                    'label' => 'messages.menu.invoice_overview',
+                    'icon'  => 'bi-eyeglasses',
+                    'route' => 'financial.overview',
                 ],
             ];
             $dynamicLinks = \App\Models\Store::all()->map(function($store){

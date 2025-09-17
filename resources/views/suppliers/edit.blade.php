@@ -37,6 +37,12 @@
     <div class="tab-content mt-3" id="supplierTabsContent">
         {{-- Onglet Infos générales --}}
         <div class="tab-pane fade show active" id="general" role="tabpanel" aria-labelledby="general-tab">
+            @if($unpaidOrdersCount > 0)
+                <div class="alert alert-warning">
+                    <strong>Factures non payées :</strong> {{ $unpaidOrdersCount }} commande(s) 
+                    pour un montant total de ${{ number_format($totalUnpaidAmount, 2) }}
+                </div>
+            @endif
             <form action="{{ route('suppliers.update', $supplier) }}" method="POST">
                 @csrf
                 @method('PUT')
@@ -180,6 +186,12 @@
                         <option value="waiting_invoice" {{ request('status')=='waiting_invoice' ? 'selected' : '' }}>
                             {{ __('messages.order.waiting_invoice') }}
                         </option>
+                        <option value="received_unpaid" {{ request('status')=='received_unpaid' ? 'selected' : '' }}>
+                            {{ __('messages.order.received') }} - Non payé
+                        </option>
+                        <option value="received_paid" {{ request('status')=='received_paid' ? 'selected' : '' }}>
+                            {{ __('messages.order.received') }} - Payé
+                        </option>
                     </select>
                 </form>
             </div>
@@ -195,6 +207,7 @@
                         <th>Total commandé</th>
                         <th>Total reçu</th>
                         <th>Montant théorique</th>
+                        <th>Payé</th> {{-- Nouvelle colonne --}}
                     </tr>
                 </thead>
                 <tbody>
@@ -287,6 +300,13 @@
                                     -
                                 @endif
                             </td>
+                            <td>
+                                @if($order->is_paid)
+                                    <span class="badge bg-success">Oui</span>
+                                @else
+                                    <span class="badge bg-danger">Non</span>
+                                @endif
+                            </td>
                         </tr>
                     @endforeach
                 </tbody>
@@ -377,7 +397,6 @@
     </div>
 </div>
 @endforeach
-
 
 @endsection
 

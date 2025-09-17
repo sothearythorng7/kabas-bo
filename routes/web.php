@@ -232,7 +232,7 @@ Route::middleware(['auth', SetUserLocale::class])->group(function () {
         });
     });
 
-
+    Route::get('/financial', [FinancialDashboardController::class, 'overviewInvoices'])->name('financial.overview');
     Route::prefix('financial/{store}')->name('financial.')->group(function () {
         Route::resource('accounts', FinancialAccountController::class);
         Route::resource('payment-methods', FinancialPaymentMethodController::class)->parameters(['payment-methods' => 'paymentMethod']);

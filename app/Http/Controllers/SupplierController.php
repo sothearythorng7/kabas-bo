@@ -38,25 +38,57 @@ class SupplierController extends Controller
         return redirect()->route('suppliers.index')->with('success', 'Supplier created');
     }
 
-public function edit(Supplier $supplier, Request $request)
-{
-    // Charger les relations nécessaires pour la page
-    $supplier->load(['contacts', 'products.stores', 'products.brand']);
+    public function edit(Supplier $supplier, Request $request)
+    {
+        // Charger les relations nécessaires pour la page
+        $supplier->load(['contacts', 'products.stores', 'products.brand']);
 
-    // Produits paginés
-    $products = $supplier->products()->with(['stores', 'brand'])->paginate(10);
+        // Produits paginés
+        $products = $supplier->products()->with(['stores', 'brand'])->paginate(10);
 
-    // Commandes paginées avec filtrage par statut
-    $query = $supplier->supplierOrders()->latest();
+        // Commandes paginées avec filtrage par statut
+        $query = $supplier->supplierOrders()->latest();
 
-    if ($request->filled('status') && in_array($request->status, ['pending','waiting_reception','waiting_invoice'])) {
-        $query->where('status', $request->status);
+        if ($request->filled('status')) {
+            switch ($request->status) {
+                case 'pending':
+                case 'waiting_reception':
+                case 'waiting_invoice':
+                    $query->where('status', $request->status);
+                    break;
+                case 'received_unpaid':
+                    $query->where('status', 'received')->where('is_paid', false);
+                    break;
+                case 'received_paid':
+                    $query->where('status', 'received')->where('is_paid', true);
+                    break;
+            }
+        }
+
+        $orders = $query->paginate(10)->appends($request->only('status'));
+
+        // Montant total des factures non payées et nombre de commandes dans ce statut
+        $unpaidOrdersQuery = $supplier->supplierOrders()
+            ->where('status', 'received')
+            ->where('is_paid', false)
+            ->with('products');
+
+        $totalUnpaidAmount = $unpaidOrdersQuery->get()->sum(fn($order) =>
+            $order->products->sum(fn($p) => ($p->pivot->price_invoiced ?? $p->pivot->purchase_price ?? 0) * ($p->pivot->quantity_ordered ?? 0))
+        );
+
+        $unpaidOrdersCount = $unpaidOrdersQuery->count();
+
+        return view('suppliers.edit', compact(
+            'supplier',
+            'products',
+            'orders',
+            'totalUnpaidAmount',
+            'unpaidOrdersCount'
+        ));
     }
 
-    $orders = $query->paginate(10)->appends($request->only('status'));
 
-    return view('suppliers.edit', compact('supplier', 'products', 'orders'));
-}
 
 
     public function update(Request $request, Supplier $supplier)

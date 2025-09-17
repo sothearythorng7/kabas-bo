@@ -103,4 +103,27 @@ class FinancialDashboardController extends Controller
             'period'
         ));
     }
+
+
+    public function overviewInvoices(Request $request)
+    {
+        // On récupère les commandes fournisseurs reçues mais non payées
+        $ordersQuery = \App\Models\SupplierOrder::with(['supplier', 'destinationStore', 'products'])
+            ->where('status', 'received')
+            ->where('is_paid', false)
+            ->latest();
+
+        // Pagination
+        $orders = $ordersQuery->paginate(15)->appends($request->query());
+
+        // Montant total des factures à payer
+        $totalUnpaidAmount = $ordersQuery->get()->sum(fn($order) =>
+            $order->products->sum(fn($p) =>
+                ($p->pivot->price_invoiced ?? $p->pivot->purchase_price ?? 0) * ($p->pivot->quantity_ordered ?? 0)
+            )
+        );
+
+        return view('financial.overview_invoices', compact('orders', 'totalUnpaidAmount'));
+    }
+
 }

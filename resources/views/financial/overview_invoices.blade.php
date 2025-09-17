@@ -68,8 +68,6 @@
 
             {{ $orders->links() }}
         </div>
-
-        {{-- Future tabs can be added here --}}
     </div>
 </div>
 @endsection

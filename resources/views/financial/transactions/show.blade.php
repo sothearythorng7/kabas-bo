@@ -59,10 +59,10 @@
 
             @if($transaction->attachments->count())
                 <h5 class="mt-4">@t("Pièces jointes")</h5>
-                <ul>
+                <ul class="list-group">
                     @foreach($transaction->attachments as $file)
-                        <li>
-                            <a href="{{ $file->url }}" target="_blank">{{ $file->filename }}</a>
+                        <li class="list-group-item">
+                            <a href="{{ $file->url }}" target="_blank"><i class="bi bi-card-image" style="font-size:5em;"></i></a>
                         </li>
                     @endforeach
                 </ul>

@@ -310,7 +310,10 @@ return [
         'cancelled' => 'Cancelled',
         'ready_to_ship' => 'Ready to ship',
         'shipped' => 'Shipped',
-        'waiting_invoice' => 'Waiting Invoice'
+        'waiting_invoice' => 'Waiting Invoice',
+        'invoice_reception' => "Invoice reception",
+        'unpaid' => 'Unpaid',
+        'paid' => 'Paid',
     ],
 
     'category' => [
@@ -567,4 +570,16 @@ return [
     "Total billed" => "Total billed",
     "Total ordered" => "Total ordered",
     "Total received" => "Total received",
+    'Paid' => 'Paid',
+    'Order information' => 'Order information',
+    'Financial summary' => 'Financial summary',
+    'Total theoretical amount' => 'Total expected amount',
+    'Total invoiced amount' => 'Total invoiced amount',
+    'Payment status' => 'Payment status',
+    'No' => 'No',
+    'Yes' => 'Yes',
+    'Unpaid' => 'Unpaid',
+    'Paid' => 'Paid',
+    "Download Invoice" => "Download Invoice",
+    "Total unpaid received orders" => "Total unpaid received orders",
 ];

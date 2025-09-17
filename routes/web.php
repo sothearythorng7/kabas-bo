@@ -152,6 +152,8 @@ Route::middleware(['auth', SetUserLocale::class])->group(function () {
             Route::post('orders/{order}/invoice-reception', [SupplierOrderController::class, 'storeInvoiceReception'])
                 ->name('supplier-orders.storeInvoiceReception');
 
+            Route::post('orders/{order}/mark-paid', [SupplierOrderController::class, 'markPaid'])
+                ->name('supplier-orders.markAsPaid');
         });
 
 

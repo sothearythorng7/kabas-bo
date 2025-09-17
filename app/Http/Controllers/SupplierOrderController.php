@@ -8,6 +8,9 @@ use App\Models\Product;
 use App\Models\Store;
 use App\Models\StockBatch;
 use App\Models\PurchasePriceHistory;
+use App\Models\FinancialTransaction;
+use App\Models\FinancialAccount;
+use App\Models\FinancialJournal;
 use Illuminate\Http\Request;
 use Barryvdh\DomPDF\Facade\Pdf;
 
@@ -177,9 +180,17 @@ class SupplierOrderController extends Controller
             'products' => 'required|array',
             'products.*.price_invoiced' => 'required|numeric|min:0',
             'update_reference_price' => 'nullable|array',
+            'invoice_file' => 'required|file|mimes:pdf,jpg,jpeg,png|max:5120', // max 5MB
         ]);
 
         $order->load('products');
+
+        // Sauvegarde du fichier facture
+        if ($request->hasFile('invoice_file')) {
+            $path = $request->file('invoice_file')->store('invoices', 'public');
+            $order->invoice_file = $path;
+            $order->save();
+        }
 
         foreach ($request->input('products') as $productId => $data) {
             $product = $order->products->find($productId);
@@ -188,12 +199,12 @@ class SupplierOrderController extends Controller
             $priceInvoiced = (float) $data['price_invoiced'];
             $expectedPrice  = $product->pivot->purchase_price;
 
-            // Mettre à jour le prix du lot
+            // Mise à jour du lot
             StockBatch::where('source_supplier_order_id', $order->id)
-                      ->where('product_id', $productId)
-                      ->update(['unit_price' => $priceInvoiced]);
+                    ->where('product_id', $productId)
+                    ->update(['unit_price' => $priceInvoiced]);
 
-            // Mise à jour du prix d'achat de référence si demandé
+            // Mise à jour du prix fournisseur si coché
             if (!empty($request->input('update_reference_price')[$productId])) {
                 $oldPrice = $expectedPrice;
 
@@ -213,58 +224,147 @@ class SupplierOrderController extends Controller
 
         $order->update(['status' => 'received']);
 
-        return redirect()->route('suppliers.edit', $supplier)->with('success', 'Réception de facture enregistrée.');
+        return redirect()->route('suppliers.edit', $supplier)
+                        ->with('success', 'Réception de facture enregistrée avec succès.');
     }
+
 
     // app/Http/Controllers/SupplierOrderController.php
 
-    public function overview(Request $request)
-    {
-        $perPage = 10;
+public function overview(Request $request)
+{
+    $perPage = 10;
 
-        $statuses = ['pending', 'waiting_reception', 'waiting_invoice', 'received'];
-        $ordersByStatus = [];
+    // Statuts gérés : on sépare "received" en deux
+    $statuses = ['pending', 'waiting_reception', 'waiting_invoice', 'received_unpaid', 'received_paid'];
+    $ordersByStatus = [];
 
-        foreach ($statuses as $status) {
-            $ordersByStatus[$status] = SupplierOrder::with(['supplier', 'products', 'destinationStore'])
-                ->where('status', $status)
-                ->latest()
-                ->paginate($perPage, ['*'], $status);
+    foreach ($statuses as $status) {
+        $query = SupplierOrder::with(['supplier', 'products', 'destinationStore'])->latest();
+
+        if ($status === 'received_unpaid') {
+            $query->where('status', 'received')->where('is_paid', false);
+        } elseif ($status === 'received_paid') {
+            $query->where('status', 'received')->where('is_paid', true);
+        } else {
+            $query->where('status', $status);
         }
 
-        // Montant cumulé prévisionnel des commandes non reçues
-        $totalPendingAmount = SupplierOrder::with('products')
-            ->whereIn('status', ['pending', 'waiting_reception', 'waiting_invoice'])
-            ->get()
-            ->sum(function($order) {
-                return $order->products->sum(function($p) {
-                    return ($p->pivot->purchase_price ?? 0) * ($p->pivot->quantity_ordered ?? 0);
-                });
-            });
+        $ordersByStatus[$status] = $query->paginate($perPage, ['*'], $status);
+    }
 
-        // Pour chaque commande, calculer les totaux nécessaires par statut
-        foreach ($ordersByStatus as $status => $orders) {
-            foreach ($orders as $order) {
-                $items = $order->products;
-                if (in_array($status, ['pending','waiting_reception'])) {
-                    $order->totalOrdered = '-';
-                    $order->totalReceived = '-';
-                    $order->totalAmount = $items->sum(fn($p) => ($p->pivot->purchase_price ?? 0) * ($p->pivot->quantity_ordered ?? 0));
-                } elseif ($status == 'waiting_invoice') {
-                    $order->totalOrdered = $items->sum(fn($p) => $p->pivot->quantity_ordered ?? 0);
-                    $order->totalReceived = '-';
-                    $order->totalAmount = $items->sum(fn($p) => ($p->pivot->purchase_price ?? 0) * ($p->pivot->quantity_ordered ?? 0));
-                } else { // received
-                    $order->totalOrdered = $items->sum(fn($p) => $p->pivot->quantity_ordered ?? 0);
-                    $order->totalReceived = $items->sum(fn($p) => $p->pivot->quantity_received ?? 0);
-                    $order->totalAmount = $items->sum(fn($p) => ($p->pivot->purchase_price ?? 0) * ($p->pivot->quantity_ordered ?? 0));
-                    $order->totalInvoiced = $items->sum(fn($p) => ($p->pivot->price_invoiced ?? $p->pivot->purchase_price ?? 0) * ($p->pivot->quantity_ordered ?? 0));
-                }
+    // Montant cumulé prévisionnel pour les commandes non reçues
+    $totalPendingAmount = SupplierOrder::with('products')
+        ->whereIn('status', ['pending', 'waiting_reception', 'waiting_invoice'])
+        ->get()
+        ->sum(fn($order) => $order->products->sum(fn($p) =>
+            ($p->pivot->purchase_price ?? 0) * ($p->pivot->quantity_ordered ?? 0)
+        ));
+
+    // Montant cumulé des commandes reçues non payées
+    $totalUnpaidReceivedAmount = SupplierOrder::with('products')
+        ->where('status', 'received')
+        ->where('is_paid', false)
+        ->get()
+        ->sum(fn($order) => $order->products->sum(fn($p) =>
+            ($p->pivot->price_invoiced ?? $p->pivot->purchase_price ?? 0) * ($p->pivot->quantity_received ?? 0)
+        ));
+
+    // Calcul des totaux pour l'affichage
+    foreach ($ordersByStatus as $status => $orders) {
+        foreach ($orders as $order) {
+            $items = $order->products;
+
+            if (in_array($status, ['pending', 'waiting_reception'])) {
+                $order->totalOrdered = '-';
+                $order->totalReceived = '-';
+                $order->totalAmount = $items->sum(fn($p) =>
+                    ($p->pivot->purchase_price ?? 0) * ($p->pivot->quantity_ordered ?? 0)
+                );
+            } elseif ($status === 'waiting_invoice') {
+                $order->totalOrdered = $items->sum(fn($p) => $p->pivot->quantity_ordered ?? 0);
+                $order->totalReceived = '-';
+                $order->totalAmount = $items->sum(fn($p) =>
+                    ($p->pivot->purchase_price ?? 0) * ($p->pivot->quantity_ordered ?? 0)
+                );
+            } elseif (in_array($status, ['received_unpaid', 'received_paid'])) {
+                $order->totalOrdered = $items->sum(fn($p) => $p->pivot->quantity_ordered ?? 0);
+                $order->totalReceived = $items->sum(fn($p) => $p->pivot->quantity_received ?? 0);
+                $order->totalAmount = $items->sum(fn($p) =>
+                    ($p->pivot->purchase_price ?? 0) * ($p->pivot->quantity_ordered ?? 0)
+                );
+                $order->totalInvoiced = $items->sum(fn($p) =>
+                    ($p->pivot->price_invoiced ?? $p->pivot->purchase_price ?? 0) * ($p->pivot->quantity_received ?? 0)
+                );
             }
         }
-
-        return view('supplier_orders.overview', compact('ordersByStatus', 'totalPendingAmount'));
     }
+
+    // Méthodes de paiement pour le modal “Mark as Paid”
+    $paymentMethods = \App\Models\FinancialPaymentMethod::all();
+
+    return view('supplier_orders.overview', compact(
+        'ordersByStatus',
+        'totalPendingAmount',
+        'totalUnpaidReceivedAmount',
+        'paymentMethods'
+    ));
+}
+
+
+
+public function markPaid(Supplier $supplier, SupplierOrder $order)
+{
+    // Récupération du store de destination
+    $storeId = $order->destination_store_id;
+
+    // Montant facturé
+    $amount = $order->products->sum(fn($p) => ($p->pivot->price_invoiced ?? $p->pivot->purchase_price ?? 0) * ($p->pivot->quantity_ordered ?? 0));
+
+    // Récupérer le compte 401
+    $account = \App\Models\FinancialAccount::where('code', '401')->firstOrFail();
+
+    // Solde précédent
+    $lastTransaction = \App\Models\FinancialTransaction::where('store_id', $storeId)
+        ->latest('transaction_date')
+        ->first();
+    $balanceBefore = $lastTransaction?->balance_after ?? 0;
+    $balanceAfter = $balanceBefore - $amount;
+
+    // Création de la transaction
+    $transaction = \App\Models\FinancialTransaction::create([
+        'store_id' => $storeId,
+        'account_id' => $account->id,
+        'amount' => $amount,
+        'currency' => 'EUR',
+        'direction' => 'debit',
+        'balance_before' => $balanceBefore,
+        'balance_after' => $balanceAfter,
+        'label' => 'Paiement commande fournisseur : ' . $supplier->name,
+        'description' => "Paiement de la commande #{$order->id} pour {$supplier->name}",
+        'status' => 'validated',
+        'transaction_date' => now(),
+        'payment_method_id' => 1, // tu peux mettre la méthode par défaut si nécessaire
+        'user_id' => auth()->id(),
+        'external_reference' => route('supplier-orders.show', [$supplier, $order]),
+    ]);
+
+    // Ajouter la facture comme pièce jointe
+    if ($order->invoice_file) {
+        $transaction->attachments()->create([
+            'path' => $order->invoice_file,
+            'file_type' => \Illuminate\Support\Facades\Storage::mimeType($order->invoice_file),
+            'uploaded_by' => auth()->id(),
+        ]);
+    }
+
+    // Mettre à jour le statut de paiement de la commande
+    $order->update(['is_paid' => true]);
+
+    return redirect()->route('supplier-orders.show', [$supplier, $order])
+        ->with('success', 'Commande marquée comme payée et transaction créée.');
+}
+
 
 
 }

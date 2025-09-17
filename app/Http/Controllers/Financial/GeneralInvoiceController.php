@@ -10,7 +10,7 @@ use App\Models\Store;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Pagination\Paginator;
-
+    
 class GeneralInvoiceController extends Controller
 {
     public function index(Store $store, Request $request)

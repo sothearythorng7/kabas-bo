@@ -7,7 +7,6 @@ function renderMenu($items, $level = 0) {
         $activeClass = '';
         $isActive = false;
 
-        // 1️⃣ Vérification active_pattern
         if (isset($item['active_pattern'])) {
             foreach (explode('|', $item['active_pattern']) as $pattern) {
                 if (request()->is($pattern)) {
@@ -17,7 +16,6 @@ function renderMenu($items, $level = 0) {
             }
         }
 
-        // 2️⃣ Vérification route si pas déjà actif
         if (!$isActive && isset($item['route'])) {
             if (is_array($item['route'])) {
                 $routeName = $item['route'][0];

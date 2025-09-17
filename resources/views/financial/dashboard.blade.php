@@ -5,6 +5,15 @@
     <h1 class="crud_title mb-4">@lang('Dashboard financier') - {{ $store->name }}</h1>
     @include('financial.layouts.nav')
 
+    @if($unpaidInvoicesCount > 0)
+<div class="alert alert-warning d-flex justify-content-between align-items-center" role="alert">
+    <div>
+        <strong>@t("Unpaid invoices") :</strong> {{ $unpaidInvoicesCount }}
+        <br>
+        <strong>@t("total_value") :</strong> {{ number_format($unpaidInvoicesTotal, 2) }} €
+    </div>
+</div>
+@endif
     <!-- Résumé financier -->
     <div class="row mb-4">
         <div class="col-md-4">

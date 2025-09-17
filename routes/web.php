@@ -34,6 +34,7 @@ use App\Http\Controllers\Financial\FinancialTransactionController;
 use App\Http\Controllers\Financial\FinancialPaymentMethodController;
 use App\Http\Controllers\Financial\FinancialDashboardController;
 use App\Http\Controllers\Financial\FinancialJournalController;
+use App\Http\Controllers\Financial\GeneralInvoiceController;
 
 Route::get('/', function () {
     return auth()->check() ? redirect()->route('dashboard') : redirect()->route('login');
@@ -243,6 +244,7 @@ Route::middleware(['auth', SetUserLocale::class])->group(function () {
         Route::get('journals/{journal}', [FinancialJournalController::class, 'show'])->name('journals.show');
         Route::get('dashboard', [FinancialDashboardController::class, 'index'])->name('dashboard');
 
-
+        // --- NOUVELLES ROUTES pour Factures générales ---
+        Route::resource('general-invoices', GeneralInvoiceController::class);
     });
 });

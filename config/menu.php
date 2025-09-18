@@ -59,7 +59,7 @@ return [
     ],
     [
         'label' => 'messages.menu.accounting',
-        'icon'  => 'bi-truck',
+        'icon'  => 'bi-currency-dollar',
         'dynamic_submenu' => function() {
             $staticLinks = [
                 [
@@ -72,7 +72,7 @@ return [
             $dynamicLinks = \App\Models\Store::all()->map(function($store){
                 return [
                     'label'          => $store->name,
-                    'icon'           => 'bi-journal-text',
+                    'icon'           => 'bi-house-door-fill',
                     'route'          => ['financial.dashboard', ['store' => $store->id]],
                     'active_pattern' => "financial/{$store->id}/*",
                 ];

@@ -7,6 +7,7 @@ function renderMenu($items, $level = 0) {
         $activeClass = '';
         $isActive = false;
 
+        // Vérification active_pattern
         if (isset($item['active_pattern'])) {
             foreach (explode('|', $item['active_pattern']) as $pattern) {
                 if (request()->is($pattern)) {
@@ -41,44 +42,38 @@ function renderMenu($items, $level = 0) {
             }
         }
 
-        // Initialisation de la classe active
         $activeClass = $isActive ? 'active' : '';
 
         if ($hasSub) {
             $subItems = $item['submenu'] ?? ($item['dynamic_submenu'] ? call_user_func($item['dynamic_submenu']) : []);
 
-            // Bufferiser les enfants
             ob_start();
             renderMenu($subItems, $level + 1);
             $subMenuHtml = ob_get_clean();
 
-            // Détection d’enfant actif
             $hasActiveChild = strpos($subMenuHtml, 'class="list-group-item list-group-item-action active"') !== false;
 
-            // Déterminer état actif et ouvert
             $activeClass = ($isActive || $hasActiveChild) ? 'active' : '';
-            $openSubMenu = $hasActiveChild; // seulement un enfant actif → ouvrir automatiquement
+            $openSubMenu = $hasActiveChild;
 
-            // Lien parent
             echo '<a class="list-group-item list-group-item-action d-flex justify-content-between align-items-center has-submenu ' . $activeClass . '" data-target="' . $submenuId . '">';
             echo '<div><i class="bi ' . $item['icon'] . '"></i> ' . __($item['label']) . '</div>';
             echo '<span class="caret"></span></a>';
 
-            // Sous-menu toujours généré dans le DOM
             echo '<div class="list-group list-group-flush menu-level ' . ($openSubMenu ? 'show' : '') . '" id="' . $submenuId . '">';
-            echo '<div class="sidebar-heading d-flex justify-content-between align-items-center">';
-            echo '<div class="d-none d-md-block mb-2">';
-            echo '<img src="' . asset("images/kabas_logo.png") . '" alt="Logo" style="width: 60px; height: auto;">';
-            echo '</div><span>Kabas<br />Concept<br />Store</span></div>';
 
-            // Bouton "back" dans le sous-menu
+            // header dans le sous-menu
+            echo '<div class="sidebar-heading d-flex justify-content-between align-items-center">';
+            echo '<div class="d-none d-md-block mb-2 collapse-hide">';
+            echo '<img src="' . asset("images/kabas_logo.png") . '" alt="Logo" style="width: 60px; height: auto;">';
+            echo '</div><span class="collapse-hide">Kabas<br />Concept<br />Store</span></div>';
+
             echo '<a href="javascript:void(0)" class="list-group-item list-group-item-action go-back">';
             echo '<i class="bi bi-arrow-left"></i> ' . __('messages.menu.back') . '</a>';
 
             echo $subMenuHtml;
             echo '</div>';
         } else {
-            // Lien simple
             try {
                 $href = '#';
                 if (isset($item['route'])) {

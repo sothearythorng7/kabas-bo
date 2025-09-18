@@ -5,134 +5,278 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="csrf-token" content="{{ csrf_token() }}">
 <title>{{ config('app.name', 'Laravel') }}</title>
-<link rel="dns-prefetch" href="//fonts.bunny.net">
-<link href="https://fonts.bunny.net/css?family=Nunito" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 @vite(['resources/sass/app.scss', 'resources/js/app.js'])
 @stack('styles')
 </head>
 <body>
 @if(Auth::check())
+@php
+    function prepareMenuForJs(array $items) {
+        $out = [];
+        foreach ($items as $it) {
+            $entry = [];
+            $entry['label'] = isset($it['label']) ? __($it['label']) : '';
+            $entry['icon']  = $it['icon'] ?? '';
+            $entry['method'] = $it['method'] ?? null;
+            $entry['attributes'] = $it['attributes'] ?? [];
+
+            $url = null;
+            if (isset($it['route'])) {
+                try {
+                    if (is_array($it['route'])) {
+                        $routeName = $it['route'][0];
+                        $routeParams = $it['route'][1] ?? [];
+                        foreach ($routeParams as $k => $v) {
+                            if ($v instanceof \Illuminate\Database\Eloquent\Model) $routeParams[$k] = $v->getKey();
+                        }
+                        $url = route($routeName, $routeParams);
+                    } else {
+                        if (preg_match('/^(http|https):\\/\\//', $it['route']) || str_starts_with($it['route'], '/')) {
+                            $url = $it['route'];
+                        } else {
+                            $url = route($it['route']);
+                        }
+                    }
+                } catch (\Exception $e) {
+                    $url = null;
+                }
+            }
+            $entry['url'] = $url;
+
+            $sub = [];
+            if (isset($it['submenu'])) {
+                $sub = prepareMenuForJs($it['submenu']);
+            } elseif (isset($it['dynamic_submenu']) && $it['dynamic_submenu']) {
+                try {
+                    $dyn = is_callable($it['dynamic_submenu']) ? call_user_func($it['dynamic_submenu']) : $it['dynamic_submenu'];
+                    if (is_array($dyn)) $sub = prepareMenuForJs($dyn);
+                } catch (\Exception $e) {
+                    $sub = [];
+                }
+            }
+            $entry['submenu'] = $sub;
+
+            $out[] = $entry;
+        }
+        return $out;
+    }
+
+    $menuForJs = prepareMenuForJs(config('menu') ?? []);
+@endphp
+
 <div id="app">
-    <div class="d-flex" id="wrapper">
-        <!-- Sidebar -->
-        <div class="bg-grey border-right" id="sidebar-wrapper">
-            <div class="sidebar-heading d-flex justify-content-between align-items-center">
-                <div class="d-none d-md-block mb-2">
-                    <img src="{{ asset('images/kabas_logo.png') }}" alt="Logo" style="width: 60px; height: auto;">
-                </div>
-                <span>Kabas<br />Concept<br />Store</span>
-                <button id="menu-close" class="btn btn-sm btn-outline-secondary d-md-none">
-                    <i class="bi bi-x-lg"></i>
-                </button>
-            </div>
-
-            <div class="list-group list-group-flush" id="mainmenu">
-                @include('partials.sidebar-menu')
-                <!-- Logout -->
-                <a class="list-group-item list-group-item-action" href="{{ route('logout') }}"
-                onclick="event.preventDefault(); document.getElementById('logout-form').submit();">
-                    {{ __('messages.menu.logout') }}
-                </a>
-                <form id="logout-form" action="{{ route('logout') }}" method="POST" class="d-none">@csrf</form>
-            </div>
+    <nav class="navbar navbar-light bg-light border-bottom sticky-top" style="z-index: 1050; padding: 0.4rem 1rem;">
+        <div class="container-fluid d-flex justify-content-between align-items-center">
+            <span class="navbar-brand mb-0 h1" style="font-size: 1rem;">Kabas Concept Store</span>
+            <button class="btn btn-primary btn-lg" id="menu-btn">
+                <i class="bi bi-list"></i> Menu
+            </button>
         </div>
+    </nav>
 
-        <!-- Page content -->
-        <div id="page-content-wrapper" class="flex-grow-1">
-            <nav class="navbar navbar-expand-lg navbar-light bg-light border-bottom d-md-none">
-                <button class="btn btn-primary d-md-none" id="menu-open" style="margin-left:10px;">Menu</button>
-            </nav>
-            <div class="container-fluid">
-                @include('partials.flash-messages')
-                @yield('content')
-            </div>
-        </div>
+    <div class="container-fluid mt-3" style="padding-top: 0.5rem;">
+        @include('partials.flash-messages')
+        @yield('content')
     </div>
 </div>
 
+<!-- Modal Menu -->
+<div class="modal fade" id="menuModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered" role="document">
+    <div class="modal-content">
+      <div class="modal-body p-2">
+        <div id="menuContainer" class="position-relative w-100 h-100"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    const wrapper = document.getElementById('wrapper');
-    const sidebar = document.getElementById('sidebar-wrapper');
-    const btnOpen = document.getElementById('menu-open');
-    const btnClose = document.getElementById('menu-close');
+document.addEventListener('DOMContentLoaded', function () {
+    const menuData = @json($menuForJs);
+    const csrfToken = '{{ csrf_token() }}';
 
-    function isMobile() { return window.innerWidth < 768; }
+    const menuBtn = document.getElementById('menu-btn');
+    const modalEl = document.getElementById('menuModal');
+    const menuContainer = document.getElementById('menuContainer');
+    const bsModal = new bootstrap.Modal(modalEl, { backdrop: true, keyboard: true });
 
-    function openSidebar() { wrapper.classList.add('toggled'); }
-    function closeSidebar() { wrapper.classList.remove('toggled'); }
+    const panels = [];
 
-    if(btnOpen) btnOpen.addEventListener('click', openSidebar);
-    if(btnClose) btnClose.addEventListener('click', closeSidebar);
+    function createPanel(items, title) {
+        const panel = document.createElement('div');
+        panel.className = 'menu-panel position-absolute top-0 start-0 w-100 h-100 d-flex flex-wrap justify-content-start align-content-start';
+        panel.style.transform = 'translateX(100%)';
+        panel.style.transition = 'transform .28s ease';
 
-    document.addEventListener('click', function(e) {
-        if(!isMobile()) return;
-        if(!wrapper.classList.contains('toggled')) return;
-        if(!sidebar.contains(e.target) && !btnOpen.contains(e.target) && !btnClose.contains(e.target)) {
-            closeSidebar();
+        // bouton back comme icône
+        if (panels.length > 0) {
+            const backCard = document.createElement('div');
+            backCard.className = 'menu-card d-flex flex-column align-items-center justify-content-center text-center go-back';
+            backCard.innerHTML = '<i class="bi bi-arrow-left"></i><div>Retour</div>';
+            backCard.addEventListener('click', goBack);
+            panel.appendChild(backCard);
         }
-    });
 
-    window.addEventListener('resize', function() {
-        if(isMobile()) wrapper.classList.remove('toggled');
-        else wrapper.classList.add('toggled');
-    });
-    if(isMobile()) wrapper.classList.remove('toggled'); else wrapper.classList.add('toggled');
+        items.forEach(item => {
+            const card = document.createElement('div');
+            card.className = 'menu-card d-flex flex-column align-items-center justify-content-center text-center';
+            card.innerHTML = `<i class="${item.icon || ''}"></i><div>${item.label || ''}</div>`;
 
-    // Sous-menus glissants
-    document.querySelectorAll('.has-submenu').forEach(item => {
-        item.addEventListener('click', () => {
-            const targetId = item.dataset.target;
-            const menu = document.getElementById(targetId);
-            if(menu) menu.classList.add('active');
+            card.addEventListener('click', () => {
+                if (item.submenu && item.submenu.length > 0) {
+                    pushPanel(item.submenu, item.label);
+                    return;
+                }
+                const method = (item.method || 'GET').toUpperCase();
+                if (method !== 'GET') {
+                    if (!item.url) return;
+                    const form = document.createElement('form');
+                    form.method = 'POST';
+                    form.action = item.url;
+                    form.style.display = 'none';
+                    const t = document.createElement('input');
+                    t.type = 'hidden'; t.name = '_token'; t.value = csrfToken;
+                    form.appendChild(t);
+                    if (method !== 'POST') {
+                        const m = document.createElement('input');
+                        m.type = 'hidden'; m.name = '_method'; m.value = method;
+                        form.appendChild(m);
+                    }
+                    document.body.appendChild(form);
+                    form.submit();
+                    return;
+                }
+                if (item.url) window.location.href = item.url;
+            });
+
+            panel.appendChild(card);
         });
+
+        return panel;
+    }
+
+    function pushPanel(items, title) {
+        const newPanel = createPanel(items, title);
+        menuContainer.appendChild(newPanel);
+        const previous = panels.length ? panels[panels.length - 1] : null;
+        requestAnimationFrame(() => {
+            if (previous) previous.style.transform = 'translateX(-100%)';
+            newPanel.style.transform = 'translateX(0)';
+        });
+        panels.push(newPanel);
+    }
+
+    function goBack() {
+        if (panels.length < 2) return;
+        const current = panels.pop();
+        const previous = panels[panels.length - 1];
+        current.style.transform = 'translateX(100%)';
+        previous.style.transform = 'translateX(0)';
+        current.addEventListener('transitionend', function handler() {
+            current.removeEventListener('transitionend', handler);
+            current.remove();
+        });
+    }
+
+    menuBtn.addEventListener('click', () => {
+        menuContainer.innerHTML = '';
+        panels.length = 0;
+        const first = createPanel(menuData, 'Menu');
+        menuContainer.appendChild(first);
+        requestAnimationFrame(() => first.style.transform = 'translateX(0)');
+        panels.push(first);
+        bsModal.show();
     });
 
-    document.querySelectorAll('.go-back').forEach(btn => {
-        btn.addEventListener('click', () => {
-            btn.closest('.menu-level').classList.remove('active');
-        });
+    modalEl.addEventListener('hidden.bs.modal', () => {
+        menuContainer.innerHTML = '';
+        panels.length = 0;
     });
 });
 </script>
 
 <style>
-:root { --sidebar-max: 18rem; }
-#sidebar-wrapper { min-height:100vh; width:var(--sidebar-max); background:#e9ecef; transition:transform .25s ease-out; position:fixed; top:0; left:0; z-index:1030; overflow-x:hidden; }
-#page-content-wrapper { width:100%; transition:margin .25s ease-out; margin-left:var(--sidebar-max); }
-.sidebar-heading { padding:.875rem 1.25rem; font-size:1.2rem; background:#e9ecef; }
-.menu-level { display:none; position:absolute; top:0; left:0; width:100%; height:100%; background:#f8f9fa; overflow-y:auto; transition:left .3s ease; z-index:1040; }
-.menu-level.active { display:block; }
-.go-back { cursor:pointer; font-weight:bold; }
-.caret { display:inline-block;width:0;height:0;margin-left:.5em;vertical-align:middle;border-top:.4em solid;border-right:.4em solid transparent;border-left:.4em solid transparent;transition:transform .2s ease;}
-a[aria-expanded="true"] .caret { transform: rotate(180deg); }
-.breadcrumb {
-    background: #395068ff;
-    padding: 0.5rem 1rem;
-    margin-bottom: 1rem;
-    border-radius: 0.25rem;
-}
-.crud_title {
-    font-size:25px;
-    width:100%;
-    border-bottom:solid 1px #0d6efd;
-    margin-bottom:20px;
-}
-.dropdown-noarrow.dropdown-toggle::after {
-  display: none !important;
-  content: none !important;
+/* Modal dimensions - desktop par défaut */
+.modal-dialog { max-width: 70vw; }
+.modal-content { height: 50vh; overflow: hidden; }
+
+/* Tablette (sm/md) */
+@media (min-width: 576px) and (max-width: 991.98px) {
+  .modal-dialog { max-width: 80vw; }
+  .modal-content { height: 60vh; }
 }
 
-.table-hover > tbody > tr:hover {
-    background-color: #C0C0C0 !important;
-    --bs-table-hover-bg: #C0C0C0 !important;
-    cursor:pointer;
+/* Mobile (xs) */
+@media (max-width: 575.98px) {
+  .modal-dialog { max-width: 95vw; }
+  .modal-content { height: 80vh; }
 }
 
-@media(max-width:767.98px){#sidebar-wrapper{transform:translateX(-100%);}#wrapper.toggled #sidebar-wrapper{transform:translateX(0);}#page-content-wrapper{margin-left:0!important;}#menu-open{display:block;}#menu-close{display:inline-block;} }
-@media(min-width:768px){#sidebar-wrapper{transform:translateX(0);}#wrapper.toggled #sidebar-wrapper{transform:translateX(0);}#page-content-wrapper{margin-left:var(--sidebar-max);}#menu-close{display:none!important;} }
+/* Panels sliding */
+.menu-panel { left:0; top:0; }
+
+/* Grille flex wrap */
+.menu-panel {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  align-content: flex-start;
+  gap: 1rem;
+  padding: 1rem;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+/* Cartes fixes */
+/* Cartes fixes */
+.menu-card {
+  width: 150px;
+  height: 150px;
+  border-radius: .6rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  font-weight: 500;
+  background-color: #f8f9fa;
+  border: 1px solid #dee2e6;      /* Bordure fine grise */
+  box-shadow: 0 2px 6px rgba(0,0,0,0.08); /* Ombre légère */
+}
+.menu-card i {
+  font-size: 2rem;
+  margin-bottom: .3rem;
+  color: #0d6efd;
+}
+.menu-card:hover {
+  background-color: #e9f2ff;
+  color: #0d6efd;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.12); /* Ombre plus marquée au hover */
+}
+.menu-card:hover i {
+  color: #0d6efd;
+}
+
+/* Bouton retour */
+.menu-card.go-back {
+  background-color: #f8f9fa;
+  font-style: italic;
+  color: #6c757d;
+}
+.menu-card.go-back:hover {
+  background-color: #e9ecef;
+  color: #0d6efd;
+}
+
 </style>
+
 @else
 @yield('content')
 @endif

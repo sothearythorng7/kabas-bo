@@ -605,4 +605,5 @@ return [
     "Supplier order" => "Supplier order",
     "Unpaid invoices" => "Unpaid invoices",
     'total_value' => 'Total value',
+    "Mark as paid" => "Mark as paid",
 ];

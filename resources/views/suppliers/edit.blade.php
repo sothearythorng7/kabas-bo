@@ -2,7 +2,12 @@
 
 @section('content')
 <div class="container mt-4">
-    <h1 class="crud_title">{{ __('messages.supplier.title_edit') }}</h1>
+    <h1 class="crud_title">{{ __('messages.supplier.title_edit') }} - {{ $supplier->name }}</h1>
+
+    @php
+        $productsCount = $products instanceof \Illuminate\Pagination\LengthAwarePaginator ? $products->total() : $products->count();
+        $ordersCount = $orders instanceof \Illuminate\Pagination\LengthAwarePaginator ? $orders->total() : $orders->count();
+    @endphp
 
     {{-- Onglets --}}
     <ul class="nav nav-tabs" id="supplierTabs" role="tablist">
@@ -11,6 +16,13 @@
                 {{ __('messages.supplier.general_info') }}
             </button>
         </li>
+        @if($supplier->type === 'consignment')
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="sales-reports-tab" data-bs-toggle="tab" data-bs-target="#sales-reports" type="button" role="tab" aria-controls="sales-reports" aria-selected="false">
+                @t("Sales reports")
+            </button>
+        </li>
+        @endif
         <li class="nav-item" role="presentation">
             <button class="nav-link" id="contacts-tab" data-bs-toggle="tab" data-bs-target="#contacts" type="button" role="tab" aria-controls="contacts" aria-selected="false">
                 {{ __('messages.supplier.contacts') }}
@@ -19,16 +31,16 @@
         <li class="nav-item" role="presentation">
             <button class="nav-link" id="products-tab" data-bs-toggle="tab" data-bs-target="#products" type="button" role="tab" aria-controls="products" aria-selected="false">
                 {{ __('messages.product.products') }}
-                <span class="badge bg-{{ ($products->total() ?? 0) > 0 ? 'success' : 'danger' }}">
-                    {{ $products->total() ?? 0 }}
+                <span class="badge bg-{{ $productsCount > 0 ? 'success' : 'danger' }}">
+                    {{ $productsCount }}
                 </span>
             </button>
         </li>
         <li class="nav-item" role="presentation">
             <button class="nav-link" id="orders-tab" data-bs-toggle="tab" data-bs-target="#orders" type="button" role="tab" aria-controls="orders" aria-selected="false">
                 {{ __('messages.supplier.orders') }}
-                <span class="badge bg-{{ ($orders->total() ?? 0) > 0 ? 'primary' : 'secondary' }}">
-                    {{ $orders->total() ?? 0 }}
+                <span class="badge bg-{{ $ordersCount > 0 ? 'primary' : 'secondary' }}">
+                    {{ $ordersCount }}
                 </span>
             </button>
         </li>
@@ -39,13 +51,23 @@
         <div class="tab-pane fade show active" id="general" role="tabpanel" aria-labelledby="general-tab">
             @if($unpaidOrdersCount > 0)
                 <div class="alert alert-warning">
-                    <strong>Factures non payées :</strong> {{ $unpaidOrdersCount }} commande(s) 
-                    pour un montant total de ${{ number_format($totalUnpaidAmount, 2) }}
+                    <strong>@t("Unpaid invoices") :</strong> {{ $unpaidOrdersCount }} @t("order(s)") - 
+                    @t("total amount") de <strong>${{ number_format($totalUnpaidAmount, 2) }}</strong>
                 </div>
             @endif
             <form action="{{ route('suppliers.update', $supplier) }}" method="POST">
                 @csrf
                 @method('PUT')
+                <div class="mb-3">
+                    <label class="form-label">@t("Supplier type")</label>
+                    @if($supplier->type === 'buyer')
+                        <span class="badge bg-success">@t("Buyer")</span>
+                    @elseif($supplier->type === 'consignment')
+                        <span class="badge bg-info">@t("Consignment")</span>
+                    @else
+                        <span class="badge bg-secondary">-</span>
+                    @endif
+                </div>
                 <div class="mb-3">
                     <label for="name" class="form-label">{{ __('messages.supplier.name') }}</label>
                     <input type="text" class="form-control @error('name') is-invalid @enderror" id="name" name="name" value="{{ old('name', $supplier->name) }}" required>
@@ -61,10 +83,141 @@
             </form>
         </div>
 
+@if($supplier->type === 'consignment')
+<div class="tab-pane fade" id="sales-reports" role="tabpanel" aria-labelledby="sales-reports-tab">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <a href="{{ route('sale-reports.create', $supplier) }}" class="btn btn-success">
+            <i class="bi bi-plus-circle-fill"></i> {{ __('messages.btn.add') }}
+        </a>
+    </div>
+    <table class="table table-striped table-hover">
+        <thead>
+            <tr>
+                <th></th>
+                <th>@t("Store name")</th>
+                <th>@t("Période")</th>
+                <th>@t("Status")</th>
+                <th>@t("Expected total")</th>
+                <th>@t("Invoiced total")</th>
+                <th>@t("Paid")</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach($supplier->saleReports as $report)
+            <tr>
+                {{-- Boutons d’action --}}
+                <td>
+                    <div class="dropdown">
+                        <button class="btn btn-sm btn-primary dropdown-toggle dropdown-noarrow" type="button" id="actionsDropdown{{ $report->id }}" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="bi bi-three-dots-vertical"></i>
+                        </button>
+                        <ul class="dropdown-menu" aria-labelledby="actionsDropdown{{ $report->id }}">
+                            {{-- Voir --}}
+                            <li>
+                                <a class="dropdown-item" href="{{ route('sale-reports.show', [$supplier, $report]) }}">
+                                    <i class="bi bi-eye-fill"></i> {{ __('messages.btn.view') }}
+                                </a>
+                            </li>
+
+                            {{-- Réception facture --}}
+                            @if($report->status === 'waiting_invoice')
+                                <li>
+                                    <a class="dropdown-item" href="{{ route('sale-reports.invoiceReception', [$supplier, $report]) }}">
+                                        <i class="bi bi-receipt"></i> Réception facture
+                                    </a>
+                                </li>
+                            @endif
+
+                            {{-- Marquer comme payé --}}
+                            @if($report->status === 'invoiced' && !$report->is_paid)
+                                <li>
+                                    <button class="dropdown-item" data-bs-toggle="modal" data-bs-target="#markAsPaidModal-{{ $report->id }}">
+                                        <i class="bi bi-cash-stack"></i> Marquer comme payé
+                                    </button>
+                                </li>
+                            @endif
+                        </ul>
+                    </div>
+                </td>
+
+                {{-- Données principales --}}
+                <td>{{ $report->store->name ?? '-' }}</td>
+                <td>{{ $report->period_start->format('d/m/Y') }} - {{ $report->period_end->format('d/m/Y') }}</td>
+                <td>
+                    @if($report->status === 'waiting_invoice')
+                        <span class="badge bg-secondary">En attente de facture</span>
+                    @elseif($report->status === 'invoiced')
+                        <span class="badge bg-info">Facture reçue</span>
+                    @endif
+                </td>
+                <td>${{ number_format($report->total_amount_theoretical, 2) }}</td>
+                <td>
+                    @if($report->total_amount_invoiced)
+                        ${{ number_format($report->total_amount_invoiced, 2) }}
+                    @else
+                        -
+                    @endif
+                </td>
+                <td>
+                    @if($report->is_paid)
+                        <span class="badge bg-success">@t("Yes")</span>
+                    @else
+                        <span class="badge bg-danger">@t("No")</span>
+                    @endif
+                </td>
+            </tr>
+
+            {{-- Modal Mark as Paid --}}
+            @if($report->status === 'invoiced' && !$report->is_paid)
+            <div class="modal fade" id="markAsPaidModal-{{ $report->id }}" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog">
+                    <form action="{{ route('sale-reports.markAsPaid', [$supplier, $report]) }}" method="POST">
+                        @csrf
+                        @method('PUT')
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title">@t("Mark report as paid")</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                            </div>
+                            <div class="modal-body">
+                                <div class="mb-3">
+                                    <label class="form-label">@t("Amount paid")</label>
+                                    <input type="number" step="0.01" name="amount" class="form-control"
+                                        value="{{ $report->total_amount_invoiced ?? $report->total_amount_theoretical }}">
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">@t("Payment method")</label>
+                                    <select name="payment_method_id" class="form-select" required>
+                                        @foreach($paymentMethods as $method)
+                                            <option value="{{ $method->id }}">{{ $method->name }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">@t("Payment reference")</label>
+                                    <input type="text" name="payment_reference" class="form-control">
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ __('messages.btn.cancel') }}</button>
+                                <button type="submit" class="btn btn-success">@t("Confirm payment")</button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            @endif
+
+            @endforeach
+        </tbody>
+    </table>
+</div>
+@endif
+
+
         {{-- Onglet Contacts --}}
         <div class="tab-pane fade" id="contacts" role="tabpanel" aria-labelledby="contacts-tab">
             <div class="d-flex justify-content-between align-items-center mb-3">
-                <h3 class="mb-0">{{ __('messages.supplier.contacts') }}</h3>
                 <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#addContactModal">
                     <i class="bi bi-plus-circle-fill"></i> {{ __('messages.btn.add') }}
                 </button>
@@ -157,14 +310,13 @@
                         @endforeach
                     </tbody>
                 </table>
-                {{ $products->links() }}
+                {{ $products instanceof \Illuminate\Pagination\LengthAwarePaginator ? $products->links() : '' }}
             </div>
         </div>
 
         {{-- Onglet Commandes --}}
         <div class="tab-pane fade" id="orders" role="tabpanel" aria-labelledby="orders-tab">
             <div class="d-flex justify-content-between align-items-center mb-3">
-                <h3 class="mb-0">{{ __('messages.supplier.orders') }}</h3>
                 <a href="{{ route('supplier-orders.create', $supplier) }}" class="btn btn-success">
                     <i class="bi bi-plus-circle-fill"></i> {{ __('messages.btn.add') }}
                 </a>
@@ -207,7 +359,7 @@
                         <th>Total commandé</th>
                         <th>Total reçu</th>
                         <th>Montant théorique</th>
-                        <th>Payé</th> {{-- Nouvelle colonne --}}
+                        <th>Payé</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -312,7 +464,7 @@
                 </tbody>
             </table>
 
-            {{ $orders->appends(request()->query())->links() }}
+            {{ $orders instanceof \Illuminate\Pagination\LengthAwarePaginator ? $orders->appends(request()->query())->links() : '' }}
         </div>
     </div>
 </div>

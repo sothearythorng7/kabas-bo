@@ -28,6 +28,7 @@ use App\Http\Controllers\SupplierPaymentController;
 use App\Http\Controllers\ExpenseController;
 use App\Http\Controllers\ExpenseCategoryController;
 use App\Http\Controllers\StoreDashboardController;
+use App\Http\Controllers\SaleReportController;
 
 use App\Http\Controllers\Financial\FinancialAccountController;
 use App\Http\Controllers\Financial\FinancialTransactionController;
@@ -68,10 +69,39 @@ Route::middleware(['auth', SetUserLocale::class])->group(function () {
         // Gestion des suppliers
         Route::post('products/{product}/suppliers/attach', [ProductController::class, 'attachSupplier'])->name('products.suppliers.attach');
         Route::delete('products/{product}/suppliers/{supplier}', [ProductController::class, 'detachSupplier'])->name('products.suppliers.detach');
-        Route::put('products/{product}/suppliers/{supplier}/price', [ProductController::class, 'updateSupplierPrice'])->name('products.suppliers.updatePrice');
+        Route::put('products/{product}/ price', [ProductController::class, 'updateSupplierPrice'])->name('products.suppliers.updatePrice');
         Route::put('/suppliers/{supplier}/products/{product}/purchase-price', [SupplierController::class, 'updatePurchasePrice'])->name('suppliers.updatePurchasePrice');
         Route::get('/supplier-orders/overview', [SupplierOrderController::class, 'overview'])->name('supplier-orders.overview');
+        Route::get('suppliers/{supplier}/sale-reports/create', [SaleReportController::class, 'create'])->name('sale-reports.create');
+        Route::prefix('suppliers/{supplier}')->group(function () {
+            Route::get('sale-reports', [SaleReportController::class, 'index'])->name('sale-reports.index');
+            Route::get('sale-reports/create', [SaleReportController::class, 'create'])->name('sale-reports.create');
+            Route::post('sale-reports', [SaleReportController::class, 'store'])->name('sale-reports.store');
+            Route::get('sale-reports/{saleReport}', [SaleReportController::class, 'show'])->name('sale-reports.show');
 
+            // Passage à "invoiced"
+            Route::put('sale-reports/{saleReport}/mark-invoiced', [SaleReportController::class, 'markInvoiced'])->name('sale-reports.markInvoiced');
+
+            // Nouveau : créer une facture depuis un sale_report
+            Route::get('sale-reports/{saleReport}/invoice/create', [SaleReportController::class, 'createInvoice'])->name('sale-reports.invoice.create');
+            Route::post('sale-reports/{saleReport}/invoice', [SaleReportController::class, 'storeInvoice'])->name('sale-reports.invoice.store');
+
+            // Nouveau : marquer la facture comme reçue et initier workflow paiement
+            Route::put('sale-reports/{saleReport}/invoice/receive', [SaleReportController::class, 'receiveInvoice'])->name('sale-reports.invoice.receive');
+        
+            Route::get('sale-reports/{saleReport}/invoice-reception', [SaleReportController::class, 'invoiceReception'])
+                ->name('sale-reports.invoiceReception');
+
+            Route::post('sale-reports/{saleReport}/invoice-reception', [SaleReportController::class, 'storeInvoiceReception'])
+                ->name('sale-reports.storeInvoiceReception');        
+
+            // Marquer un rapport comme payé
+            Route::post('sale-reports/{saleReport}/mark-as-paid', [SaleReportController::class, 'markAsPaid'])
+                ->name('sale-reports.markAsPaid');
+        });
+
+
+        
         // Stock Value
         Route::get('stock-value', [App\Http\Controllers\StockValueController::class, 'index'])->name('stock-value');
         Route::get('stock-value/{product}/lots', [StockValueController::class, 'lots'])->name('stock-value.lots');

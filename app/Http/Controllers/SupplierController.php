@@ -6,6 +6,7 @@ use App\Models\Supplier;
 use App\Models\Contact;
 use Illuminate\Http\Request;
 use App\Models\Product;
+use App\Models\FinancialPaymentMethod;
 
 class SupplierController extends Controller
 {
@@ -25,13 +26,14 @@ class SupplierController extends Controller
         $request->validate([
             'name'       => 'required|string|max:255',
             'address'    => 'required|string',
+            'type'       => 'required|in:buyer,consignment', // nouveau champ
             'last_name'  => 'required|string|max:255',
             'first_name' => 'required|string|max:255',
             'email'      => 'required|email',
             'phone'      => 'required|string|max:50',
         ]);
 
-        $supplier = Supplier::create($request->only(['name', 'address']));
+        $supplier = Supplier::create($request->only(['name', 'address', 'type']));
 
         $supplier->contacts()->create($request->only(['last_name','first_name','email','phone']));
 
@@ -40,55 +42,66 @@ class SupplierController extends Controller
 
     public function edit(Supplier $supplier, Request $request)
     {
-        // Charger les relations nécessaires pour la page
-        $supplier->load(['contacts', 'products.stores', 'products.brand']);
+        $supplier->load(['contacts', 'products.stores', 'products.brand', 'saleReports.store']);
 
         // Produits paginés
         $products = $supplier->products()->with(['stores', 'brand'])->paginate(10);
 
-        // Commandes paginées avec filtrage par statut
-        $query = $supplier->supplierOrders()->latest();
+        // Commandes / sales reports
+        $orders = collect();
+        $totalUnpaidAmount = 0;
+        $unpaidOrdersCount = 0;
 
-        if ($request->filled('status')) {
-            switch ($request->status) {
-                case 'pending':
-                case 'waiting_reception':
-                case 'waiting_invoice':
-                    $query->where('status', $request->status);
-                    break;
-                case 'received_unpaid':
-                    $query->where('status', 'received')->where('is_paid', false);
-                    break;
-                case 'received_paid':
-                    $query->where('status', 'received')->where('is_paid', true);
-                    break;
+        $paymentMethods = FinancialPaymentMethod::all();
+
+        if ($supplier->isBuyer()) {
+            // Commandes paginées pour les buyers
+            $query = $supplier->supplierOrders()->latest();
+
+            if ($request->filled('status')) {
+                switch ($request->status) {
+                    case 'pending':
+                    case 'waiting_reception':
+                    case 'waiting_invoice':
+                        $query->where('status', $request->status);
+                        break;
+                    case 'received_unpaid':
+                        $query->where('status', 'received')->where('is_paid', false);
+                        break;
+                    case 'received_paid':
+                        $query->where('status', 'received')->where('is_paid', true);
+                        break;
+                }
             }
+
+            $orders = $query->paginate(10)->appends($request->only('status'));
+
+            // Montant total des factures non payées et nombre de commandes
+            $unpaidOrdersQuery = $supplier->supplierOrders()
+                ->where('status', 'received')
+                ->where('is_paid', false)
+                ->with('products');
+
+            $totalUnpaidAmount = $unpaidOrdersQuery->get()->sum(fn($order) =>
+                $order->products->sum(fn($p) => ($p->pivot->price_invoiced ?? $p->pivot->purchase_price ?? 0) * ($p->pivot->quantity_ordered ?? 0))
+            );
+
+            $unpaidOrdersCount = $unpaidOrdersQuery->count();
+        } elseif ($supplier->type === 'consignment') {
+            // Pour les consignments, on récupère les sales reports
+            $orders = $supplier->saleReports()->with('items.product', 'store')->get();
+            // Pour la vue, on peut utiliser count() à la place de total()
         }
-
-        $orders = $query->paginate(10)->appends($request->only('status'));
-
-        // Montant total des factures non payées et nombre de commandes dans ce statut
-        $unpaidOrdersQuery = $supplier->supplierOrders()
-            ->where('status', 'received')
-            ->where('is_paid', false)
-            ->with('products');
-
-        $totalUnpaidAmount = $unpaidOrdersQuery->get()->sum(fn($order) =>
-            $order->products->sum(fn($p) => ($p->pivot->price_invoiced ?? $p->pivot->purchase_price ?? 0) * ($p->pivot->quantity_ordered ?? 0))
-        );
-
-        $unpaidOrdersCount = $unpaidOrdersQuery->count();
 
         return view('suppliers.edit', compact(
             'supplier',
             'products',
             'orders',
             'totalUnpaidAmount',
-            'unpaidOrdersCount'
+            'unpaidOrdersCount',
+            'paymentMethods'
         ));
     }
-
-
 
 
     public function update(Request $request, Supplier $supplier)

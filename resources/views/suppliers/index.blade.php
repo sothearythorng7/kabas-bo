@@ -16,6 +16,7 @@
                     <th class="text-center">ID</th>
                     <th>{{ __('messages.supplier.name') }}</th>
                     <th>{{ __('messages.supplier.address') }}</th>
+                    <th>{{ __('messages.supplier.type') }}</th> {{-- Nouveau --}}
                 </tr>
             </thead>
             <tbody>
@@ -47,6 +48,15 @@
                         <td class="text-center">{{ $supplier->id }}</td>
                         <td>{{ $supplier->name }}</td>
                         <td>{{ $supplier->address }}</td>
+                        <td>
+                            @if($supplier->type === 'buyer')
+                                <span class="badge bg-success">{{ __('messages.supplier.type_buyer') }}</span>
+                            @elseif($supplier->type === 'consignment')
+                                <span class="badge bg-info">{{ __('messages.supplier.type_consignment') }}</span>
+                            @else
+                                <span class="badge bg-secondary">-</span>
+                            @endif
+                        </td>
                     </tr>
                 @endforeach
             </tbody>

@@ -259,6 +259,8 @@ return [
         'orders' => 'Orders',
         'filter_status'=> 'Filter status',
         'all_statuses' => 'All Statuses',
+        'type_buyer' => 'Buyer',
+        'type_consignment' => 'Consignment',
     ],
     'resellers' => [
         'title' => "Resellers management",
@@ -627,4 +629,11 @@ return [
     "Update reference?" => "Update reference?",
     "Total amount of orders waiting delivery or waiting invoice" => "Total amount of orders waiting delivery or waiting invoice",
     "Total amount of orders received and not paid" => "Total amount of orders received and not paid",
+    "Sales Reports Overview" => "Sales Reports Overview",
+    "Total unpaid invoiced reports" => "Total unpaid invoiced reports",
+    "Invoice received - not paid" => "Invoice received - not paid",
+    "Invoice received - paid" => "Invoice received - paid",
+    "Invoiced total" => "Invoiced total",
+    "Periode" => "Period",
+    "Mark sale report as paid" => "Mark sale report as paid",
 ];

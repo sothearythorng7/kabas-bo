@@ -66,7 +66,6 @@
 
             <div class="tab-content mt-3" id="ordersTabsContent">
                 @foreach($orderStatuses as $key => $label)
-                    <th>Destination</th>
                     <div class="tab-pane fade {{ $loop->first ? 'show active' : '' }}" id="order-{{ $key }}" role="tabpanel" aria-labelledby="order-{{ $key }}-tab">
                         <table class="table table-striped table-hover">
                             <thead>
@@ -304,7 +303,7 @@
                                 <tr>
                                     <th></th>
                                     <th>{{ __('messages.store.name') }}</th>
-                                    <th>{{ __('messages.sale_report.period') }}</th>
+                                    <th>@t("Periode")</th>
                                     <th>@t("Theoretical amount")</th>
                                     @if(in_array($key, ['invoiced_unpaid','invoiced_paid']))
                                         <th>@t("Total billed")</th>
@@ -360,7 +359,7 @@
 
                                     {{-- Modal Mark as Paid Sale Report --}}
                                     <div class="modal fade" id="markAsPaidModalSR-{{ $report->id }}" tabindex="-1" aria-hidden="true">
-                                        <div class="modal-dialog">
+                                        <div class="modal-dialog modal-dialog-centered" style="max-width: 400px;">
                                             <form action="{{ route('sale-reports.markAsPaid', [$report->supplier, $report]) }}" method="POST">
                                                 @csrf
                                                 <div class="modal-content">
@@ -370,8 +369,8 @@
                                                     </div>
                                                     <div class="modal-body">
                                                         <div class="mb-3">
-                                                            <label class="form-label">@t("Amount paid")</label>
-                                                            <input type="number" step="0.01" name="amount" class="form-control" value="{{ $report->total_amount_invoiced }}">
+                                                            <label class="form-label">@t("Amount paid") : <strong>${{ $report->total_amount_invoiced }}</strong></label>
+                                                           
                                                         </div>
                                                         <div class="mb-3">
                                                             <label class="form-label">{{ __('messages.Methodes_de_paiement') }}</label>

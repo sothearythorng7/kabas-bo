@@ -96,7 +96,7 @@
                 <th></th>
                 <th>@t("Store name")</th>
                 <th>@t("Période")</th>
-                <th>@t("Status")</th>
+                <th>@t("supplier.status")</th>
                 <th>@t("Expected total")</th>
                 <th>@t("Invoiced total")</th>
                 <th>@t("Paid")</th>

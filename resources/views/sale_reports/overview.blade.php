@@ -19,9 +19,9 @@
     <ul class="nav nav-tabs" id="reportsTabs" role="tablist">
         @php
         $statuses = [
-            'waiting_invoice' => 'En attente facture',
-            'invoiced_unpaid' => 'Facture reçue - Non payée',
-            'invoiced_paid' => 'Facture reçue - Payée',
+            'waiting_invoice' => @t("order.waiting_invoice"),
+            'invoiced_unpaid' => @t("Invoice received - not paid"),
+            'invoiced_paid' => @t("Invoice received - paid"),
         ];
         $badgeColors = [
             'waiting_invoice' => 'info',
@@ -54,9 +54,9 @@
                     <thead>
                         <tr>
                             <th></th>
-                            <th>@t("Supplier")</th>
-                            <th>@t("Store")</th>
-                            <th>@t("Period")</th>
+                            <th>@t("Fournisseur")</th>
+                            <th>@t("Store name")</th>
+                            <th>@t("Période")</th>
                             <th>@t("Theoretical amount")</th>
                             @if(str_contains($key, 'invoiced'))
                                 <th>@t("Total billed")</th>
@@ -83,7 +83,7 @@
                                         @if($report->status === 'waiting_invoice')
                                             <li>
                                                 <a class="dropdown-item" href="{{ route('sale-reports.invoiceReception', [$report->supplier, $report]) }}">
-                                                    <i class="bi bi-receipt"></i> @t("Invoice reception")
+                                                    <i class="bi bi-receipt"></i>@t("order.invoice_reception")
                                                 </a>
                                             </li>
                                         @endif

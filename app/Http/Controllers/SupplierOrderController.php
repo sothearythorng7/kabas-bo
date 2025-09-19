@@ -355,7 +355,6 @@ class SupplierOrderController extends Controller
         // Mettre à jour le statut de paiement de la commande
         $order->update(['is_paid' => true]);
 
-        return redirect()->route('supplier-orders.show', [$supplier, $order])
-            ->with('success', 'Commande marquée comme payée et transaction créée.');
+        return redirect()->back()->with('success', 'Commande marquée comme payée et transaction créée.');
     }
 }

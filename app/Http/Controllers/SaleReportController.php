@@ -202,8 +202,7 @@ class SaleReportController extends Controller
 
         // Mettre à jour le statut du sale report
         $saleReport->update(['is_paid' => true]);
-        return redirect()->route('sale-reports.index', $supplier)
-            ->with('success', 'Sale report marqué comme payé et transaction créée.');
+        return redirect()->back()->with('success', 'Sale report marqué comme payé et transaction créée.');
     }
 
 

@@ -9,16 +9,19 @@
         <li class="nav-item" role="presentation">
             <button class="nav-link active" id="general-tab" data-bs-toggle="tab" data-bs-target="#general" type="button" role="tab" aria-controls="general" aria-selected="true">
                 {{ __('messages.supplier_order.general') }}
+                <span class="badge bg-secondary ms-2">{{ $order->products->count() + $order->priceDifferences->count() }}</span>
             </button>
         </li>
         <li class="nav-item" role="presentation">
             <button class="nav-link" id="products-tab" data-bs-toggle="tab" data-bs-target="#products" type="button" role="tab" aria-controls="products" aria-selected="false">
                 {{ __('messages.supplier_order.ordered_products') }}
+                <span class="badge bg-secondary ms-2">{{ $order->products->count() }}</span>
             </button>
         </li>
         <li class="nav-item" role="presentation">
             <button class="nav-link" id="price-diff-tab" data-bs-toggle="tab" data-bs-target="#price-diff" type="button" role="tab" aria-controls="price-diff" aria-selected="false">
                 @t("Price differences")
+                <span class="badge bg-secondary ms-2">{{ $order->priceDifferences->count() }}</span>
             </button>
         </li>
     </ul>
@@ -181,7 +184,7 @@
                                 <th>Brand</th>
                                 <th>{{ __('messages.product.purchase_price') }}</th>
                                 <th>{{ __('messages.supplier_order.price_invoiced') }}</th>
-                                <th>{{ __('messages.supplier_order.quantity_ordered') }}</th>
+                                <th>@t("quantity ordered")</th>
                                 <th>{{ __('messages.supplier_order.received_quantity') }}</th>
                             </tr>
                         </thead>

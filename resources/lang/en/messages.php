@@ -439,7 +439,7 @@ return [
     "Supprimer" => "Delete",
     "Solde actuel" => "Current balance",
     "Entrées ce mois" => "Entries this month",
-    "Sorties ce mois" => "Exits this month",
+    "Sorties ce mois" => "Expenses this month",
     "Mois en cours" => "Current month",
     "6 derniers mois" => "Last 6 months",
     "Tout" => "All",
@@ -636,4 +636,5 @@ return [
     "Invoiced total" => "Invoiced total",
     "Periode" => "Period",
     "Mark sale report as paid" => "Mark sale report as paid",
+    "quantity ordered" => "Ordered quantity",
 ];

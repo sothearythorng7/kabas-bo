@@ -11,15 +11,13 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('supplier_order_product', function (Blueprint $table) {
+        Schema::create('supplier_order_invoice_lines', function (Blueprint $table) {
             $table->id();
             $table->foreignId('supplier_order_id')->constrained()->cascadeOnDelete();
             $table->foreignId('product_id')->constrained()->cascadeOnDelete();
-            $table->decimal('purchase_price', 10, 2); // prix fournisseur au moment de la commande
-            $table->decimal('invoice_price', 10, 2); 
-            $table->decimal('sale_price', 10, 2);     // prix de vente indicatif
-            $table->integer('quantity_ordered');
-            $table->integer('quantity_received')->nullable();
+            $table->decimal('reference_price', 10, 2);   // prix de référence au moment de la commande
+            $table->decimal('invoiced_price', 10, 2);    // prix effectivement facturé
+            $table->boolean('update_reference')->default(false); // case cochée ou pas
             $table->timestamps();
         });
     }
@@ -29,6 +27,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('supplier_order_product');
+        Schema::dropIfExists('supplier_order_invoice_lines');
     }
 };

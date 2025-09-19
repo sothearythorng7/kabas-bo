@@ -16,6 +16,11 @@
                 {{ __('messages.supplier_order.ordered_products') }}
             </button>
         </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="price-diff-tab" data-bs-toggle="tab" data-bs-target="#price-diff" type="button" role="tab" aria-controls="price-diff" aria-selected="false">
+                @t("Price differences")
+            </button>
+        </li>
     </ul>
 
     <div class="tab-content mt-3" id="orderTabsContent">
@@ -56,6 +61,49 @@
                             <a href="{{ route('supplier-orders.pdf', [$supplier, $order]) }}" class="btn btn-primary">
                                 <i class="bi bi-file-earmark-pdf-fill"></i> PDF
                             </a>
+                            @if(!$order->is_paid)
+                                <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#markAsPaidModal-{{ $order->id }}">
+                                    <i class="bi bi-cash-stack"></i> @t("Mark order as paid")
+                                </button>
+
+                                {{-- Modal Mark as Paid --}}
+                                <div class="modal fade" id="markAsPaidModal-{{ $order->id }}" tabindex="-1" aria-hidden="true">
+                                    <div class="modal-dialog modal-dialog-centered" style="max-width: 400px;">
+                                        <form action="{{ route('supplier-orders.markAsPaid', [$supplier, $order]) }}" method="POST">
+                                            @csrf
+                                            <div class="modal-content">
+                                                <div class="modal-header">
+                                                    <h5 class="modal-title">@t("Mark order as paid")</h5>
+                                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                                </div>
+                                                <div class="modal-body">
+                                                    <div class="mb-3">
+                                                        <label class="form-label">
+                                                            @t("Amount paid") : <strong>${{ $order->invoicedAmount() }}</strong>
+                                                        </label>
+                                                    </div>
+                                                    <div class="mb-3">
+                                                        <label class="form-label">@t("Méthode de paiement")</label>
+                                                        <select name="payment_method_id" class="form-select form-select-sm" required>
+                                                            @foreach($paymentMethods as $method)
+                                                                <option value="{{ $method->id }}">{{ $method->name }}</option>
+                                                            @endforeach
+                                                        </select>
+                                                    </div>
+                                                    <div class="mb-3">
+                                                        <label class="form-label">@t("Payment reference")</label>
+                                                        <input type="text" name="payment_reference" class="form-control form-control-sm">
+                                                    </div>
+                                                </div>
+                                                <div class="modal-footer">
+                                                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">{{ __('messages.btn.cancel') }}</button>
+                                                    <button type="submit" class="btn btn-success btn-sm">@t("Confirm payment")</button>
+                                                </div>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            @endif
                         @endif
 
                         {{-- Lien facture --}}
@@ -96,38 +144,15 @@
                     <div class="card mb-3">
                         <div class="card-header fw-bold">@t("Financial summary")</div>
                         <div class="card-body">
-                            @php
-                                $totalTheoretical = null;
-                                $totalInvoiced = null;
-
-                                if(in_array($order->status, ['waiting_invoice', 'received', 'waiting_reception'])) {
-                                    $totalTheoretical = $order->products->sum(function($product) {
-                                        return ($product->pivot->purchase_price ?? 0) * ($product->pivot->quantity_received ?? 0);
-                                    });
-                                }
-
-                                if ($order->status === 'received') {
-                                    $totalInvoiced = $order->products->sum(function($product) {
-                                        return ($product->pivot->price_invoiced ?? $product->pivot->purchase_price ?? 0) * ($product->pivot->quantity_received ?? 0);
-                                    });
-                                }
-                            @endphp
-
-                            @if(!is_null($totalTheoretical))
                                 <p>
                                     <strong>@t("Total theoretical amount"):</strong>
-                                    <span class="badge bg-info">${{ number_format($totalTheoretical, 2) }}</span>
+                                    <span class="badge bg-info">${{ number_format($order->expectedAmount(), 2) }}</span>
                                 </p>
-                            @endif
-
-                            @if(!is_null($totalInvoiced))
+                                @if($order->status === 'received')
                                 <p>
                                     <strong>@t("Total invoiced amount"):</strong>
-                                    <span class="badge bg-primary">${{ number_format($totalInvoiced, 2) }}</span>
+                                    <span class="badge bg-primary">${{ number_format($order->invoicedAmount(), 2) }}</span>
                                 </p>
-                            @endif
-
-                            @if($order->status === 'received')
                                 <p>
                                     <strong>@t("Payment status"):</strong>
                                     @if($order->is_paid)
@@ -204,6 +229,49 @@
                             @endforeach
                         </tbody>
                     </table>
+                </div>
+            </div>
+        </div>
+
+        {{-- Onglet Écarts de prix --}}
+        <div class="tab-pane fade" id="price-diff" role="tabpanel" aria-labelledby="price-diff-tab">
+            <div class="card mt-3">
+                <div class="card-header fw-bold">@t("Price differences")</div>
+                <div class="card-body">
+                    @if($order->priceDifferences->isEmpty())
+                        <p class="text-muted">@t("No price differences recorded.")</p>
+                    @else
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>EAN</th>
+                                    <th>{{ __('messages.product.name') }}</th>
+                                    <th>Brand</th>
+                                    <th>@t("Reference price")</th>
+                                    <th>@t("Invoiced price")</th>
+                                    <th>@t("Update reference?")</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach($order->priceDifferences as $line)
+                                    <tr>
+                                        <td>{{ $line->product->ean }}</td>
+                                        <td>{{ $line->product->name[app()->getLocale()] ?? reset($line->product->name) }}</td>
+                                        <td>{{ $line->product->brand?->name ?? '-' }}</td>
+                                        <td>{{ number_format($line->reference_price, 2) }}</td>
+                                        <td>{{ number_format($line->invoiced_price, 2) }}</td>
+                                        <td>
+                                            @if($line->update_reference)
+                                                <span class="badge bg-success">@t("Yes")</span>
+                                            @else
+                                                <span class="badge bg-secondary">@t("No")</span>
+                                            @endif
+                                        </td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    @endif
                 </div>
             </div>
         </div>

@@ -274,7 +274,13 @@ document.addEventListener('DOMContentLoaded', function () {
   background-color: #e9ecef;
   color: #0d6efd;
 }
-
+.crud_title{
+    width:100%;
+    border-bottom:solid 4px #C0C0C0;
+    font-size:22px;
+    font-weight:bold;
+    margin-bottom:20px;
+}
 </style>
 
 @else

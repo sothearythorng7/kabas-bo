@@ -96,6 +96,20 @@
                                                 </button>
                                             </li>
                                         @endif
+
+                                        {{-- Télécharger le PDF et envoyer par mail si dispo --}}
+                                        @if($report->report_file_path)
+                                            <li>
+                                                <a class="dropdown-item" href="{{ Storage::url($report->report_file_path) }}" target="_blank">
+                                                    <i class="bi bi-file-earmark-pdf"></i> Télécharger le rapport
+                                                </a>
+                                            </li>
+                                            <li>
+                                                <a class="dropdown-item" href="{{ route('sale-reports.send', [$report->supplier, $report]) }}">
+                                                    <i class="bi bi-envelope-fill"></i> Envoyer par mail
+                                                </a>
+                                            </li>
+                                        @endif
                                     </ul>
                                 </div>
                             </td>

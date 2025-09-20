@@ -100,6 +100,7 @@
                 <th>@t("Expected total")</th>
                 <th>@t("Invoiced total")</th>
                 <th>@t("Paid")</th>
+                <th>@t("Sent")</th>
             </tr>
         </thead>
         <tbody>
@@ -118,6 +119,24 @@
                                     <i class="bi bi-eye-fill"></i> {{ __('messages.btn.view') }}
                                 </a>
                             </li>
+
+                            {{-- Télécharger PDF (si présent) --}}
+                            @if(!empty($report->report_file_path))
+                                <li>
+                                    <a class="dropdown-item" href="{{ Storage::url($report->report_file_path) }}" target="_blank">
+                                        <i class="bi bi-file-earmark-pdf-fill"></i> PDF
+                                    </a>
+                                </li>
+
+                                {{-- Envoyer par mail si le fournisseur a des contacts avec email --}}
+                                @if($supplier->contacts->whereNotNull('email')->count() > 0)
+                                    <li>
+                                        <a class="dropdown-item" href="{{ route('sale-reports.send', [$supplier, $report]) }}">
+                                            <i class="bi bi-envelope-fill"></i> Envoyer par email
+                                        </a>
+                                    </li>
+                                @endif
+                            @endif
 
                             {{-- Réception facture --}}
                             @if($report->status === 'waiting_invoice')
@@ -160,6 +179,13 @@
                 </td>
                 <td>
                     @if($report->is_paid)
+                        <span class="badge bg-success">@t("Yes")</span>
+                    @else
+                        <span class="badge bg-danger">@t("No")</span>
+                    @endif
+                </td>
+                <td>
+                    @if($report->sent_at != null)
                         <span class="badge bg-success">@t("Yes")</span>
                     @else
                         <span class="badge bg-danger">@t("No")</span>
@@ -449,7 +475,7 @@
                                 @if($totalAmount !== '-')
                                     ${{ number_format($totalAmount, 2) }}
                                 @else
-                                    -
+                                    - 
                                 @endif
                             </td>
                             <td>

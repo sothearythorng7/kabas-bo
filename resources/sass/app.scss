@@ -1,11 +1,7 @@
-// Bootstrap
+// Tout d’abord les @use
 @use 'bootstrap' as *;
+@use './variables';
+@use './_menu';
 
-
-// Fonts
+// Ensuite les imports CSS externes
 @import url('https://fonts.bunny.net/css?family=Nunito');
-
-// Variables
-@import 'variables';
-
-

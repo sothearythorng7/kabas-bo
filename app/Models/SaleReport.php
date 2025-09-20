@@ -15,12 +15,16 @@ class SaleReport extends Model
         'total_amount_theoretical',
         'total_amount_invoiced',
         'is_paid',
+        'report_file_path',
+        'sent_at',
+        'sent_to'
     ];
 
     protected $casts = [
         'period_start' => 'datetime',
         'period_end' => 'datetime',
         'is_paid' => 'boolean',
+        'sent_at'      => 'datetime',
     ];
 
     public function supplier()

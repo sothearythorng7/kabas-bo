@@ -637,4 +637,5 @@ return [
     "Periode" => "Period",
     "Mark sale report as paid" => "Mark sale report as paid",
     "quantity ordered" => "Ordered quantity",
+    "Sent" => "Sent",
 ];

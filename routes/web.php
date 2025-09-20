@@ -79,6 +79,10 @@ Route::middleware(['auth', SetUserLocale::class])->group(function () {
             Route::post('sale-reports', [SaleReportController::class, 'store'])->name('sale-reports.store');
             Route::get('sale-reports/{saleReport}', [SaleReportController::class, 'show'])->name('sale-reports.show');
 
+            Route::get('sale-reports/{saleReport}/send', [SaleReportController::class, 'sendReport'])->name('sale-reports.send');
+            Route::post('sale-reports/{saleReport}/send', [SaleReportController::class, 'doSendReport'])->name('sale-reports.doSend');
+
+
             // Passage à "invoiced"
             Route::put('sale-reports/{saleReport}/mark-invoiced', [SaleReportController::class, 'markInvoiced'])->name('sale-reports.markInvoiced');
 

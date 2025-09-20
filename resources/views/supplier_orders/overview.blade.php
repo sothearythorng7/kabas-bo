@@ -6,7 +6,7 @@
 
     {{-- Totaux en cards --}}
     <div class="row mb-4">
-        <div class="col-md-4">
+        <div class="col-md-4 mb-2">
             <div class="card text-white bg-info">
                 <div class="card-body">
                     <h5 class="card-title">@t("Total order expected amount")</h5>
@@ -15,7 +15,7 @@
                 </div>
             </div>
         </div>
-        <div class="col-md-4">
+        <div class="col-md-4 mb-2">
             <div class="card text-white bg-warning">
                 <div class="card-body">
                     <h5 class="card-title">@t("Total unpaid received orders")</h5>
@@ -24,7 +24,7 @@
                 </div>
             </div>
         </div>
-        <div class="col-md-4">
+        <div class="col-md-4 mb-2">
             <div class="card text-white bg-danger">
                 <div class="card-body">
                     <h5 class="card-title">@t("Total unpaid invoiced sale reports")</h5>

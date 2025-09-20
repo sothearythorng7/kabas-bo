@@ -32,7 +32,8 @@
         },
         "files": [
             "app/Helpers/breadcrumbs.php",
-            "app/Helpers/trad.php"
+            "app/Helpers/trad.php",
+            "app/Helpers/MenuHelper.php"
         ]
     },
     "autoload-dev": {
@@ -44,6 +45,10 @@
         "post-autoload-dump": [
             "Illuminate\\Foundation\\ComposerScripts::postAutoloadDump",
             "@php artisan package:discover --ansi"
+        ],
+        "post-install-cmd": [
+            "@php artisan vendor:publish --tag=laravel-assets",
+            "php artisan queue:check-supervisor"
         ],
         "post-update-cmd": [
             "@php artisan vendor:publish --tag=laravel-assets --ansi --force"

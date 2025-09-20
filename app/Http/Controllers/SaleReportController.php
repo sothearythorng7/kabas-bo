@@ -9,6 +9,7 @@ use App\Models\Product;
 use App\Models\FinancialPaymentMethod;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use App\Jobs\SendSaleReportEmail;
 
 class SaleReportController extends Controller
 {
@@ -103,9 +104,49 @@ class SaleReportController extends Controller
             $saleReport->items()->create($item);
         }
 
+        // Génération du PDF
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('sale_reports.pdf', [
+            'saleReport' => $saleReport->load('items.product', 'supplier', 'store')
+        ]);
+
+        $path = "sale_reports/report_{$saleReport->id}.pdf";
+        \Storage::disk('public')->put($path, $pdf->output());
+
+        $saleReport->update([
+            'report_file_path' => $path
+        ]);
+
         return redirect(route('sale-reports.index', $supplier))
             ->with('success', 'Sale report created.');
     }
+
+
+    public function sendReport(Supplier $supplier, SaleReport $saleReport)
+    {
+        $contacts = $supplier->contacts()->whereNotNull('email')->get();
+        return view('sale_reports.send', compact('supplier', 'saleReport', 'contacts'));
+    }
+
+    public function doSendReport(Request $request, Supplier $supplier, SaleReport $saleReport)
+    {
+        $request->validate([
+            'recipients' => 'required|array',
+            'subject' => 'required|string',
+            'body' => 'required|string',
+        ]);
+
+        $emails = $request->recipients;
+        $subject = $request->subject;
+        $body = $request->body;
+
+        // Dispatch du job
+        SendSaleReportEmail::dispatch($emails, $saleReport, $subject, $body);
+
+        return redirect()->route('sale-reports.show', [$supplier, $saleReport])
+            ->with('success', 'Le rapport sera envoyé en arrière-plan.');
+    }
+
+
 
     public function invoiceReception(Supplier $supplier, SaleReport $saleReport)
     {

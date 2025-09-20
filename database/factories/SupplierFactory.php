@@ -14,6 +14,7 @@ class SupplierFactory extends Factory
         return [
             'name'    => $this->faker->company(),
             'address' => $this->faker->address(),
+            'type'    => $this->faker->randomElement(['buyer', 'consignment']),
         ];
     }
 }

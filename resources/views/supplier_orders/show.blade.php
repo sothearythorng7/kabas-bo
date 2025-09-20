@@ -2,7 +2,7 @@
 
 @section('content')
 <div class="container mt-4">
-    <h1 class="crud_title">{{ __('messages.supplier_order.show_title') }} - {{ $supplier->name }}</h1>
+    <h1 class="crud_title">{{ __('messages.supplier_order.show_title') }} - {{ $supplier->name }} (@t($supplier->type))</h1>
 
     {{-- Onglets --}}
     <ul class="nav nav-tabs" id="orderTabs" role="tablist">
@@ -53,7 +53,7 @@
                             <a href="{{ route('supplier-orders.reception', [$supplier, $order]) }}" class="btn btn-info">
                                 <i class="bi bi-box-seam"></i> {{ __('messages.order.reception') }}
                             </a>
-                        @elseif($order->status === 'waiting_invoice')
+                        @elseif($order->status === 'waiting_invoice' && $supplier->isBuyer())
                             <a href="{{ route('supplier-orders.pdf', [$supplier, $order]) }}" class="btn btn-primary">
                                 <i class="bi bi-file-earmark-pdf-fill"></i> PDF
                             </a>
@@ -64,7 +64,8 @@
                             <a href="{{ route('supplier-orders.pdf', [$supplier, $order]) }}" class="btn btn-primary">
                                 <i class="bi bi-file-earmark-pdf-fill"></i> PDF
                             </a>
-                            @if(!$order->is_paid)
+
+                            @if($supplier->isBuyer() && !$order->is_paid)
                                 <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#markAsPaidModal-{{ $order->id }}">
                                     <i class="bi bi-cash-stack"></i> @t("Mark order as paid")
                                 </button>
@@ -110,7 +111,7 @@
                         @endif
 
                         {{-- Lien facture --}}
-                        @if($order->invoice_file)
+                        @if($order->invoice_file && $supplier->isBuyer())
                             <a href="{{ Storage::url($order->invoice_file) }}" target="_blank" class="btn btn-dark">
                                 <i class="bi bi-download"></i> @t("Download Invoice")
                             </a>
@@ -143,6 +144,7 @@
                 </div>
 
                 {{-- Totaux financiers --}}
+                @if($supplier->isBuyer())
                 <div class="col-md-6">
                     <div class="card mb-3">
                         <div class="card-header fw-bold">@t("Financial summary")</div>
@@ -164,10 +166,11 @@
                                         <span class="badge bg-danger">@t("Unpaid")</span>
                                     @endif
                                 </p>
-                            @endif
+                                @endif
                         </div>
                     </div>
                 </div>
+                @endif
             </div>
         </div>
 
@@ -183,7 +186,9 @@
                                 <th>{{ __('messages.product.name') }}</th>
                                 <th>Brand</th>
                                 <th>{{ __('messages.product.purchase_price') }}</th>
-                                <th>{{ __('messages.supplier_order.price_invoiced') }}</th>
+                                @if($supplier->isBuyer())
+                                    <th>{{ __('messages.supplier_order.price_invoiced') }}</th>
+                                @endif
                                 <th>@t("quantity ordered")</th>
                                 <th>{{ __('messages.supplier_order.received_quantity') }}</th>
                             </tr>
@@ -192,7 +197,7 @@
                             @foreach($order->products as $product)
                                 @php
                                     $orderedPrice = $product->pivot->purchase_price;
-                                    $invoicedPrice = ($order->status === 'received')
+                                    $invoicedPrice = ($supplier->isBuyer() && $order->status === 'received')
                                         ? ($product->pivot->price_invoiced ?? $product->pivot->purchase_price ?? null)
                                         : null;
 
@@ -219,13 +224,15 @@
                                     <td>{{ $product->name[app()->getLocale()] ?? reset($product->name) }}</td>
                                     <td>{{ $product->brand?->name ?? '-' }}</td>
                                     <td>{{ number_format($orderedPrice, 2) }}</td>
-                                    <td>
-                                        @if($displayPrice === '-')
-                                            -
-                                        @else
-                                            <span class="badge {{ $badgeClass }}">{{ $displayPrice }}</span>
-                                        @endif
-                                    </td>
+                                    @if($supplier->isBuyer())
+                                        <td>
+                                            @if($displayPrice === '-')
+                                                -
+                                            @else
+                                                <span class="badge {{ $badgeClass }}">{{ $displayPrice }}</span>
+                                            @endif
+                                        </td>
+                                    @endif
                                     <td>{{ $product->pivot->quantity_ordered }}</td>
                                     <td>{{ $quantityReceived }}</td>
                                 </tr>

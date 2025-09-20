@@ -638,4 +638,6 @@ return [
     "Mark sale report as paid" => "Mark sale report as paid",
     "quantity ordered" => "Ordered quantity",
     "Sent" => "Sent",
+    "consignment" => "consignment",
+    "buyer" => "buyer",
 ];

@@ -2,7 +2,7 @@
 
 @section('content')
 <div class="container mt-4">
-    <h1 class="crud_title">{{ __('messages.supplier.title_edit') }} - {{ $supplier->name }}</h1>
+    <h1 class="crud_title">{{ __('messages.supplier.title_edit') }} - {{ $supplier->name }} (@t($supplier->type))</h1>
 
     @php
         $productsCount = $products instanceof \Illuminate\Pagination\LengthAwarePaginator ? $products->total() : $products->count();
@@ -384,8 +384,10 @@
                         <th>Destination</th>
                         <th>Total commandé</th>
                         <th>Total reçu</th>
-                        <th>Montant théorique</th>
-                        <th>Payé</th>
+                        @if($supplier->type === 'buyer')
+                            <th>Montant théorique</th>
+                            <th>Payé</th>
+                        @endif
                     </tr>
                 </thead>
                 <tbody>
@@ -446,11 +448,13 @@
                                                     <i class="bi bi-file-earmark-pdf-fill"></i> PDF
                                                 </a>
                                             </li>
+                                            @if($supplier->type === 'buyer')
                                             <li>
                                                 <a class="dropdown-item" href="{{ route('supplier-orders.invoiceReception', [$supplier, $order]) }}">
                                                     <i class="bi bi-receipt"></i> Réception de facture
                                                 </a>
                                             </li>
+                                            @endif
                                         @endif
                                     </ul>
                                 </div>
@@ -471,20 +475,23 @@
                             <td>{{ $order->destinationStore?->name ?? '-' }}</td>
                             <td>{{ $totalOrdered }}</td>
                             <td>{{ $totalReceived }}</td>
-                            <td>
-                                @if($totalAmount !== '-')
-                                    ${{ number_format($totalAmount, 2) }}
-                                @else
-                                    - 
-                                @endif
-                            </td>
-                            <td>
-                                @if($order->is_paid)
-                                    <span class="badge bg-success">Oui</span>
-                                @else
-                                    <span class="badge bg-danger">Non</span>
-                                @endif
-                            </td>
+
+                            @if($supplier->type === 'buyer')
+                                <td>
+                                    @if($totalAmount !== '-')
+                                        ${{ number_format($totalAmount, 2) }}
+                                    @else
+                                        - 
+                                    @endif
+                                </td>
+                                <td>
+                                    @if($order->is_paid)
+                                        <span class="badge bg-success">Oui</span>
+                                    @else
+                                        <span class="badge bg-danger">Non</span>
+                                    @endif
+                                </td>
+                            @endif
                         </tr>
                     @endforeach
                 </tbody>

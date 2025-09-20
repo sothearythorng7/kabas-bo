@@ -22,9 +22,12 @@ class SupplierOrderSeeder extends Seeder
             return;
         }
 
-        $statusOptions = ['pending', 'waiting_reception', 'waiting_invoice'];
-
         foreach ($suppliers as $supplier) {
+            // Si supplier = consignement, on retire waiting_invoice
+            $statusOptions = $supplier->type === 'consignment'
+                ? ['pending', 'waiting_reception']
+                : ['pending', 'waiting_reception', 'waiting_invoice'];
+
             $supplierProducts = $products->random(rand(5, 10));
 
             foreach ($supplierProducts as $product) {
@@ -42,14 +45,15 @@ class SupplierOrderSeeder extends Seeder
                     $qtyReceived = $status === 'waiting_invoice' ? $qtyOrdered : 0;
 
                     $order = SupplierOrder::create([
-                        'supplier_id' => $supplier->id,
+                        'supplier_id'          => $supplier->id,
                         'destination_store_id' => $store->id,
-                        'status' => $status,
+                        'status'               => $status,
                     ]);
 
                     $order->products()->attach($product->id, [
                         'purchase_price'    => $purchasePrice,
                         'sale_price'        => $product->price,
+                        'invoice_price'     => $purchasePrice,
                         'quantity_ordered'  => $qtyOrdered,
                         'quantity_received' => $qtyReceived,
                         'created_at'        => now(),

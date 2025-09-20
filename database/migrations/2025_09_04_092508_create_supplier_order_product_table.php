@@ -16,7 +16,7 @@ return new class extends Migration
             $table->foreignId('supplier_order_id')->constrained()->cascadeOnDelete();
             $table->foreignId('product_id')->constrained()->cascadeOnDelete();
             $table->decimal('purchase_price', 10, 2); // prix fournisseur au moment de la commande
-            $table->decimal('invoice_price', 10, 2); 
+            $table->decimal('invoice_price', 10, 2)->nullable(); 
             $table->decimal('sale_price', 10, 2);     // prix de vente indicatif
             $table->integer('quantity_ordered');
             $table->integer('quantity_received')->nullable();

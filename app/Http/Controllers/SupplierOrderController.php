@@ -59,6 +59,7 @@ class SupplierOrderController extends Controller
                 'quantity_ordered' => $quantity,
                 'purchase_price' => $product->pivot->purchase_price ?? 0,
                 'sale_price' => $product->price,
+                'invoice_price' => null,
                 'created_at' => now(),
                 'updated_at' => now(),
             ];
@@ -168,9 +169,14 @@ class SupplierOrderController extends Controller
             ]);
         }
 
-        $order->update(['status' => 'waiting_invoice']);
+        if ($supplier->type === 'consignment') {
+            $order->update(['status' => 'received']);
+        } else {
+            $order->update(['status' => 'waiting_invoice']);
+        }
 
-        return redirect()->route('suppliers.edit', $supplier)->with('success', 'Commande réceptionnée et en attente de facture.');
+        $url = route('suppliers.edit', $supplier) . '#orders';
+        return redirect($url)->with('success', 'Commande réceptionnée.');
     }
 
     public function receptionInvoiceForm(Supplier $supplier, SupplierOrder $order)

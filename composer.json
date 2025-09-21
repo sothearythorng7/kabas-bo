@@ -31,9 +31,10 @@
             "Database\\Seeders\\": "database/seeders/"
         },
         "files": [
-            "app/Helpers/breadcrumbs.php",
             "app/Helpers/trad.php",
-            "app/Helpers/MenuHelper.php"
+            "app/Helpers/MenuHelper.php",
+            "app/Helpers/RedirectHelper.php",
+            "app/Helpers/BreadcrumbHelper.php"
         ]
     },
     "autoload-dev": {

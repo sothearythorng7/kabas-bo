@@ -1,0 +1,3 @@
+.breadcrumb .breadcrumb-item::before {
+    content: none; /* supprime le slash par défaut */
+}

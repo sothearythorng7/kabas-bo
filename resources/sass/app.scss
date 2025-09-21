@@ -2,6 +2,7 @@
 @use 'bootstrap' as *;
 @use './variables';
 @use './_menu';
+@use './_custom';
 
 // Ensuite les imports CSS externes
 @import url('https://fonts.bunny.net/css?family=Nunito');

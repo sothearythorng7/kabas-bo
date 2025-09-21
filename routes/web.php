@@ -42,8 +42,40 @@ Route::get('/', function () {
 });
 
 Auth::routes();
-
 Route::get('/home', [App\Http\Controllers\HomeController::class, 'index'])->name('home');
+
+Route::post('/track-url', function (\Illuminate\Http\Request $request) {
+    $url = $request->input('url');
+    if ($url) {
+        // Récupérer l'historique existant ou initialiser
+        //$history = session('history', []);
+        $history =  $_SESSION['url_history'] ?? [];
+
+        // Ajouter l'URL si ce n'est pas déjà la dernière entrée
+        if (empty($history) || end($history) !== $url) {
+            $history[] = $url;
+        }
+
+        // Garder uniquement les 10 dernières URLs
+        if (count($history) > 10) {
+            array_shift($history);
+        }
+
+        // Enregistrer en session
+        //session(['history' => $history]);
+        //session()->save();
+        $_SESSION['url_history'] = $history;
+    }
+
+    // Récupérer l'historique réel depuis la session après modification
+    $currentHistory = $_SESSION['url_history'];
+
+    return response()->json([
+        'status' => 'ok',
+        'history' => $currentHistory,
+    ]);
+})->name('track-url')->middleware('web');
+
 
 
 Route::middleware(['auth', SetUserLocale::class])->group(function () {

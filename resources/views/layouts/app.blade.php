@@ -27,9 +27,25 @@
             </button>
         </div>
     </nav>
-
     {{-- Flashs + contenu --}}
-    <div class="container-fluid mt-3" style="padding-top: 0.5rem;">
+        <div class="container-fluid" style="padding-top: 0.5rem;">
+        @php $breadcrumb = buildBreadcrumbFromHistory(5); @endphp
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb d-flex flex-wrap align-items-center gap-1 p-0 mb-2">
+                @foreach($breadcrumb as $index => $item)
+                    <li class="breadcrumb-item m-0 p-0 d-flex align-items-center">
+                        <a href="{{ $item['url'] }}" class="badge bg-secondary text-decoration-none px-2 py-1">
+                            {{ $item['label'] }}
+                        </a>
+
+                        {{-- Séparateur sauf pour le dernier élément --}}
+                        @if(!$loop->last)
+                            <i class="bi bi-caret-right-fill mx-1 text-muted"></i>
+                        @endif
+                    </li>
+                @endforeach
+            </ol>
+        </nav>
         @include('partials.flash-messages')
         @yield('content')
     </div>
@@ -68,5 +84,33 @@ document.addEventListener('DOMContentLoaded', function() {
 @endif
 
 @stack('scripts')
+<script>
+function trackCurrentUrl() {
+    const url = window.location.href;
+    console.log(url);
+    fetch("{{ route('track-url') }}", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "X-CSRF-TOKEN": document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+        },
+        body: JSON.stringify({ url })
+    })
+    .then(res => res.json());
+}
+
+// Track la page au chargement
+trackCurrentUrl();
+
+// Track lorsqu’un onglet est changé (Bootstrap tabs)
+document.querySelectorAll('button[data-bs-toggle="tab"]').forEach(btn => {
+    btn.addEventListener('shown.bs.tab', () => {
+        setTimeout(() => {
+            trackCurrentUrl(window.location.href);
+        }, 50);
+    });
+});
+</script>
+
 </body>
 </html>

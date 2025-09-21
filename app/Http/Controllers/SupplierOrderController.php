@@ -16,6 +16,8 @@ use Illuminate\Http\Request;
 use Barryvdh\DomPDF\Facade\Pdf;
 use App\Models\SupplierOrderInvoiceLine;
 use App\Models\PriceDifference;
+use Illuminate\Support\Facades\Session;
+
 
 class SupplierOrderController extends Controller
 {
@@ -176,7 +178,8 @@ class SupplierOrderController extends Controller
         }
 
         $url = route('suppliers.edit', $supplier) . '#orders';
-        return redirect($url)->with('success', 'Commande réceptionnée.');
+
+        return redirectBackLevels(2)->with('success', 'Commande réceptionnée.');
     }
 
     public function receptionInvoiceForm(Supplier $supplier, SupplierOrder $order)
@@ -247,8 +250,7 @@ class SupplierOrderController extends Controller
 
         $order->update(['status' => 'received']);
 
-        return redirect()->route('suppliers.edit', $supplier)
-            ->with('success', 'Réception de facture enregistrée avec succès.');
+        return redirectBackLevels(2)->with('success', 'Réception de facture enregistrée avec succès.');
     }
 
 

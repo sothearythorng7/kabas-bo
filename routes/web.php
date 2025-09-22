@@ -228,6 +228,8 @@ Route::middleware(['auth', SetUserLocale::class])->group(function () {
             // Formulaire réception refill
             Route::get('refills/reception/create', [RefillController::class, 'receptionForm'])->name('refills.reception.form');
             Route::post('refills/reception', [RefillController::class, 'storeReception'])->name('refills.reception.store');
+
+            Route::post('sale-reports/{saleReport}/send-telegram', [SaleReportController::class, 'doSendReportTelegram'])   ->name('sale-reports.send.telegram');
         });
 
 

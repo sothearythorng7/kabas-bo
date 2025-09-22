@@ -9,6 +9,7 @@
         $ordersCount = $orders instanceof \Illuminate\Pagination\LengthAwarePaginator ? $orders->total() : $orders->count();
         $saleReportsCount = $supplier->saleReports?->count() ?? 0;
         $refillsCount = $supplier->refills?->count() ?? 0;
+        $contactsCount = $supplier->contacts?->count() ?? 0;
     @endphp
 
     {{-- Onglets --}}
@@ -39,6 +40,9 @@
         <li class="nav-item" role="presentation">
             <button class="nav-link" id="contacts-tab" data-bs-toggle="tab" data-bs-target="#contacts" type="button" role="tab" aria-controls="contacts" aria-selected="false">
                 {{ __('messages.supplier.contacts') }}
+                <span class="badge bg-{{ $contactsCount > 0 ? 'primary' : 'secondary' }}">
+                    {{ $contactsCount }}
+                </span>
             </button>
         </li>
         <li class="nav-item" role="presentation">
@@ -149,6 +153,15 @@
                                         </a>
                                     </li>
                                 @endif
+
+                                {{-- Envoyer par Telegram si le fournisseur a des contacts avec Telegram --}}
+                                @if($supplier->contacts->whereNotNull('telegram')->count() > 0 && !empty($report->report_file_path))
+                                    <li>
+                                        <button class="dropdown-item" data-bs-toggle="modal" data-bs-target="#sendTelegramModal{{ $report->id }}">
+                                            <i class="bi bi-telegram"></i> Envoyer par Telegram
+                                        </button>
+                                    </li>
+                                @endif
                             @endif
 
                             {{-- Réception facture --}}
@@ -246,7 +259,65 @@
                 </div>
             </div>
             @endif
+            {{-- Modal Telegram --}}
+            @if($supplier->contacts->whereNotNull('telegram')->count() > 0)
+            @php
+            $telegramMessage = View::make('telegram.sale_report', [
+                'report' => $report,
+                'supplier' => $supplier
+            ])->render();
+            @endphp
+            <div class="modal fade" id="sendTelegramModal{{ $report->id }}" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+                    <div class="modal-content">
+                        <form action="{{ route('sale-reports.send.telegram', [$supplier, $report]) }}" method="POST" enctype="multipart/form-data">
+                            @csrf
+                            <div class="modal-header">
+                                <h5 class="modal-title">Envoyer le sale report via Telegram</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                            </div>
+                            <div class="modal-body">
+                                <div class="mb-3">
+                                    <label class="form-label">Destinataires</label>
 
+                                    <div class="dropdown">
+                                        <button class="btn btn-outline-primary dropdown-toggle w-100" type="button" id="recipientsDropdown{{ $report->id }}" data-bs-toggle="dropdown" aria-expanded="false">
+                                            Sélectionner les contacts
+                                        </button>
+
+                                        <ul class="dropdown-menu p-3" aria-labelledby="recipientsDropdown{{ $report->id }}" style="max-height: 250px; overflow-y:auto;">
+                                            @foreach($supplier->contacts->whereNotNull('telegram') as $contact)
+                                                <li class="form-check">
+                                                    <input class="form-check-input" type="checkbox" name="recipients[]" value="{{ $contact->telegram }}" id="contactCheck{{ $report->id }}_{{ $contact->id }}">
+                                                    <label class="form-check-label" for="contactCheck{{ $report->id }}_{{ $contact->id }}">
+                                                        {{ $contact->first_name }} {{ $contact->last_name }} ({{ $contact->telegram }})
+                                                    </label>
+                                                </li>
+                                            @endforeach
+                                        </ul>
+                                    </div>
+                                    <small class="form-text text-muted">Cochez les contacts à qui envoyer le sale report</small>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Message</label>
+                                    @php
+                                    $telegramMessage = View::make('telegram.sale_report', [
+                                        'report' => $report,
+                                        'supplier' => $supplier
+                                    ])->render();
+                                    @endphp
+                                    <textarea name="body" class="form-control" rows="5" required>{{ $telegramMessage }}</textarea>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                                <button type="submit" class="btn btn-success">Envoyer</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            @endif
             @endforeach
         </tbody>
     </table>
@@ -312,6 +383,7 @@
                             <th>{{ __('messages.supplier.last_name') }}</th>
                             <th>{{ __('messages.supplier.email') }}</th>
                             <th>{{ __('messages.supplier.phone') }}</th>
+                            <th>Telegram</th>
                             <th></th>
                         </tr>
                     </thead>
@@ -322,6 +394,7 @@
                                 <td>{{ $contact->last_name }}</td>
                                 <td>{{ $contact->email }}</td>
                                 <td>{{ $contact->phone }}</td>
+                                <td>{{ $contact->telegram }}</td>
                                 <td class="text-end d-flex gap-1 justify-content-end">
                                     <button class="btn btn-warning btn-sm" data-bs-toggle="modal" data-bs-target="#editContactModal{{ $contact->id }}">
                                         <i class="bi bi-pencil-fill"></i> {{ __('messages.btn.edit') }}
@@ -565,28 +638,38 @@
                 <h5 class="modal-title" id="addContactModalLabel">{{ __('messages.supplier.add_contact') }}</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
+
             <form action="{{ route('contacts.store', $supplier) }}" method="POST">
                 @csrf
+
                 <div class="modal-body">
                     <div class="row">
                         <div class="col-md-6 mb-3">
-                            <label for="first_name" class="form-label">{{ __('messages.supplier.first_name') }}</label>
+                            <label class="form-label">{{ __('messages.supplier.first_name') }}</label>
                             <input type="text" class="form-control" name="first_name" required>
                         </div>
                         <div class="col-md-6 mb-3">
-                            <label for="last_name" class="form-label">{{ __('messages.supplier.last_name') }}</label>
+                            <label class="form-label">{{ __('messages.supplier.last_name') }}</label>
                             <input type="text" class="form-control" name="last_name" required>
                         </div>
                     </div>
-                    <div class="mb-3">
-                        <label for="email" class="form-label">{{ __('messages.supplier.email') }}</label>
-                        <input type="email" class="form-control" name="email">
+
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">{{ __('messages.supplier.email') }}</label>
+                            <input type="email" class="form-control" name="email">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">{{ __('messages.supplier.phone') }}</label>
+                            <input type="text" class="form-control" name="phone">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Telegram</label>
+                            <input type="text" class="form-control" name="telegram">
+                        </div>
                     </div>
-                    <div class="mb-3">
-                        <label for="phone" class="form-label">{{ __('messages.supplier.phone') }}</label>
-                        <input type="text" class="form-control" name="phone">
-                    </div>
-                </div>
+                </div> {{-- modal-body --}}
+
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ __('messages.btn.cancel') }}</button>
                     <button type="submit" class="btn btn-success">{{ __('messages.btn.save') }}</button>
@@ -596,46 +679,65 @@
     </div>
 </div>
 
+
 {{-- Modals Édition Contact --}}
 @foreach($supplier->contacts as $contact)
 <div class="modal fade" id="editContactModal{{ $contact->id }}" tabindex="-1" aria-labelledby="editContactModalLabel{{ $contact->id }}" aria-hidden="true">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="editContactModalLabel{{ $contact->id }}">{{ __('messages.supplier.edit_contact') }}</h5>
+                <h5 class="modal-title" id="editContactModalLabel{{ $contact->id }}">
+                    {{ __('messages.supplier.edit_contact') }}
+                </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
+
             <form action="{{ route('contacts.update', [$supplier, $contact]) }}" method="POST">
                 @csrf
                 @method('PUT')
+
                 <div class="modal-body">
                     <div class="row">
                         <div class="col-md-6 mb-3">
-                            <label for="first_name" class="form-label">{{ __('messages.supplier.first_name') }}</label>
+                            <label class="form-label">{{ __('messages.supplier.first_name') }}</label>
                             <input type="text" class="form-control" name="first_name" value="{{ $contact->first_name }}" required>
                         </div>
                         <div class="col-md-6 mb-3">
-                            <label for="last_name" class="form-label">{{ __('messages.supplier.last_name') }}</label>
+                            <label class="form-label">{{ __('messages.supplier.last_name') }}</label>
                             <input type="text" class="form-control" name="last_name" value="{{ $contact->last_name }}" required>
                         </div>
                     </div>
-                    <div class="mb-3">
-                        <label for="email" class="form-label">{{ __('messages.supplier.email') }}</label>
-                        <input type="email" class="form-control" name="email" value="{{ $contact->email }}">
+
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">{{ __('messages.supplier.email') }}</label>
+                            <input type="email" class="form-control" name="email" value="{{ $contact->email }}">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">{{ __('messages.supplier.phone') }}</label>
+                            <input type="text" class="form-control" name="phone" value="{{ $contact->phone }}">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Telegram</label>
+                            <input type="text" class="form-control" name="telegram" value="{{ $contact->telegram }}">
+                        </div>
                     </div>
-                    <div class="mb-3">
-                        <label for="phone" class="form-label">{{ __('messages.supplier.phone') }}</label>
-                        <input type="text" class="form-control" name="phone" value="{{ $contact->phone }}">
-                    </div>
-                </div>
+                </div> {{-- modal-body --}}
+
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ __('messages.btn.cancel') }}</button>
-                    <button type="submit" class="btn btn-success">{{ __('messages.btn.save') }}</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        {{ __('messages.btn.cancel') }}
+                    </button>
+                    <button type="submit" class="btn btn-success">
+                        {{ __('messages.btn.save') }}
+                    </button>
                 </div>
             </form>
         </div>
     </div>
 </div>
+
+
 @endforeach
 
 @endsection

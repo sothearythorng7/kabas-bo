@@ -13,8 +13,9 @@ class ContactController extends Controller
         $request->validate([
             'first_name' => 'required|string|max:255',
             'last_name'  => 'required|string|max:255',
-            'email'      => 'required|email|max:255',
-            'phone'      => 'required|string|max:50',
+            'email'      => 'nullable|email|max:255',
+            'phone'      => 'nullable|string|max:50',
+            'telegram'   => 'nullable|string|max:100',
         ]);
 
         $supplier->contacts()->create($request->all());
@@ -27,8 +28,9 @@ class ContactController extends Controller
         $request->validate([
             'first_name' => 'required|string|max:255',
             'last_name'  => 'required|string|max:255',
-            'email'      => 'required|email|max:255',
-            'phone'      => 'required|string|max:50',
+            'email'      => 'nullable|email|max:255',
+            'phone'      => 'nullable|string|max:50',
+            'telegram'   => 'nullable|string|max:100',
         ]);
 
         $contact->update($request->all());

@@ -10,6 +10,10 @@ use App\Models\FinancialPaymentMethod;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use App\Jobs\SendSaleReportEmail;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Artisan;
+use App\Jobs\SendTelegramReport;
+
 
 class SaleReportController extends Controller
 {
@@ -144,6 +148,35 @@ class SaleReportController extends Controller
 
         return redirect()->route('sale-reports.show', [$supplier, $saleReport])
             ->with('success', 'Le rapport sera envoyé en arrière-plan.');
+    }
+
+    public function doSendReportTelegram(Request $request, Supplier $supplier, SaleReport $saleReport)
+    {
+        $request->validate([
+            'recipients'   => 'required|array',
+            'body'         => 'required|string',
+            'report_file'  => 'nullable|file|mimes:pdf|max:5120',
+        ]);
+
+        $recipients = $request->recipients;
+        $message    = $request->body;
+
+        // Déterminer le chemin du fichier PDF
+        if ($request->hasFile('report_file')) {
+            $file = $request->file('report_file')->store('temp', 'public');
+            $file = storage_path('app/public/' . $file);
+        } else {
+            $file = $saleReport->report_file_path 
+                ? storage_path('app/public/' . $saleReport->report_file_path) 
+                : null;
+        }
+
+        // Dispatch du Job (pas d’Artisan ici !)
+        SendTelegramReport::dispatch($recipients, $message, $file);
+
+        return redirect()
+            ->route('sale-reports.show', [$supplier, $saleReport])
+            ->with('success', 'Le rapport sera envoyé par Telegram en arrière-plan.');
     }
 
 

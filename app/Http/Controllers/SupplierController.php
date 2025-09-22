@@ -7,6 +7,7 @@ use App\Models\Contact;
 use Illuminate\Http\Request;
 use App\Models\Product;
 use App\Models\FinancialPaymentMethod;
+use Illuminate\Support\Facades\View;
 
 class SupplierController extends Controller
 {

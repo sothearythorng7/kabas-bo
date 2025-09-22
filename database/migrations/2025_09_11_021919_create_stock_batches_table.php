@@ -16,6 +16,7 @@ class CreateStockBatchesTable extends Migration
             $table->integer('quantity')->default(0);
             $table->decimal('unit_price', 12, 2)->default(0);
             $table->foreignId('source_delivery_id')->nullable()->constrained('reseller_stock_deliveries')->cascadeOnDelete();
+            $table->foreignId('source_refill_id')->nullable();
             $table->timestamps();
         });
     }

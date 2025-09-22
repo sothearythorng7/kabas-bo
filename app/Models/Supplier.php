@@ -27,6 +27,12 @@ class Supplier extends Model
         return $this->hasMany(Contact::class);
     }
 
+    public function refills()
+    {
+        return $this->hasMany(Refill::class);
+    }
+
+
     /**
      * Produits fournis par ce fournisseur
      */

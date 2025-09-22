@@ -7,6 +7,8 @@
     @php
         $productsCount = $products instanceof \Illuminate\Pagination\LengthAwarePaginator ? $products->total() : $products->count();
         $ordersCount = $orders instanceof \Illuminate\Pagination\LengthAwarePaginator ? $orders->total() : $orders->count();
+        $saleReportsCount = $supplier->saleReports?->count() ?? 0;
+        $refillsCount = $supplier->refills?->count() ?? 0;
     @endphp
 
     {{-- Onglets --}}
@@ -20,6 +22,17 @@
         <li class="nav-item" role="presentation">
             <button class="nav-link" id="sales-reports-tab" data-bs-toggle="tab" data-bs-target="#sales-reports" type="button" role="tab" aria-controls="sales-reports" aria-selected="false">
                 @t("Sales reports")
+                <span class="badge bg-{{ $saleReportsCount > 0 ? 'primary' : 'secondary' }}">
+                    {{ $saleReportsCount }}
+                </span>
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="refills-tab" data-bs-toggle="tab" data-bs-target="#refills" type="button" role="tab" aria-controls="refills" aria-selected="false">
+                @t("Refills")
+                <span class="badge bg-{{ $refillsCount > 0 ? 'primary' : 'secondary' }}">
+                    {{ $refillsCount }}
+                </span>
             </button>
         </li>
         @endif
@@ -238,6 +251,48 @@
         </tbody>
     </table>
 </div>
+<div class="tab-pane fade" id="refills" role="tabpanel" aria-labelledby="refills-tab">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <a href="{{ route('refills.reception.form', $supplier) }}" class="btn btn-success">
+            <i class="bi bi-plus-circle-fill"></i> @t("Add refill")
+        </a>
+    </div>
+    <table class="table table-striped text-center table-hover">
+        <thead>
+            <tr>
+                <th></th>
+                <th>@t("stock_movement.id")</th>
+                <th>@t("date")</th>
+                <th>@t("Quantity received")</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach($supplier->refills as $refill)
+                <tr>
+                    <td>
+                        <div class="dropdown">
+                            <button class="btn btn-sm btn-primary dropdown-toggle dropdown-noarrow" type="button" id="refillActionsDropdown{{ $refill->id }}" data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="bi bi-three-dots-vertical"></i>
+                            </button>
+                            <ul class="dropdown-menu" aria-labelledby="refillActionsDropdown{{ $refill->id }}">
+                                <li>
+                                    <a class="dropdown-item" href="{{ route('refills.show', [$supplier, $refill]) }}">
+                                        <i class="bi bi-eye-fill"></i> @t("btn.view")
+                                    </a>
+                                </li>
+                            </ul>
+                        </div>
+                    </td>
+                    <td>#{{ $refill->id }}</td>
+                    <td>{{ $refill->created_at->format('d/m/Y') }}</td>
+                    <td>{{ $refill->total_quantity_received }}</td>
+                </tr>
+            @endforeach
+        </tbody>
+
+    </table>
+</div>
+
 @endif
 
 
@@ -381,12 +436,12 @@
                         <th>ID</th>
                         <th>{{ __('messages.supplier.status') }}</th>
                         <th>{{ __('messages.supplier.created_at') }}</th>
-                        <th>Destination</th>
-                        <th>Total commandé</th>
-                        <th>Total reçu</th>
+                        <th>@t("Shop destination")</th>
+                        <th>@t("Total ordered")</th>
+                        <th>@t("Total delivered")</th>
                         @if($supplier->type === 'buyer')
-                            <th>Montant théorique</th>
-                            <th>Payé</th>
+                            <th>@t("Theoretical amount")</th>
+                            <th>@t("paid")</th>
                         @endif
                     </tr>
                 </thead>
@@ -394,7 +449,7 @@
                     @foreach($orders as $order)
                         @php
                             $items = $order->products ?? collect();
-                            $totalOrdered = ($order->status === 'received' || $order->status === 'waiting_invoice') 
+                            $totalOrdered = ($order->status === 'received' || $order->status === 'waiting_invoice' || $order->status === 'waiting_reception' ) 
                                 ? $items->sum(fn($item) => $item->pivot->quantity_ordered ?? 0) 
                                 : '-';
                             $totalReceived = ($order->status === 'received' || $order->status === 'waiting_invoice') 

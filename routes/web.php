@@ -29,7 +29,7 @@ use App\Http\Controllers\ExpenseController;
 use App\Http\Controllers\ExpenseCategoryController;
 use App\Http\Controllers\StoreDashboardController;
 use App\Http\Controllers\SaleReportController;
-
+use App\Http\Controllers\RefillController;
 use App\Http\Controllers\Financial\FinancialAccountController;
 use App\Http\Controllers\Financial\FinancialTransactionController;
 use App\Http\Controllers\Financial\FinancialPaymentMethodController;
@@ -221,6 +221,13 @@ Route::middleware(['auth', SetUserLocale::class])->group(function () {
 
             Route::post('orders/{order}/mark-paid', [SupplierOrderController::class, 'markPaid'])
                 ->name('supplier-orders.markAsPaid');
+
+            Route::get('refills', [RefillController::class, 'index'])->name('refills.index');
+            Route::get('refills/{refill}', [RefillController::class, 'show'])->name('refills.show');
+
+            // Formulaire réception refill
+            Route::get('refills/reception/create', [RefillController::class, 'receptionForm'])->name('refills.reception.form');
+            Route::post('refills/reception', [RefillController::class, 'storeReception'])->name('refills.reception.store');
         });
 
 

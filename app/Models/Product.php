@@ -122,4 +122,9 @@ class Product extends Model
             }
         });
     }
+
+    public function getTranslatedNameAttribute()
+    {
+        return $this->name[app()->getLocale()] ?? reset($this->name);
+    }
 }

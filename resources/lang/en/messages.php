@@ -640,4 +640,12 @@ return [
     "Sent" => "Sent",
     "consignment" => "consignment",
     "buyer" => "buyer",
+    "Refills" => "Refills",
+    "Quantity received" => "Quantity received",
+    "Add refill" => "Add refill",
+    "Refill" => "Refill",
+    "Products received" => "Products received",
+    "Réceptionner refill" => "Réceptionner refill",
+    "Total delivered" => "Total delivered",
+    "Shop destination" => "Shop destination",
 ];

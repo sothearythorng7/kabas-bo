@@ -249,22 +249,41 @@
 
         {{-- Photos --}}
         <div class="tab-pane fade" id="tab-photos" role="tabpanel">
-            <div class="mb-3">
-                <label class="form-label">{{ __('messages.product.upload_photos') }}</label>
-                <input type="file" name="photos[]" class="form-control" multiple>
-            </div>
+            <form action="{{ route('products.photos.upload', $product) }}" method="POST" enctype="multipart/form-data">
+                @csrf
+                <div class="mb-3">
+                    <label class="form-label">{{ __('messages.product.upload_photos') }}</label>
+                    <input type="file" name="photos[]" class="form-control" multiple>
+                </div>
+                <div class="mt-3">
+                    <button type="submit" class="btn btn-success">{{ __('messages.btn.save') }}</button>
+                </div>
+            </form>
+
+            {{-- Liste des images avec possibilité de supprimer --}}
             @if($product->images->count())
-                <div class="mb-2">{{ __('messages.product.existing_photos') }}:</div>
-                <div class="d-flex flex-wrap gap-3">
+                <div class="d-flex flex-wrap gap-3 mt-3">
                     @foreach($product->images as $img)
-                        <label class="border rounded p-2 d-inline-flex align-items-center gap-2">
-                            <input type="radio" name="primary_image_id" value="{{ $img->id }}" @checked($img->is_primary)>
-                            <img src="{{ asset('storage/'.$img->path) }}" alt="" style="height:70px;">
-                        </label>
+                    <div class="image-item">
+                        <img src="{{ asset('storage/' . $img->path) }}" alt="" width="100">
+                        
+                        <form action="{{ route('products.photos.setPrimary', [$product, $img]) }}" method="POST">
+                            @csrf
+                            <input type="radio" name="primary_photo" onchange="this.form.submit()" 
+                                {{ $img->is_primary ? 'checked' : '' }}>
+                        </form>
+
+                        <form action="{{ route('products.photos.delete', [$product, $img]) }}" method="POST">
+                            @csrf
+                            @method('DELETE')
+                            <button type="submit">Delete</button>
+                        </form>
+                    </div>
                     @endforeach
                 </div>
             @endif
         </div>
+
 
         {{-- Descriptions --}}
         <div class="tab-pane fade" id="tab-descriptions" role="tabpanel">
@@ -371,6 +390,41 @@
         if (tab) {
             new bootstrap.Tab(tab).show();
         }
+    });
+
+    document.addEventListener('DOMContentLoaded', function() {
+        // Activer l'onglet correspondant à l'ancre dans l'URL
+        const hash = window.location.hash;
+        if (hash) {
+            const tabBtn = document.querySelector(`.nav-tabs button[data-bs-target="${hash}"]`);
+            if (tabBtn) {
+                new bootstrap.Tab(tabBtn).show();
+            }
+
+            // Pour le dropdown mobile
+            const mobileSelect = document.getElementById('mobile-tabs');
+            if (mobileSelect) {
+                mobileSelect.value = hash;
+            }
+        }
+
+        // Mettre à jour le dropdown mobile quand l'utilisateur change l'onglet desktop
+        document.querySelectorAll('.nav-tabs button[data-bs-toggle="tab"]').forEach(btn => {
+            btn.addEventListener('shown.bs.tab', function (e) {
+                const target = e.target.getAttribute('data-bs-target');
+                const mobileSelect = document.getElementById('mobile-tabs');
+                if (mobileSelect) {
+                    mobileSelect.value = target;
+                }
+            });
+        });
+
+        // Soumission du radio pour la photo principale
+        document.querySelectorAll('input[name="primary_photo"]').forEach(radio => {
+            radio.addEventListener('change', function() {
+                this.form.submit();
+            });
+        });
     });
 </script>
 @endsection

@@ -40,7 +40,6 @@ class ProductController extends Controller
         $brands     = Brand::orderBy('name')->get();
         $suppliers  = Supplier::orderBy('name')->get();
         $stores     = Store::orderBy('name')->get();
-        $allCategories = Category::with('parent')->orderBy('id')->get();
         $categoryOptions = $this->buildCategoryPathOptions();
         $locales = config('app.website_locales', ['en']);
 
@@ -49,8 +48,7 @@ class ProductController extends Controller
             'suppliers',
             'stores',
             'categoryOptions',
-            'locales',
-            'allCategories'
+            'locales'
         ));
     }
 
@@ -165,9 +163,6 @@ class ProductController extends Controller
             'stores.*.id' => 'exists:stores,id',
             'stores.*.stock_quantity' => 'nullable|integer|min:0',
             'stores.*.alert_stock_quantity' => 'nullable|integer|min:0',
-            'photos.*' => 'nullable|image|max:4096',
-            'primary_image_id' => 'nullable|integer',
-            'primary_image_index' => 'nullable|integer',
         ]);
 
         $slugs = [];
@@ -176,7 +171,7 @@ class ProductController extends Controller
         }
         $data['slugs'] = $slugs;
 
-        DB::transaction(function () use ($request, $product, $data) {
+        DB::transaction(function () use ($product, $data) {
             $product->update([
                 'ean'            => $data['ean'],
                 'name'           => $data['name'],
@@ -212,38 +207,49 @@ class ProductController extends Controller
                 }
             }
             $product->stores()->sync($syncStores);
-
-            $files = $request->file('photos', []);
-            $startIndex = $product->images()->max('sort_order') + 1;
-            $newPrimaryIndex = $request->input('primary_image_index', null);
-
-            foreach ($files as $i => $file) {
-                $path = $file->store('products', 'public');
-                $product->images()->create([
-                    'path' => $path,
-                    'is_primary' => false,
-                    'sort_order' => $startIndex + $i,
-                ]);
-            }
-
-            $primaryImageId = $request->input('primary_image_id');
-            if ($primaryImageId) {
-                $product->images()->update(['is_primary' => false]);
-                $img = $product->images()->where('id', $primaryImageId)->first();
-                if ($img) $img->update(['is_primary' => true]);
-            } elseif ($newPrimaryIndex !== null && count($files) > 0) {
-                $product->images()->update(['is_primary' => false]);
-                $target = $product->images()->orderBy('sort_order')->skip($startIndex + (int)$newPrimaryIndex)->first();
-                ($target ?? $product->images()->orderBy('sort_order')->first())
-                    ?->update(['is_primary' => true]);
-            } else {
-                if (!$product->images()->where('is_primary', true)->exists()) {
-                    $product->images()->orderBy('sort_order')->first()?->update(['is_primary' => true]);
-                }
-            }
         });
 
         return redirect()->route('products.index')->with('success', __('messages.common.updated'));
+    }
+
+    public function uploadPhotos(Request $request, Product $product)
+    {
+        $request->validate([
+            'photos.*' => 'required|image|max:4096',
+        ]);
+
+        $startIndex = $product->images()->max('sort_order') + 1;
+
+        foreach ($request->file('photos', []) as $i => $file) {
+            $path = $file->store('products', 'public');
+            $product->images()->create([
+                'path' => $path,
+                'is_primary' => false,
+                'sort_order' => $startIndex + $i,
+            ]);
+        }
+
+        if (!$product->images()->where('is_primary', true)->exists()) {
+            $product->images()->orderBy('sort_order')->first()?->update(['is_primary' => true]);
+        }
+
+        return back()->with('success', 'Photos uploaded successfully.')->withFragment('tab-photos');
+    }
+
+    public function deletePhoto(Product $product, ProductImage $photo)
+    {
+        if ($photo->product_id != $product->id) {
+            abort(404);
+        }
+
+        Storage::disk('public')->delete($photo->path);
+        $photo->delete();
+
+        if ($photo->is_primary) {
+            $product->images()->orderBy('sort_order')->first()?->update(['is_primary' => true]);
+        }
+
+        return back()->with('success', 'Photo deleted successfully.')->withFragment('tab-photos');
     }
 
     public function destroy(Product $product)
@@ -277,6 +283,7 @@ class ProductController extends Controller
         return $options;
     }
 
+    // --- Category / Supplier / Store methods remain unchanged ---
     public function attachCategory(Request $request, Product $product)
     {
         $request->validate(['category_id' => 'required|exists:categories,id']);
@@ -377,31 +384,19 @@ class ProductController extends Controller
         return back()->with('success', 'Store stock updated.')->withFragment('tab-stores');
     }
 
-    public function removeStock(Store $store, int $quantity): bool
+    public function setPrimaryPhoto(Product $product, ProductImage $photo)
     {
-        $batches = $this->stockBatches()
-            ->where('store_id', $store->id)
-            ->orderBy('created_at', 'asc')
-            ->get();
-
-        $remaining = $quantity;
-
-        foreach ($batches as $batch) {
-            if ($remaining <= 0) break;
-            $toDeduct = min($batch->quantity, $remaining);
-            $batch->quantity -= $toDeduct;
-            $batch->save();
-            $remaining -= $toDeduct;
+        if ($photo->product_id !== $product->id) {
+            abort(404);
         }
 
-        $totalStock = $this->stockBatches()
-            ->where('store_id', $store->id)
-            ->sum('quantity');
+        // On met toutes les photos à false
+        $product->images()->update(['is_primary' => false]);
 
-        $store->products()->syncWithoutDetaching([
-            $this->id => ['stock_quantity' => $totalStock]
-        ]);
+        // On met celle sélectionnée en true
+        $photo->update(['is_primary' => true]);
 
-        return $remaining === 0;
+        return back()->with('success', 'Primary photo updated.')->withFragment('tab-photos');
     }
+
 }

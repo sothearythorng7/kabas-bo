@@ -1,0 +1,48 @@
+/* Conteneur du pavé */
+#screen-login .row {
+    max-width: 300px;
+    margin: 0 auto;
+}
+
+/* Boutons du pavé */
+#screen-login .pin-btn,
+#screen-login #btn-clear,
+#screen-login #btn-enter {
+    height: 60px;
+    border-radius: 50%;
+    font-size: 1.8rem;
+    font-weight: bold;
+    box-shadow: 0 4px #999;
+    transition: all 0.1s;
+}
+
+#screen-login .pin-btn:active,
+#screen-login #btn-clear:active,
+#screen-login #btn-enter:active {
+    transform: translateY(2px);
+    box-shadow: 0 2px #666;
+}
+
+/* Couleurs comme iPad */
+#screen-login .pin-btn {
+    background-color: #e0e0e0;
+    border: none;
+}
+
+#screen-login #btn-clear {
+    background-color: #f28b82;
+    color: white;
+    border: none;
+}
+
+#screen-login #btn-enter {
+    background-color: #34a853;
+    color: white;
+    border: none;
+}
+
+/* Affichage du PIN saisi */
+#pin-display {
+    letter-spacing: 0.5rem;
+    font-family: monospace;
+}

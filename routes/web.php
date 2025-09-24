@@ -36,6 +36,8 @@ use App\Http\Controllers\Financial\FinancialPaymentMethodController;
 use App\Http\Controllers\Financial\FinancialDashboardController;
 use App\Http\Controllers\Financial\FinancialJournalController;
 use App\Http\Controllers\Financial\GeneralInvoiceController;
+use App\Http\Controllers\POS\SyncController;
+use App\Http\Controllers\POS\ShiftController;
 
 Route::get('/', function () {
     return auth()->check() ? redirect()->route('dashboard') : redirect()->route('login');
@@ -93,6 +95,9 @@ Route::middleware(['auth', SetUserLocale::class])->group(function () {
         Route::resource('categories', CategoryController::class)->except(['show', 'create', 'edit']);
         Route::resource('brands', BrandController::class);
         Route::resource('products', ProductController::class);
+        Route::post('products/{product}/photos', [ProductController::class, 'uploadPhotos'])->name('products.photos.upload');
+        Route::delete('products/{product}/photos/{photo}', [ProductController::class, 'deletePhoto'])->name('products.photos.delete');
+        Route::post('products/{product}/photos/{photo}/set-primary', [ProductController::class, 'setPrimaryPhoto'])->name('products.photos.setPrimary');
 
         // Gestion des catégories
         Route::post('products/{product}/categories/attach', [ProductController::class, 'attachCategory'])->name('products.categories.attach');
@@ -323,3 +328,24 @@ Route::middleware(['auth', SetUserLocale::class])->group(function () {
         Route::resource('general-invoices', GeneralInvoiceController::class);
     });
 });
+
+
+// ### POS ###
+Route::get('/pos', function () {
+    return view('pos.index');
+});
+
+Route::prefix('api/pos')->group(function () {
+    Route::get('products', [ProductController::class, 'index']);
+    Route::post('sync', [SyncController::class, 'sync']);
+    Route::get('users', [SyncController::class, 'users']);
+    Route::get('catalog/{storeId}', [SyncController::class, 'catalog']);
+
+    // Shifts
+    Route::get('shifts/current/{userId}', [ShiftController::class, 'currentShift']);
+    Route::post('shifts/start', [ShiftController::class, 'start']);
+    Route::post('shifts/end', [ShiftController::class, 'end']);
+});
+
+
+

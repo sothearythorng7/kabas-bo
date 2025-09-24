@@ -1,0 +1,83 @@
+<div id="screen-shift-end" class="pos-screen d-none text-center">
+    <h2>Terminer votre shift</h2>
+    <p>Entrez le montant final dans la caisse</p>
+
+    <input type="text" id="shift-end-input" class="form-control mb-3 text-center fs-3" readonly>
+
+    <div class="row g-2 justify-content-center mb-3">
+        @for ($i=1; $i<=9; $i++)
+            <div class="col-4">
+                <button class="btn btn-outline-dark btn-lg w-100 shift-end-num-btn">{{ $i }}</button>
+            </div>
+            @if ($i % 3 === 0)
+                <div class="w-100"></div>
+            @endif
+        @endfor
+        <div class="col-4"><button class="btn btn-outline-danger btn-lg w-100" id="shift-end-clear">C</button></div>
+        <div class="col-4"><button class="btn btn-outline-dark btn-lg w-100 shift-end-num-btn">0</button></div>
+        <div class="col-4"><button class="btn btn-outline-success btn-lg w-100" id="shift-end-ok">Terminer</button></div>
+    </div>
+</div>
+
+@push('scripts')
+<script>
+function initShiftEnd() {
+    let buffer = "";
+    const $input = $("#shift-end-input");
+    $input.val("");
+
+    // Gestion du pavé numérique
+    $(".shift-end-num-btn").off("click").on("click", function() {
+        buffer += $(this).text();
+        $input.val(buffer);
+    });
+
+    // Bouton Clear
+    $("#shift-end-clear").off("click").on("click", function() {
+        buffer = "";
+        $input.val("");
+    });
+
+    // Bouton Terminer
+    $("#shift-end-ok").off("click").on("click", async function() {
+        const amount = parseFloat(buffer);
+        if (isNaN(amount)) {
+            alert("Veuillez saisir un montant valide !");
+            return;
+        }
+
+        try {
+            const res = await fetch(`http://kabas.dev-back.fr/api/pos/shifts/end`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRF-TOKEN": document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                },
+                body: JSON.stringify({ user_id: currentUser.id, end_amount: amount })
+            });
+
+            if (!res.ok) throw new Error("Impossible de terminer le shift");
+
+            currentShift = null;
+            $("#btn-end-shift").addClass("d-none");
+            const shift = await res.json();
+            console.log("Shift terminé :", shift);
+            alert("Shift terminé !");
+            logout();
+        } catch(err) {
+            alert(err.message);
+        }
+    });
+}
+
+// Appeler initShiftEnd automatiquement lors de l'affichage de l'écran
+$(document).ready(function() {
+    const observer = new MutationObserver(() => {
+        if (!$("#screen-shift-end").hasClass("d-none")) {
+            initShiftEnd();
+        }
+    });
+    observer.observe(document.getElementById("pos-container"), { attributes: true, subtree: true, attributeFilter: ["class"] });
+});
+</script>
+@endpush

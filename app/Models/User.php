@@ -23,7 +23,14 @@ class User extends Authenticatable
         'email',
         'password',
         'locale',
+        'pin_code',
+        'store_id'
     ];
+
+    public function store()
+    {
+        return $this->belongsTo(Store::class);
+    }
 
     /**
      * The attributes that should be hidden for serialization.

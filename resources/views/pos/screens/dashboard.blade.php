@@ -3,17 +3,20 @@
         <div class="row h-100">
             <!-- Colonne gauche : ventes -->
             <div class="col-4 border-end d-flex flex-column">
+                <!-- Barre d'actions -->
+                <div class="d-flex p-2 border-bottom action-bar">
+                    <button class="btn btn-sm btn-outline-primary me-1" title="Nouvelle vente" id="btn-new-sale">
+                        <i class="bi bi-plus-circle"></i>
+                    </button>
+                </div>
+
                 <!-- Onglets des ventes -->
                 <ul class="nav nav-tabs" id="sales-tabs"></ul>
 
                 <!-- Contenu des ventes -->
                 <div class="tab-content flex-grow-1 overflow-auto" id="sales-contents"></div>
-
-                <!-- Bouton nouvelle vente -->
-                <div class="p-2 border-top">
-                    <button id="btn-new-sale" class="btn btn-primary w-100">+ Nouvelle vente</button>
-                </div>
             </div>
+
 
             <!-- Colonne droite : recherche produit -->
             <div class="col-8 d-flex flex-column">
@@ -92,6 +95,15 @@
         width: 2rem;
         padding: 0 0.4rem;
         font-weight: bold;
+    }
+
+    .action-bar button {
+        width: 2.5rem;
+        height: 2.5rem;
+        padding: 0;
+        display: flex;
+        justify-content: center;
+        align-items: center;
     }
 </style>
 

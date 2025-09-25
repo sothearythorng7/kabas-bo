@@ -1,4 +1,4 @@
-<div id="screen-shift-end" class="pos-screen d-none text-center">
+<div id="screen-shiftend" class="pos-screen d-none text-center">
     <h2>Terminer votre shift</h2>
     <p>Entrez le montant final dans la caisse</p>
 
@@ -72,12 +72,14 @@ function initShiftEnd() {
 
 // Appeler initShiftEnd automatiquement lors de l'affichage de l'écran
 $(document).ready(function() {
+    /*
     const observer = new MutationObserver(() => {
         if (!$("#screen-shift-end").hasClass("d-none")) {
             initShiftEnd();
         }
     });
     observer.observe(document.getElementById("pos-container"), { attributes: true, subtree: true, attributeFilter: ["class"] });
+    */
 });
 </script>
 @endpush

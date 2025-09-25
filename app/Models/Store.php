@@ -8,6 +8,7 @@
     use App\Models\Payment;
     use App\Models\Expense;
     use App\Models\ExpenseCategory;
+    use App\Models\Payments;
 
     class Store extends Model
     {

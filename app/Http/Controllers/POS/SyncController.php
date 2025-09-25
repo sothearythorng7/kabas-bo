@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Models\Store;
 use App\Models\Product;
 use App\Models\Category;
+use App\Models\FinancialPaymentMethod;
 use Illuminate\Http\Request;
 
 class SyncController extends Controller
@@ -75,6 +76,7 @@ class SyncController extends Controller
                 'id' => $store->id,
                 'name' => $store->name,
             ],
+            'paymentsMethod' => FinancialPaymentMethod::all(),
             'products' => $products,
             'category_tree' => $categoriesTree, // <-- nouvelle clé
         ]);

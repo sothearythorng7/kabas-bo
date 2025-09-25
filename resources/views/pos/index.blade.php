@@ -2,7 +2,6 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>POS</title>
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
     <!-- jQuery & Bootstrap Bundle -->
@@ -20,7 +19,6 @@
 </head>
 <body>
     <div class="container py-4">
-        <h1>Point de Vente</h1>
         <nav class="navbar navbar-dark bg-dark px-3">
             <span class="navbar-brand">Mon POS</span>
             <div class="ms-auto">
@@ -48,6 +46,7 @@
     <!-- Tables -->
     <script src="{{ asset('js/pos/tables/UsersTable.js') }}"></script>
     <script src="{{ asset('js/pos/tables/CatalogTable.js') }}"></script>
+    <script src="{{ asset('js/pos/tables/PaymentsTable.js') }}"></script>
 
     <!-- App -->
     <script src="{{ asset('js/pos/app.js') }}"></script>

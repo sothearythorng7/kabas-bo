@@ -162,6 +162,22 @@ async function showDiscountModal(label = "Remise") {
     });
 }
 
+function addNewSale() {
+    const newSale = { 
+        id: Date.now(), 
+        label: saleCounter++, 
+        items: [], 
+        discount_total: 0,
+        payment_type: null,
+        synced: false,
+        validated: false
+    };
+    sales.push(newSale);
+    activeSaleId = newSale.id;
+    renderSalesTabs();
+    saveSalesToLocal();
+}
+
 // --- Rendu des ventes avec remises ---
 function renderSalesTabs() {
     const $tabs = $("#sales-tabs");
@@ -169,8 +185,14 @@ function renderSalesTabs() {
     $tabs.empty();
     $contents.empty();
 
+    if (!activeSaleId && sales.length > 0) {
+        activeSaleId = sales[0].id;
+    }
+
     sales.forEach((sale, idx) => {
         const activeClass = sale.id === activeSaleId ? "active" : "";
+        console.log(sale);
+        if(sale.validated) return;
 
         $tabs.append(`
             <li class="nav-item">
@@ -287,8 +309,19 @@ function renderSalesTabs() {
 
     // Listeners
     $(".remove-item").off("click").on("click", function() { const saleId=$(this).data("sale"); const idx=$(this).data("idx"); const sale=sales.find(s=>s.id===saleId); if(sale){ sale.items.splice(idx,1); renderSalesTabs(); saveSalesToLocal(); }});
-    $(".cancel-sale").off("click").on("click", function(){ const saleId=$(this).data("sale"); sales=sales.filter(s=>s.id!==saleId); if(sales.length===0)addNewSale(); else activeSaleId=sales[0].id; renderSalesTabs(); saveSalesToLocal(); });
-    $(".validate-sale").off("click").on("click", function(){ const saleId=$(this).data("sale"); alert("Vente "+saleId+" validée (à implémenter)"); });
+    $(".cancel-sale").off("click").on("click", function(){ 
+        const saleId=$(this).data("sale"); 
+        sales=sales.filter(s=>s.id!==saleId); 
+        if(sales.length===0)addNewSale(); 
+        else activeSaleId=sales[0].id;
+
+        renderSalesTabs(); 
+        saveSalesToLocal();
+    });
+    $(".validate-sale").off("click").on("click", function(){
+        const saleId = $(this).data("sale");
+        handleSaleValidation(saleId);
+    });
 
     $(".set-global-discount").off("click").on("click", async function(){ const saleId=$(this).data("sale"); const sale=sales.find(s=>s.id===saleId); if(!sale) return; const d=await showDiscountModal("Remise globale"); if(!d) return; sale.discounts=sale.discounts||[]; sale.discounts.push(d); renderSalesTabs(); saveSalesToLocal(); });
     $(".line-discount").off("click").on("click", async function(){ const saleId=$(this).data("sale"); const idx=$(this).data("idx"); const sale=sales.find(s=>s.id===saleId); if(!sale) return; const item=sale.items[idx]; if(!item) return; const d=await showDiscountModal("Remise ligne"); if(!d) return; item.discounts=item.discounts||[]; item.discounts.push(d); renderSalesTabs(); saveSalesToLocal(); });

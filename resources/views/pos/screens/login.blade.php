@@ -60,7 +60,6 @@ function initLogin() {
 
             try {
                 await loadCatalog(currentUser.store_id); // chargement catalogue
-
                 // Vérification shift
                 const res = await fetch(`http://kabas.dev-back.fr/api/pos/shifts/current/${currentUser.id}`);
                 const shift = await res.json();
@@ -70,6 +69,8 @@ function initLogin() {
                     showScreen("shiftstart");
                 } else {
                     currentShift = shift;
+                    loadSalesFromLocal();
+                    renderSalesTabs();
                     showScreen("dashboard");
                 }
 

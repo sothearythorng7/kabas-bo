@@ -8,6 +8,7 @@
 const db = new Database();
 db.register(new UsersTable());
 db.register(new CatalogTable());
+db.register(new PaymentsTable());
 
 // Session
 let currentUser = null;
@@ -22,11 +23,56 @@ let saleCounter = 1;
 let categoryTree = {}; // arbre global des catégories
 let currentCategoryPath = []; // chemin courant pour navigation dans l'arbre
 
+function calculateAndSaveSale(sale, currentShift) {
+    if (!sale || !currentShift) return;
+
+    // 1️⃣ Calcul du total par ligne en appliquant les remises
+    sale.items.forEach(item => {
+        let lineTotal = item.price * item.quantity;
+
+        if (item.discounts && item.discounts.length > 0) {
+            item.discounts.forEach(d => {
+                if (d.type === 'amount') lineTotal -= d.value;
+                else if (d.type === 'percent') lineTotal -= lineTotal * (d.value / 100);
+            });
+        }
+
+        item.line_total = Math.max(0, lineTotal); // pour éviter les négatifs
+    });
+    let totalBeforeGlobalDiscount = sale.items.reduce((sum, item) => sum + item.line_total, 0);
+    let discountTotal = 0;
+    if (sale.discounts && sale.discounts.length > 0) {
+        sale.discounts.forEach(d => {
+            if (d.type === 'amount') discountTotal += d.value;
+            else if (d.type === 'percent') discountTotal += totalBeforeGlobalDiscount * (d.value / 100);
+        });
+    }
+
+    sale.discount_total = discountTotal;
+    sale.total = Math.max(0, totalBeforeGlobalDiscount - discountTotal);
+    const key = `pos_sales_shift_${currentShift.id}`;
+    
+    let sales = JSON.parse(localStorage.getItem(key)) || [];
+
+    const index = sales.findIndex(s => s.id === sale.id);
+    if (index !== -1) sales[index] = sale;
+    else sales.push(sale);
+
+    localStorage.setItem(key, JSON.stringify(sales));
+}
+
 
 function saveSalesToLocal() {
     if (!currentShift) return;
+    if (!sales) return;
     const key = `pos_sales_shift_${currentShift.id}`;
-    localStorage.setItem(key, JSON.stringify(sales));
+    localStorage.removeItem(key);
+    // Pour chaque vente, recalculer les totaux et sauvegarder
+    sales.forEach(sale => {
+        calculateAndSaveSale(sale, currentShift);
+    });
+
+    console.log("Ventes sauvegardées dans localStorage pour le shift :", currentShift.id);
 }
 
 function loadSalesFromLocal() {
@@ -157,6 +203,136 @@ function showNumericModal(title) {
         setTimeout(() => modal.show(), 10);
     });
 }
+// --------------------
+// Sale Validation Modal
+// --------------------
+function showSaleValidationModal(sale) {
+    return new Promise(resolve => {
+        $("#saleValidateModal").remove();
+        const payments = db.table("payments").data || [];
+        const discountSummary = [];
+
+        sale.items.forEach(item => {
+            if(item.discounts) item.discounts.forEach(d => discountSummary.push({label:`${item.name.en}`, type:d.type, value:d.value}));
+        });
+        if(sale.discounts) sale.discounts.forEach(d => discountSummary.push({label:d.label, type:d.type, value:d.value}));
+
+        let total = 0;
+        sale.items.forEach(item => {
+            let t = item.price*item.quantity;
+            if(item.discounts)item.discounts.forEach(d=>{
+                if(d.type==='amount') t-=d.value;
+                else if(d.type==='percent') t*=(1-d.value/100);
+            });
+            total+=t;
+        });
+        if(sale.discounts) sale.discounts.forEach(d=>{
+            if(d.type==='amount') total-=d.value;
+            else if(d.type==='percent') total*=(1-d.value/100);
+        });
+
+        const modalHtml = `
+            <div class="modal fade" id="saleValidateModal" tabindex="-1">
+                <div class="modal-dialog">
+                    <div class="modal-content p-3">
+                        <h5>Validation Vente ${sale.label}</h5>
+                        <div class="mb-2">
+                            <label>Moyen de paiement</label>
+                            <select class="form-select" id="sale-payment">
+                                ${payments.map(p=>`<option value="${p.code}">${p.name}</option>`).join('')}
+                            </select>
+                        </div>
+                        <div class="mb-2"><strong>Total : ${total.toFixed(2)}</strong></div>
+                        ${discountSummary.length?`
+                            <table class="table table-sm table-bordered mb-2">
+                                <thead><tr><th>Remise</th><th>Valeur</th></tr></thead>
+                                <tbody>
+                                    ${discountSummary.map(d=>`<tr><td>${d.label}</td><td>${d.type==='percent'?d.value+'%':d.value.toFixed(2)}</td></tr>`).join('')}
+                                </tbody>
+                            </table>`:''}
+                        <div class="text-end">
+                            <button class="btn btn-secondary me-1" id="sale-cancel">Annuler</button>
+                            <button class="btn btn-success" id="sale-confirm">Valider</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        $("body").append(modalHtml);
+        const modalEl = document.getElementById("saleValidateModal");
+        const modal = new bootstrap.Modal(modalEl, {backdrop:'static',keyboard:false});
+        modal.show();
+
+        $("#sale-cancel").off("click").on("click",()=>{ modal.hide(); modalEl.remove(); resolve(false); });
+        $("#sale-confirm").off("click").on("click",()=>{
+            const payment = $("#sale-payment").val();
+            sale.payment_type = payment;
+            sale.synced = false;
+            modal.hide(); modalEl.remove();
+            resolve(true);
+        });
+    });
+}
+
+/*
+function handleSaleValidation(saleId) {
+    const saleIndex = sales.findIndex(s => s.id === saleId);
+    if (saleIndex === -1) return;
+
+    const sale = sales[saleIndex];
+
+    showSaleValidationModal(sale).then(valid => {
+        if(valid){
+            // Marquer comme validée et sauvegarder
+            sale.payment_type = sale.payment_type || 'unknown';
+            sale.synced = false;
+            sale.validated = true;
+
+            saveSalesToLocal();  // Sauvegarde mise à jour
+            sales.splice(saleIndex, 1);
+            renderSalesTabs();   // Actualise l'affichage, l'onglet disparaît
+            addNewSale();        // Crée automatiquement une nouvelle vente
+            alert(`Vente ${sale.label} validée et enregistrée !`);
+        }
+    });
+}
+*/
+
+function handleSaleValidation(saleId) {
+    const saleIndex = sales.findIndex(s => s.id === saleId);
+    if (saleIndex === -1) return;
+
+    const sale = sales[saleIndex];
+
+    showSaleValidationModal(sale).then(valid => {
+        if (valid) {
+            // Marquer comme validée et sauvegarder
+            sale.payment_type = sale.payment_type || 'unknown';
+            sale.synced = false;
+            sale.validated = true;
+
+            // Sauvegarder dans une clé dédiée aux ventes validées
+            saveValidatedSaleToLocal(sale);
+
+            // Retirer de la liste active
+            sales.splice(saleIndex, 1);
+            saveSalesToLocal();
+
+            renderSalesTabs();   // Actualise l'affichage, l'onglet disparaît
+            addNewSale();        // Crée automatiquement une nouvelle vente
+            alert(`Vente ${sale.label} validée et enregistrée !`);
+        }
+    });
+}
+function saveValidatedSaleToLocal(sale) {
+    if (!currentShift) return;
+    const key = `pos_sales_validated_shift_${currentShift.id}`;
+    let validatedSales = JSON.parse(localStorage.getItem(key)) || [];
+    validatedSales.push(sale);
+    localStorage.setItem(key, JSON.stringify(validatedSales));
+    console.log("Vente validée sauvegardée :", sale);
+}
+
 
 // --------------------
 // Build category tree from JSON key `category_tree`
@@ -302,6 +478,7 @@ async function loadCatalog(storeId) {
         const json = await res.json();
         if (!Array.isArray(json.products)) throw new Error('Catalogue invalide : products n\'est pas un tableau');
 
+        // --- 1️⃣ Catalog ---
         const catalog = db.table("catalog");
         catalog.clear();
 
@@ -314,6 +491,24 @@ async function loadCatalog(storeId) {
 
         catalog.insertMany(dataWithStore);
 
+        // --- 2️⃣ Payments ---
+        if (Array.isArray(json.paymentsMethod)) {
+            const payments = db.table("payments");
+            payments.clear();
+
+            const paymentsData = json.paymentsMethod.map(p => ({
+                id: p.id,
+                name: p.name,
+                code: p.code
+            }));
+
+            payments.insertMany(paymentsData);
+            console.log("Moyens de paiement chargés :", payments.data);
+        } else {
+            console.warn("Pas de moyens de paiement reçus");
+        }
+
+        // --- 3️⃣ Categories ---
         categoryTree = buildCategoryTreeFromJson(json.category_tree);
         console.log("RAW categoryTree from BO:", json.category_tree);
         console.log("Normalized categoryTree (array with numeric ids):", categoryTree);
@@ -323,6 +518,7 @@ async function loadCatalog(storeId) {
         throw err;
     }
 }
+
 
 // --------------------
 // Shift : check / start / end
@@ -403,56 +599,6 @@ async function endShift(userId, endAmount) {
 }
 
 // --------------------
-// Auth / login
-// --------------------
-function initLogin() {
-    let pinBuffer = "";
-    $("#pin-display").text("••••••");
-
-    $(".pin-btn").off("click").on("click", function() {
-        if (pinBuffer.length < 6) {
-            pinBuffer += $(this).text();
-            const masked = "*".repeat(pinBuffer.length).padEnd(6, "•");
-            $("#pin-display").text(masked);
-        }
-    });
-
-    $("#btn-clear").off("click").on("click", function() {
-        pinBuffer = "";
-        $("#pin-display").text("••••••");
-    });
-
-    $("#btn-enter").off("click").on("click", async function() {
-        const users = db.table("users");
-        const match = users.findExact({ pin_code: pinBuffer });
-        if (match.length === 0) {
-            alert("PIN incorrect !");
-            pinBuffer = "";
-            $("#pin-display").text("••••••");
-            return;
-        }
-
-        currentUser = match[0];
-        console.log("Utilisateur connecté :", currentUser);
-
-        const syncModalEl = document.getElementById('syncModal');
-        const syncModal = syncModalEl ? new bootstrap.Modal(syncModalEl) : null;
-        if (syncModal) syncModal.show();
-
-        try {
-            await loadCatalog(currentUser.store_id);
-            await checkUserShift(currentUser.id);
-        } catch (err) {
-            console.error(err);
-            alert("Erreur lors de la synchronisation.");
-            showScreen("login");
-        } finally {
-            if (syncModal) syncModal.hide();
-        }
-    });
-}
-
-// --------------------
 // shift screens init
 // --------------------
 function initShiftstart() {
@@ -518,7 +664,9 @@ function initShiftend() {
 // --------------------
 // Dashboard (nouveau layout)
 // --------------------
+/*
 function renderSalesTabs() {
+    alert('a');
     const $tabs = $("#sales-tabs");
     const $contents = $("#sales-contents");
     $tabs.empty();
@@ -592,6 +740,7 @@ function renderSalesTabs() {
         saveSalesToLocal();
     });
 
+    /*
     $(".cancel-sale").off("click").on("click", function() {
         const saleId = $(this).data("sale");
         if (!confirm("Annuler cette vente ?")) return;
@@ -643,21 +792,8 @@ function renderSalesTabs() {
         }
     });
 }
+*/
 
-function addNewSale() {
-    const newSale = { 
-        id: Date.now(), 
-        label: saleCounter++, 
-        items: [], 
-        discount_total: 0,
-        payment_type: null,
-        synced: false
-    };
-    sales.push(newSale);
-    activeSaleId = newSale.id;
-    renderSalesTabs();
-    saveSalesToLocal();
-}
 
 // --------------------
 // Recherche produit dans dashboard

@@ -18,6 +18,10 @@ let sales = [];
 let activeSaleId = null;
 let saleCounter = 1;
 
+// Categories tree
+let categoryTree = {}; // arbre global des catégories
+let currentCategoryPath = []; // chemin courant pour navigation dans l'arbre
+
 // helper
 function capitalize(str) {
     if (!str) return "";
@@ -59,7 +63,6 @@ function showScreen(screenId) {
     // call init function if exists: init + Capitalize(screenId)
     const initFn = window["init" + capitalize(screenId)];
     if (typeof initFn === "function") {
-        // slight defer to allow DOM changes
         setTimeout(() => initFn(), 10);
     }
 
@@ -142,6 +145,181 @@ function showNumericModal(title) {
 }
 
 // --------------------
+// Build category tree from JSON key `category_tree`
+// Retourne un tableau de nodes: [{ id: Number, name: String, children: [...] }]
+// --------------------
+function buildCategoryTreeFromJson(jsonCategoryTree) {
+    function convert(nodes) {
+        if (!Array.isArray(nodes)) return [];
+        return nodes.map(node => {
+            const id = node.id !== undefined ? Number(node.id) : (node._id !== undefined ? Number(node._id) : null);
+            const name = node.name || node.title || node.label || "";
+            return {
+                id: id,
+                name: name,
+                children: convert(node.children || [])
+            };
+        });
+    }
+    return convert(jsonCategoryTree || []);
+}
+
+
+
+
+// --------------------
+// Navigation et affichage catégories
+// --------------------
+function renderCategoryButtons(nodes = categoryTree, path = []) {
+    // nodes: array of { id, name, children }
+    const $container = $("#category-buttons");
+    $container.empty();
+
+    nodes.forEach(n => {
+        const $btn = $(`<button class="btn btn-outline-primary m-1 category-btn" data-id="${n.id}" data-name="${n.name}">${n.name}</button>`);
+        $btn.on("click", () => {
+            currentCategoryPath = [...path, n.id];
+            if (!n.children || n.children.length === 0) {
+                showProductsByCategory(currentCategoryPath);
+            } else {
+                renderCategoryButtons(n.children, currentCategoryPath);
+            }
+        });
+        $container.append($btn);
+    });
+
+    if (path.length > 0) {
+        const $backBtn = $(`<button class="btn btn-outline-secondary m-1">Retour</button>`);
+        $backBtn.on("click", () => {
+            const parentPath = path.slice(0, -1);
+
+            // traverse categoryTree following parentPath to get parent nodes
+            let parentNodes = categoryTree;
+            for (let i = 0; i < parentPath.length; i++) {
+                const id = parentPath[i];
+                const found = parentNodes.find(x => String(x.id) === String(id));
+                parentNodes = found ? found.children : [];
+            }
+
+            currentCategoryPath = parentPath;
+            renderCategoryButtons(parentNodes, parentPath);
+        });
+        $container.prepend($backBtn);
+    }
+}
+
+
+function showProductsByCategory(path) {
+    const catalog = db.table("catalog");
+    let results = catalog.data.filter(p => {
+        const categories = p.categories || [];
+        // we accept categories as: array of ids (numbers/strings), array of names,
+        // or array of objects { id, name }.
+        for (let i = 0; i < path.length; i++) {
+            const target = String(path[i]);
+            const matched = categories.some(c => {
+                if (c === null || c === undefined) return false;
+                if (typeof c === "object") {
+                    // object might have id or name
+                    return String(c.id) === target || String(c.name) === target;
+                } else {
+                    return String(c) === target;
+                }
+            });
+            if (!matched) return false;
+        }
+        return true;
+    });
+
+    if (!results.length) {
+        alert("Aucun produit trouvé dans cette catégorie");
+        return;
+    }
+
+    $("#productSelectModal").remove();
+
+    const modalHtml = `
+        <div class="modal fade" id="productSelectModal" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content p-3">
+                    <h5>Sélectionnez le produit</h5>
+                    <ul class="list-group mb-3">
+                        ${results.map((p, i) => `<li class="list-group-item list-group-item-action product-item" data-idx="${i}">${p.name.en} - ${parseFloat(p.price).toFixed(2)}</li>`).join('')}
+                    </ul>
+                    <button class="btn btn-secondary w-100" id="product-cancel">Annuler</button>
+                </div>
+            </div>
+        </div>
+    `;
+    $("body").append(modalHtml);
+    const modalEl = document.getElementById("productSelectModal");
+    const modal = new bootstrap.Modal(modalEl, { backdrop: 'static', keyboard: false });
+    modal.show();
+
+    $(".product-item").off("click").on("click", async function() {
+        const idx = $(this).data("idx");
+        const product = results[idx];
+
+        modal.hide();
+        modalEl.remove();
+
+        const qty = await showNumericModal(`Quantité pour ${product.name.en}`);
+        if (qty > 0) {
+            const sale = sales.find(s => s.id === activeSaleId);
+            if (!sale) addNewSale();
+            const targetSale = sales.find(s => s.id === activeSaleId);
+            targetSale.items.push({
+                id: product.id,
+                name: product.name,
+                price: parseFloat(product.price),
+                quantity: qty
+            });
+            renderSalesTabs();
+        }
+    });
+
+    $("#product-cancel").off("click").on("click", function() {
+        modal.hide();
+        modalEl.remove();
+    });
+}
+
+// --------------------
+// Catalogue loader
+// --------------------
+/*
+async function loadCatalog(storeId) {
+    try {
+        const res = await fetch(`http://kabas.dev-back.fr/api/pos/catalog/${storeId}`);
+        if (!res.ok) throw new Error('Erreur catalogue');
+
+        const json = await res.json();
+        if (!Array.isArray(json.products)) throw new Error('Catalogue invalide : products n\'est pas un tableau');
+
+        const catalog = db.table("catalog");
+        catalog.clear();
+
+        const dataWithStore = json.products.map(item => ({
+            ...item,
+            store_id: storeId,
+            images: item.photos || [],
+            categories: item.categories || []
+        }));
+
+        catalog.insertMany(dataWithStore);
+
+        // Build category tree global à partir de `category_tree`
+        categoryTree = buildCategoryTreeFromJson(json.category_tree);
+        console.log("Catalogue chargé, arbre catégories :", categoryTree);
+
+    } catch (err) {
+        console.error("Erreur loadCatalog:", err);
+        throw err;
+    }
+}
+*/
+
+// --------------------
 // Catalogue loader
 // --------------------
 async function loadCatalog(storeId) {
@@ -150,11 +328,7 @@ async function loadCatalog(storeId) {
         if (!res.ok) throw new Error('Erreur catalogue');
 
         const json = await res.json();
-
-        // json.products contient le tableau réel
-        if (!Array.isArray(json.products)) {
-            throw new Error('Catalogue invalide : products n\'est pas un tableau');
-        }
+        if (!Array.isArray(json.products)) throw new Error('Catalogue invalide : products n\'est pas un tableau');
 
         const catalog = db.table("catalog");
         catalog.clear();
@@ -162,26 +336,27 @@ async function loadCatalog(storeId) {
         const dataWithStore = json.products.map(item => ({
             ...item,
             store_id: storeId,
-            images: item.photos || [], // renommer photos -> images
-            categories: item.categories || [] // toujours un tableau
+            images: item.photos || [],
+            categories: item.categories || []
         }));
 
         catalog.insertMany(dataWithStore);
 
-        console.log(`Catalogue store ${storeId} chargé, ${catalog.data.length} items`);
+        // Build category tree global à partir de `category_tree`
+        categoryTree = buildCategoryTreeFromJson(json.category_tree);
+        console.log("RAW categoryTree from BO:", json.category_tree);
+        console.log("Normalized categoryTree (array with numeric ids):", categoryTree);
+
     } catch (err) {
         console.error("Erreur loadCatalog:", err);
         throw err;
     }
 }
 
-
-
 // --------------------
 // Shift : check / start / end
 // --------------------
 async function checkUserShift(userId) {
-    // affiche sync modal
     const syncModalEl = document.getElementById('syncModal');
     const syncModal = syncModalEl ? new bootstrap.Modal(syncModalEl) : null;
     if (syncModal) syncModal.show();
@@ -192,7 +367,6 @@ async function checkUserShift(userId) {
         const shift = await res.json();
 
         if (!shift || !shift.id) {
-            // pas de shift -> écran démarrage
             showScreen("shiftstart");
         } else {
             currentShift = shift;
@@ -248,7 +422,6 @@ async function endShift(userId, endAmount) {
         const shift = await res.json();
         currentShift = null;
         $("#btn-end-shift").addClass("d-none");
-        // après clôture -> revenir à l'écran démarrage
         showScreen("shiftstart");
         alert("Shift terminé !");
         console.log("Shift terminé:", shift);
@@ -291,7 +464,6 @@ function initLogin() {
         currentUser = match[0];
         console.log("Utilisateur connecté :", currentUser);
 
-        // show sync modal
         const syncModalEl = document.getElementById('syncModal');
         const syncModal = syncModalEl ? new bootstrap.Modal(syncModalEl) : null;
         if (syncModal) syncModal.show();
@@ -310,10 +482,9 @@ function initLogin() {
 }
 
 // --------------------
-// Shift screens init
+// shift screens init
 // --------------------
 function initShiftstart() {
-    // éléments inside screen-shiftstart must exist
     let buffer = "";
     $("#shift-start-input").val("");
 
@@ -388,7 +559,6 @@ function renderSalesTabs() {
     }
 
     sales.forEach(sale => {
-        // onglet
         const activeClass = sale.id === activeSaleId ? "active" : "";
         const $tabBtn = $(`<li class="nav-item"><button class="nav-link ${activeClass}" data-sale="${sale.id}">Vente ${sale.label}</button></li>`);
         $tabs.append($tabBtn);
@@ -397,7 +567,6 @@ function renderSalesTabs() {
             renderSalesTabs();
         });
 
-        // contenu
         const rows = sale.items.map((item, idx) => {
             const lineTotal = item.quantity * item.price;
             return `
@@ -439,13 +608,11 @@ function renderSalesTabs() {
         $contents.append($pane);
     });
 
-    // handlers
     $(".remove-item").off("click").on("click", function() {
         const saleId = $(this).data("sale");
         const idx = $(this).data("idx");
         const sale = sales.find(s => s.id === saleId);
         sale.items.splice(idx, 1);
-        // if no item left keep sale (client wanted multiple concurrent sales). re-render.
         renderSalesTabs();
     });
 
@@ -471,7 +638,9 @@ function addNewSale() {
     renderSalesTabs();
 }
 
-// Recherche produit dans dashboard (colonne droite)
+// --------------------
+// Recherche produit dans dashboard
+// --------------------
 async function performSearchAndShowModal(query) {
     if (!query) return;
     const catalog = db.table("catalog");
@@ -487,7 +656,6 @@ async function performSearchAndShowModal(query) {
         return;
     }
 
-    // remove old modal
     $("#productSelectModal").remove();
 
     const modalHtml = `
@@ -512,17 +680,13 @@ async function performSearchAndShowModal(query) {
         const idx = $(this).data("idx");
         const product = results[idx];
 
-        // remove selection modal fully before opening numeric
         modal.hide();
         modalEl.remove();
 
         const qty = await showNumericModal(`Quantité pour ${product.name.en}`);
         if (qty > 0) {
             const sale = sales.find(s => s.id === activeSaleId);
-            if (!sale) {
-                // safety: create a new sale if none
-                addNewSale();
-            }
+            if (!sale) addNewSale();
             const targetSale = sales.find(s => s.id === activeSaleId);
             targetSale.items.push({
                 id: product.id,
@@ -543,24 +707,21 @@ async function performSearchAndShowModal(query) {
     });
 }
 
+// --------------------
 // init dashboard UI
+// --------------------
 function initDashboard() {
-    // ensure there's at least one sale
     if (!sales.length) addNewSale();
 
-    // Add sale button
     $("#add-sale-btn").off("click").on("click", addNewSale);
 
-    // Search button
     $("#sale-search-btn").off("click").on("click", function() {
         const q = $("#sale-search").val().trim();
         if (!q) return;
         performSearchAndShowModal(q);
     });
 
-    // quick focus
     $("#sale-search").off("keydown").on("keydown", function(e) {
-        // Prevent Enter from submitting forms / reloading; use button click instead
         if (e.key === "Enter") {
             e.preventDefault();
             $("#sale-search-btn").trigger("click");
@@ -600,12 +761,8 @@ function logout() {
 
 // bind global buttons
 $(document).on("click", "#btn-logout", logout);
-
 $(document).on("click", "#btn-end-shift", function() {
-    // go to shift end screen (user will input amount)
-    if (currentUser) {
-        showScreen("shiftend");
-    }
+    if (currentUser) showScreen("shiftend");
 });
 
 // start

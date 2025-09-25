@@ -17,7 +17,6 @@
                 <div class="tab-content flex-grow-1 overflow-auto" id="sales-contents"></div>
             </div>
 
-
             <!-- Colonne droite : recherche produit -->
             <div class="col-8 d-flex flex-column">
                 <div class="p-3 border-bottom">
@@ -76,7 +75,6 @@
         transition: transform 0.1s ease-in-out;
     }
 
-    /* Styles catégories */
     #category-parents div, #category-children div {
         padding: 0.4rem 0.8rem;
         background: #e9ecef;
@@ -105,6 +103,10 @@
         justify-content: center;
         align-items: center;
     }
+
+    /* clavier visuel pour remise */
+    #discount-keypad { display:flex; flex-wrap:wrap; max-width:200px; margin-top:0.5rem; }
+    #discount-keypad button { width:60px; height:60px; margin:2px; font-size:1.2rem; }
 </style>
 
 @push('scripts')
@@ -113,6 +115,54 @@ let selectedParentId = null;
 let selectedChildId = null;
 let currentQuery = "";
 
+// --- Popup remise avec select et clavier ---
+async function showDiscountModal(label = "Remise") {
+    return new Promise(resolve => {
+        const modal = $(`
+            <div class="modal fade" tabindex="-1">
+                <div class="modal-dialog">
+                    <div class="modal-content p-3">
+                        <h5>${label}</h5>
+                        <div class="mb-2">
+                            <select id="discount-type" class="form-select">
+                                <option value="amount">Montant</option>
+                                <option value="percent">Pourcentage</option>
+                            </select>
+                        </div>
+                        <input type="text" id="discount-value" class="form-control mb-2" readonly>
+                        <div id="discount-keypad">
+                            ${[1,2,3,4,5,6,7,8,9,'.',0,'C'].map(n=>`<button data-key="${n}">${n}</button>`).join('')}
+                        </div>
+                        <div class="mt-2 text-end">
+                            <button class="btn btn-sm btn-secondary me-1" id="discount-cancel">Annuler</button>
+                            <button class="btn btn-sm btn-primary" id="discount-ok">OK</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `);
+        $("body").append(modal);
+        modal.modal('show');
+
+        const $input = modal.find("#discount-value");
+        modal.find("#discount-keypad button").on("click", function() {
+            const k = $(this).data("key");
+            if(k==='C') $input.val('');
+            else $input.val($input.val()+k);
+        });
+
+        modal.find("#discount-cancel").on("click", function() { modal.modal('hide'); modal.remove(); resolve(null); });
+        modal.find("#discount-ok").on("click", function() {
+            const val = parseFloat($input.val());
+            if(isNaN(val) || val<=0) return alert("Valeur invalide");
+            const type = modal.find("#discount-type").val();
+            modal.modal('hide'); modal.remove();
+            resolve({type,value:val,label});
+        });
+    });
+}
+
+// --- Rendu des ventes avec remises ---
 function renderSalesTabs() {
     const $tabs = $("#sales-tabs");
     const $contents = $("#sales-contents");
@@ -121,6 +171,7 @@ function renderSalesTabs() {
 
     sales.forEach((sale, idx) => {
         const activeClass = sale.id === activeSaleId ? "active" : "";
+
         $tabs.append(`
             <li class="nav-item">
                 <a class="nav-link ${activeClass}" data-bs-toggle="tab" href="#sale-${sale.id}">
@@ -129,8 +180,58 @@ function renderSalesTabs() {
             </li>
         `);
 
+        // Collecte toutes les remises (ligne + globale) pour le tableau
+        const allDiscounts = [];
+
+        sale.items.forEach((item,i)=>{
+            if(item.discounts && item.discounts.length){
+                item.discounts.forEach(d=>{
+                    allDiscounts.push({
+                        type:d.type,
+                        value:d.value,
+                        label:`Remise ${item.name.en}`,
+                        saleIdx:i,
+                        item:true
+                    });
+                });
+            }
+        });
+        if(sale.discounts && sale.discounts.length){
+            sale.discounts.forEach(d=>{
+                allDiscounts.push({
+                    type:d.type,
+                    value:d.value,
+                    label:d.label,
+                    item:false
+                });
+            });
+        }
+
+        // calcul total
+        let total = 0;
+        sale.items.forEach(item=>{
+            let itemTotal = item.price * item.quantity;
+            if(item.discounts)item.discounts.forEach(d=>{
+                if(d.type==='amount') itemTotal -= d.value;
+                else if(d.type==='percent') itemTotal *= (1-d.value/100);
+            });
+            total += itemTotal;
+        });
+        if(sale.discounts)sale.discounts.forEach(d=>{
+            if(d.type==='amount') total -= d.value;
+            else if(d.type==='percent') total *= (1-d.value/100);
+        });
+
+        const discountRows = allDiscounts.map((d,i)=>`
+            <tr>
+                <td>${d.label}</td>
+                <td>${d.type==='percent'?d.value+'%':d.value.toFixed(2)}</td>
+                <td><button class="btn btn-sm btn-danger remove-discount" data-sale="${sale.id}" data-idx="${i}">X</button></td>
+            </tr>
+        `).join('');
+
         $contents.append(`
-            <div class="tab-pane fade ${activeClass ? 'show active' : ''}" id="sale-${sale.id}">
+            <div class="tab-pane fade ${activeClass?'show active':''}" id="sale-${sale.id}">
                 <table class="table table-bordered sale-table mb-0">
                     <thead>
                         <tr>
@@ -138,124 +239,128 @@ function renderSalesTabs() {
                             <th>Qté</th>
                             <th>Prix</th>
                             <th>Total</th>
-                            <th></th>
+                            <th>Actions</th>
                         </tr>
                     </thead>
                     <tbody>
-                        ${sale.items.map((item, i) => `
-                            <tr>
-                                <td>${item.name.en}</td>
-                                <td>${item.quantity}</td>
-                                <td>${item.price.toFixed(2)}</td>
-                                <td>${(item.price * item.quantity).toFixed(2)}</td>
-                                <td><button class="btn btn-sm btn-danger remove-item" data-sale="${sale.id}" data-idx="${i}">X</button></td>
-                            </tr>
-                        `).join('')}
+                        ${sale.items.map((item,i)=>{
+                            return `
+                                <tr>
+                                    <td>${item.name.en}</td>
+                                    <td>${item.quantity}</td>
+                                    <td>${item.price.toFixed(2)}</td>
+                                    <td>${(item.price*item.quantity).toFixed(2)}</td>
+                                    <td>
+                                        <button class="btn btn-sm btn-danger remove-item" data-sale="${sale.id}" data-idx="${i}">X</button>
+                                        <button class="btn btn-sm btn-warning line-discount" data-sale="${sale.id}" data-idx="${i}">Remise</button>
+                                    </td>
+                                </tr>
+                            `;
+                        }).join('')}
                     </tbody>
                 </table>
+
+                ${discountRows?`
+                    <table class="table table-sm table-bordered mb-2">
+                        <thead>
+                            <tr>
+                                <th>Remise</th>
+                                <th>Valeur</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>${discountRows}</tbody>
+                    </table>
+                `:''}
+
                 <div class="sale-footer d-flex justify-content-between align-items-center">
-                    <strong>Total : ${sale.items.reduce((sum, it) => sum + it.price * it.quantity, 0).toFixed(2)}</strong>
+                    <strong>Total : ${total.toFixed(2)}</strong>
                     <div>
                         <button class="btn btn-sm btn-secondary cancel-sale" data-sale="${sale.id}">Annuler</button>
                         <button class="btn btn-sm btn-success validate-sale" data-sale="${sale.id}">Valider</button>
+                        <button class="btn btn-sm btn-warning set-global-discount" data-sale="${sale.id}">Remise</button>
                     </div>
                 </div>
             </div>
         `);
     });
 
-    $(".remove-item").off("click").on("click", function() {
-        const saleId = $(this).data("sale");
-        const idx = $(this).data("idx");
-        const sale = sales.find(s => s.id === saleId);
-        if (sale) { sale.items.splice(idx, 1); renderSalesTabs(); }
+    // Listeners
+    $(".remove-item").off("click").on("click", function() { const saleId=$(this).data("sale"); const idx=$(this).data("idx"); const sale=sales.find(s=>s.id===saleId); if(sale){ sale.items.splice(idx,1); renderSalesTabs(); saveSalesToLocal(); }});
+    $(".cancel-sale").off("click").on("click", function(){ const saleId=$(this).data("sale"); sales=sales.filter(s=>s.id!==saleId); if(sales.length===0)addNewSale(); else activeSaleId=sales[0].id; renderSalesTabs(); saveSalesToLocal(); });
+    $(".validate-sale").off("click").on("click", function(){ const saleId=$(this).data("sale"); alert("Vente "+saleId+" validée (à implémenter)"); });
+
+    $(".set-global-discount").off("click").on("click", async function(){ const saleId=$(this).data("sale"); const sale=sales.find(s=>s.id===saleId); if(!sale) return; const d=await showDiscountModal("Remise globale"); if(!d) return; sale.discounts=sale.discounts||[]; sale.discounts.push(d); renderSalesTabs(); saveSalesToLocal(); });
+    $(".line-discount").off("click").on("click", async function(){ const saleId=$(this).data("sale"); const idx=$(this).data("idx"); const sale=sales.find(s=>s.id===saleId); if(!sale) return; const item=sale.items[idx]; if(!item) return; const d=await showDiscountModal("Remise ligne"); if(!d) return; item.discounts=item.discounts||[]; item.discounts.push(d); renderSalesTabs(); saveSalesToLocal(); });
+
+    $(".remove-discount").off("click").on("click", function(){
+        const saleId=$(this).data("sale");
+        const idx=$(this).data("idx");
+        const sale=sales.find(s=>s.id===saleId);
+        if(!sale) return;
+        // suppression de l'élément correspondant (ligne ou globale)
+        let counter = 0;
+        let removed=false;
+        // remises lignes
+        for(let i=0;i<sale.items.length;i++){
+            let item = sale.items[i];
+            if(item.discounts){
+                if(counter+item.discounts.length>idx){
+                    item.discounts.splice(idx-counter,1);
+                    removed=true; break;
+                } else counter+=item.discounts.length;
+            }
+        }
+        if(!removed && sale.discounts && sale.discounts.length>0){
+            sale.discounts.splice(idx-counter,1);
+        }
+        renderSalesTabs(); saveSalesToLocal();
     });
 
-    $(".cancel-sale").off("click").on("click", function() {
-        const saleId = $(this).data("sale");
-        sales = sales.filter(s => s.id !== saleId);
-        if (sales.length === 0) addNewSale();
-        else activeSaleId = sales[0].id;
-        renderSalesTabs();
-    });
-
-    $(".validate-sale").off("click").on("click", function() {
-        const saleId = $(this).data("sale");
-        alert("Vente " + saleId + " validée (à implémenter)");
-    });
-
-    $('#sales-tabs a[data-bs-toggle="tab"]').off('shown.bs.tab').on('shown.bs.tab', function (e) {
-        const href = $(e.target).attr('href');
-        activeSaleId = parseInt(href.replace('#sale-', ''));
-    });
+    $('#sales-tabs a[data-bs-toggle="tab"]').off('shown.bs.tab').on('shown.bs.tab',function(e){ const href=$(e.target).attr('href'); activeSaleId=parseInt(href.replace('#sale-','')); });
 }
 
+// --- Ajouter produit à la vente active ---
 function addProductToActiveSale(product) {
     const sale = sales.find(s => s.id === activeSaleId);
     if (!sale) return;
-
     const existing = sale.items.find(i => i.ean === product.ean);
     if (existing) existing.quantity += 1;
-    else sale.items.push({ ean: product.ean, name: product.name, price: parseFloat(product.price), quantity: 1 });
-    renderSalesTabs();
+    else sale.items.push({ ean: product.ean, name: product.name, price: parseFloat(product.price), quantity: 1, discounts: [] });
+    renderSalesTabs(); saveSalesToLocal();
 }
 
+// --- Catalogue et catégories restent identiques ---
 function productHasCategory(product, targetId) {
     if (!product || !targetId) return false;
     const tid = Number(targetId);
-
     const cats = product.categories || [];
     return cats.some(c => {
         if (!c) return false;
-
-        // Produit rattaché directement
         if (c.id !== undefined && Number(c.id) === tid) return true;
-
-        // Produit rattaché via le parent
         if (c.parent_id !== undefined && Number(c.parent_id) === tid) return true;
-
-        // Produit rattaché uniquement par id "plat"
         if (typeof c === "number" && Number(c) === tid) return true;
-
         return false;
     });
 }
 
 function renderCatalog() {
     const catalog = (db.table("catalog") && db.table("catalog").data) ? db.table("catalog").data : [];
-    console.log(selectedParentId);
-    console.log(selectedChildId);
     let filtered = catalog.slice();
-
-    if (selectedParentId) {
-        filtered = filtered.filter(p => productHasCategory(p, selectedParentId));
-    }
-    if (selectedChildId) {
-        filtered = filtered.filter(p => productHasCategory(p, selectedChildId));
-    }
-
+    if (selectedParentId) filtered = filtered.filter(p => productHasCategory(p, selectedParentId));
+    if (selectedChildId) filtered = filtered.filter(p => productHasCategory(p, selectedChildId));
     if (currentQuery) {
         const q = currentQuery.toLowerCase();
-        filtered = filtered.filter(p =>
-            (p.ean && p.ean.toLowerCase().includes(q)) ||
-            (p.name && p.name.en && p.name.en.toLowerCase().includes(q))
-        );
+        filtered = filtered.filter(p => (p.ean && p.ean.toLowerCase().includes(q)) || (p.name && p.name.en && p.name.en.toLowerCase().includes(q)));
     }
 
-    const $results = $("#search-results");
-    $results.empty();
-
-    if (filtered.length === 0) {
-        $results.html(`<div class="alert alert-warning">Aucun produit trouvé</div>`);
-        return;
-    }
-
+    const $results = $("#search-results"); $results.empty();
+    if (filtered.length === 0) { $results.html(`<div class="alert alert-warning">Aucun produit trouvé</div>`); return; }
     const $row = $('<div class="row"></div>');
     filtered.forEach(product => {
         const imgObj = (product.images && product.images.length) ? (product.images.find(i=>i.is_primary) || product.images[0]) : null;
         const imgUrl = (imgObj && imgObj.url) ? imgObj.url : 'http://kabas.dev-back.fr/images/no_picture.jpg';
         const title = (product.name && product.name.en) ? product.name.en : (product.name || product.title || 'Produit');
-
         $row.append(`
             <div class="col-3">
                 <div class="product-card" data-ean="${product.ean}">
@@ -268,7 +373,6 @@ function renderCatalog() {
     $results.append($row);
 }
 
-
 function performSearch() {
     currentQuery = $("#sale-search").val().trim();
     renderCatalog();
@@ -278,39 +382,27 @@ function performSearch() {
 function renderCategoryLists() {
     const $parents = $("#category-parents").empty();
     const $children = $("#category-children").empty();
-
     if (!categoryTree) return;
-
     const normalized = normalizeCategoryTree(categoryTree);
-
-    // Parents
     normalized.forEach(parentNode => {
         const $div = $(`<div data-id="${parentNode.id}">${parentNode.name}</div>`);
-        if (String(selectedParentId) === String(parentNode.id)) {
-            $div.addClass("active");
-        }
+        if (String(selectedParentId) === String(parentNode.id)) $div.addClass("active");
         $div.on("click", () => {
             selectedParentId = (String(selectedParentId) === String(parentNode.id)) ? null : parentNode.id;
             selectedChildId = null;
-            renderCategoryLists();
-            renderCatalog();
+            renderCategoryLists(); renderCatalog();
         });
         $parents.append($div);
     });
-
-    // Children
     if (selectedParentId) {
         const parentNode = normalized.find(n => String(n.id) === String(selectedParentId));
         if (parentNode && parentNode.children && parentNode.children.length > 0) {
             parentNode.children.forEach(childNode => {
                 const $div = $(`<div data-id="${childNode.id}">${childNode.name}</div>`);
-                if (String(selectedChildId) === String(childNode.id)) {
-                    $div.addClass("active");
-                }
+                if (String(selectedChildId) === String(childNode.id)) $div.addClass("active");
                 $div.on("click", () => {
                     selectedChildId = (String(selectedChildId) === String(childNode.id)) ? null : childNode.id;
-                    renderCategoryLists();
-                    renderCatalog();
+                    renderCategoryLists(); renderCatalog();
                 });
                 $children.append($div);
             });
@@ -318,11 +410,8 @@ function renderCategoryLists() {
     }
 }
 
-// --- Helpers pour normaliser categoryTree quel que soit son format ---
 function normalizeCategoryTree(tree) {
-    // Retourne un tableau de nodes: [{ id, name, children: [...] }]
     if (!tree) return [];
-
     if (Array.isArray(tree)) {
         return tree.map(t => {
             const name = t.name || t.title || t.label || t.slug || '';
@@ -330,38 +419,26 @@ function normalizeCategoryTree(tree) {
             return { id, name, children: normalizeCategoryTree(t.children || []) };
         });
     }
-
     if (typeof tree === 'object') {
         return Object.keys(tree).map(key => {
             const val = tree[key];
-            // si val ressemble à un node (possède id/name/children)
             if (val && typeof val === 'object' && (val.id !== undefined || val.name || val.children)) {
                 const name = val.name || val.title || key;
                 const id = (val.id !== undefined) ? val.id : key;
                 return { id, name, children: normalizeCategoryTree(val.children || val) };
-            } else {
-                // val est probablement un objet mappant des enfants par nom
-                return { id: key, name: key, children: normalizeCategoryTree(val) };
-            }
+            } else return { id: key, name: key, children: normalizeCategoryTree(val) };
         });
     }
-
     return [];
 }
-
-
-
 
 function initDashboard() {
     $("#btn-new-sale").off("click").on("click", addNewSale);
     $("#sale-search").off("input").on("input", performSearch);
     $("#sale-search").off("keypress").on("keypress", e => { if (e.key === "Enter") performSearch(); });
     $("#btn-reset-search").off("click").on("click", () => { $("#sale-search").val(''); currentQuery = ''; renderCatalog(); });
-
     if (sales.length === 0) addNewSale();
-
-    renderCategoryLists();
-    renderCatalog();
+    renderCategoryLists(); renderCatalog();
 
     $("#search-results").off("click", ".product-card").on("click", ".product-card", function() {
         const ean = $(this).data("ean");

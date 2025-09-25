@@ -22,6 +22,20 @@ let saleCounter = 1;
 let categoryTree = {}; // arbre global des catégories
 let currentCategoryPath = []; // chemin courant pour navigation dans l'arbre
 
+
+function saveSalesToLocal() {
+    if (!currentShift) return;
+    const key = `pos_sales_shift_${currentShift.id}`;
+    localStorage.setItem(key, JSON.stringify(sales));
+}
+
+function loadSalesFromLocal() {
+    if (!currentShift) return;
+    const key = `pos_sales_shift_${currentShift.id}`;
+    const stored = localStorage.getItem(key);
+    if (stored) sales = JSON.parse(stored);
+}
+
 // helper
 function capitalize(str) {
     if (!str) return "";
@@ -164,14 +178,10 @@ function buildCategoryTreeFromJson(jsonCategoryTree) {
     return convert(jsonCategoryTree || []);
 }
 
-
-
-
 // --------------------
 // Navigation et affichage catégories
 // --------------------
 function renderCategoryButtons(nodes = categoryTree, path = []) {
-    // nodes: array of { id, name, children }
     const $container = $("#category-buttons");
     $container.empty();
 
@@ -193,7 +203,6 @@ function renderCategoryButtons(nodes = categoryTree, path = []) {
         $backBtn.on("click", () => {
             const parentPath = path.slice(0, -1);
 
-            // traverse categoryTree following parentPath to get parent nodes
             let parentNodes = categoryTree;
             for (let i = 0; i < parentPath.length; i++) {
                 const id = parentPath[i];
@@ -208,19 +217,15 @@ function renderCategoryButtons(nodes = categoryTree, path = []) {
     }
 }
 
-
 function showProductsByCategory(path) {
     const catalog = db.table("catalog");
     let results = catalog.data.filter(p => {
         const categories = p.categories || [];
-        // we accept categories as: array of ids (numbers/strings), array of names,
-        // or array of objects { id, name }.
         for (let i = 0; i < path.length; i++) {
             const target = String(path[i]);
             const matched = categories.some(c => {
                 if (c === null || c === undefined) return false;
                 if (typeof c === "object") {
-                    // object might have id or name
                     return String(c.id) === target || String(c.name) === target;
                 } else {
                     return String(c) === target;
@@ -272,9 +277,11 @@ function showProductsByCategory(path) {
                 id: product.id,
                 name: product.name,
                 price: parseFloat(product.price),
-                quantity: qty
+                quantity: qty,
+                discount: 0
             });
             renderSalesTabs();
+            saveSalesToLocal();
         }
     });
 
@@ -287,7 +294,6 @@ function showProductsByCategory(path) {
 // --------------------
 // Catalogue loader
 // --------------------
-/*
 async function loadCatalog(storeId) {
     try {
         const res = await fetch(`http://kabas.dev-back.fr/api/pos/catalog/${storeId}`);
@@ -308,41 +314,6 @@ async function loadCatalog(storeId) {
 
         catalog.insertMany(dataWithStore);
 
-        // Build category tree global à partir de `category_tree`
-        categoryTree = buildCategoryTreeFromJson(json.category_tree);
-        console.log("Catalogue chargé, arbre catégories :", categoryTree);
-
-    } catch (err) {
-        console.error("Erreur loadCatalog:", err);
-        throw err;
-    }
-}
-*/
-
-// --------------------
-// Catalogue loader
-// --------------------
-async function loadCatalog(storeId) {
-    try {
-        const res = await fetch(`http://kabas.dev-back.fr/api/pos/catalog/${storeId}`);
-        if (!res.ok) throw new Error('Erreur catalogue');
-
-        const json = await res.json();
-        if (!Array.isArray(json.products)) throw new Error('Catalogue invalide : products n\'est pas un tableau');
-
-        const catalog = db.table("catalog");
-        catalog.clear();
-
-        const dataWithStore = json.products.map(item => ({
-            ...item,
-            store_id: storeId,
-            images: item.photos || [],
-            categories: item.categories || []
-        }));
-
-        catalog.insertMany(dataWithStore);
-
-        // Build category tree global à partir de `category_tree`
         categoryTree = buildCategoryTreeFromJson(json.category_tree);
         console.log("RAW categoryTree from BO:", json.category_tree);
         console.log("Normalized categoryTree (array with numeric ids):", categoryTree);
@@ -568,7 +539,7 @@ function renderSalesTabs() {
         });
 
         const rows = sale.items.map((item, idx) => {
-            const lineTotal = item.quantity * item.price;
+            const lineTotal = item.quantity * item.price - (item.discount||0);
             return `
                 <tr>
                     <td>${item.name.en}</td>
@@ -576,11 +547,12 @@ function renderSalesTabs() {
                     <td>${item.price.toFixed(2)}</td>
                     <td>${lineTotal.toFixed(2)}</td>
                     <td><button class="btn btn-sm btn-danger remove-item" data-sale="${sale.id}" data-idx="${idx}">Supprimer</button></td>
+                    <td><button class="btn btn-sm btn-warning set-item-discount" data-sale="${sale.id}" data-idx="${idx}">Remise</button></td>
                 </tr>
             `;
         }).join("");
 
-        const total = sale.items.reduce((sum, i) => sum + i.price * i.quantity, 0);
+        const total = sale.items.reduce((sum, i) => sum + i.price * i.quantity - (i.discount||0), 0) - (sale.discount_total||0);
 
         const $pane = $(`
             <div class="tab-pane p-2 ${sale.id === activeSaleId ? "show active" : ""}" id="sale-${sale.id}">
@@ -592,6 +564,7 @@ function renderSalesTabs() {
                             <th>PU</th>
                             <th>Total</th>
                             <th></th>
+                            <th></th>
                         </tr>
                     </thead>
                     <tbody>${rows}</tbody>
@@ -599,6 +572,7 @@ function renderSalesTabs() {
                 <div class="d-flex justify-content-between align-items-center border-top pt-2">
                     <h5 class="mb-0">Total : ${total.toFixed(2)}</h5>
                     <div>
+                        <button class="btn btn-outline-warning me-2 sale-discount" data-sale="${sale.id}">Remise</button>
                         <button class="btn btn-outline-danger me-2 cancel-sale" data-sale="${sale.id}">Annuler</button>
                         <button class="btn btn-success validate-sale" data-sale="${sale.id}">Valider</button>
                     </div>
@@ -608,34 +582,81 @@ function renderSalesTabs() {
         $contents.append($pane);
     });
 
+    // Handlers
     $(".remove-item").off("click").on("click", function() {
         const saleId = $(this).data("sale");
         const idx = $(this).data("idx");
         const sale = sales.find(s => s.id === saleId);
         sale.items.splice(idx, 1);
         renderSalesTabs();
+        saveSalesToLocal();
     });
 
     $(".cancel-sale").off("click").on("click", function() {
         const saleId = $(this).data("sale");
         if (!confirm("Annuler cette vente ?")) return;
         sales = sales.filter(s => s.id !== saleId);
-        if (sales.length) activeSaleId = sales[0].id;
-        else activeSaleId = null;
+        activeSaleId = sales.length ? sales[0].id : null;
         renderSalesTabs();
+        saveSalesToLocal();
     });
 
     $(".validate-sale").off("click").on("click", function() {
         const saleId = $(this).data("sale");
-        alert("Validation non implémentée (vente " + saleId + ")");
+        const sale = sales.find(s => s.id === saleId);
+        if (!sale) return;
+
+        const type = prompt("Type de paiement (cash, aba, virement):", "cash");
+        if (!type) return;
+
+        sale.payment_type = type;
+        sale.synced = false;
+        renderSalesTabs();
+        saveSalesToLocal();
+
+        alert(`Vente ${sale.label} validée`);
+    });
+
+    $(".set-item-discount").off("click").on("click", async function() {
+        const saleId = $(this).data("sale");
+        const idx = $(this).data("idx");
+        const sale = sales.find(s => s.id === saleId);
+        if (!sale) return;
+        const item = sale.items[idx];
+        const value = await showNumericModal(`Remise pour ${item.name.en}`);
+        if (value > 0) {
+            item.discount = value;
+            renderSalesTabs();
+            saveSalesToLocal();
+        }
+    });
+
+    $(".sale-discount").off("click").on("click", async function() {
+        const saleId = $(this).data("sale");
+        const sale = sales.find(s => s.id === saleId);
+        if (!sale) return;
+        const value = await showNumericModal(`Remise globale pour la vente`);
+        if (value > 0) {
+            sale.discount_total = value;
+            renderSalesTabs();
+            saveSalesToLocal();
+        }
     });
 }
 
 function addNewSale() {
-    const newSale = { id: Date.now(), label: saleCounter++, items: [] };
+    const newSale = { 
+        id: Date.now(), 
+        label: saleCounter++, 
+        items: [], 
+        discount_total: 0,
+        payment_type: null,
+        synced: false
+    };
     sales.push(newSale);
     activeSaleId = newSale.id;
     renderSalesTabs();
+    saveSalesToLocal();
 }
 
 // --------------------
@@ -692,9 +713,11 @@ async function performSearchAndShowModal(query) {
                 id: product.id,
                 name: product.name,
                 price: parseFloat(product.price),
-                quantity: qty
+                quantity: qty,
+                discount: 0
             });
             renderSalesTabs();
+            saveSalesToLocal();
         }
 
         $("#sale-search").val("").focus();
@@ -729,6 +752,14 @@ function initDashboard() {
     });
 
     renderSalesTabs();
+
+    // auto-sync sales toutes les 30s (exemple)
+    setInterval(() => {
+        const unsynced = sales.filter(s => !s.synced);
+        if (!unsynced.length) return;
+        console.log("Synchronisation automatique :", unsynced);
+        // TODO: envoyer au BO
+    }, 30000);
 }
 
 // --------------------

@@ -19,13 +19,6 @@
 </head>
 <body>
     <div class="container py-4">
-        <nav class="navbar navbar-dark bg-dark px-3">
-            <span class="navbar-brand">Mon POS</span>
-            <div class="ms-auto">
-                <button id="btn-logout" class="btn btn-sm btn-danger d-none">Déconnexion</button>
-                <button id="btn-end-shift" class="btn btn-sm btn-warning d-none ms-2">Terminer le shift</button>
-            </div>
-        </nav>
         <!-- Conteneur principal -->
         <div id="pos-container" class="mt-4">
 

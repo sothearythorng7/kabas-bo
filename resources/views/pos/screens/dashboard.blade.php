@@ -1,12 +1,32 @@
 <div id="screen-dashboard" class="pos-screen d-none vh-100">
-    <div class="container-fluid h-100">
+    <div class="container-fluid h-100  p-0">
         <div class="row h-100">
             <!-- Colonne gauche : ventes -->
-            <div class="col-4 border-end d-flex flex-column">
+            <div class="col-4 border-end d-flex flex-column h-100">
+
+                <!-- Menu vertical -->
+                <div id="side-menu" class="position-fixed top-0 start-0 vh-100 bg-white shadow" style="width:0; max-width:30%; overflow:auto; z-index:1050; transition: width 0.3s;">
+                    <div class="d-flex justify-content-end p-2 border-bottom">
+                        <button class="btn btn-sm btn-outline-dark" id="btn-close-menu"><i class="bi bi-x-lg"></i></button>
+                    </div>
+                    <div class="p-3">
+                        <button id="btn-logout" class="btn btn-sm btn-danger d-none">Déconnexion</button>
+                        <button id="btn-end-shift" class="btn btn-sm btn-warning d-none ms-2">Terminer le shift</button>
+                    </div>
+                </div>
+
+                <!-- Overlay pour fermer en cliquant en dehors -->
+                <div id="side-menu-overlay" class="position-fixed top-0 start-0 w-100 h-100" style="display:none; z-index:1040;"></div>
+
+
+
                 <!-- Barre d'actions -->
                 <div class="d-flex p-2 border-bottom action-bar">
                     <button class="btn btn-sm btn-outline-primary me-1" title="Nouvelle vente" id="btn-new-sale">
                         <i class="bi bi-plus-circle"></i>
+                    </button>
+                    <button class="btn btn-sm btn-outline-secondary" id="btn-open-menu" title="Menu">
+                        <i class="bi bi-list"></i>
                     </button>
                 </div>
 
@@ -18,7 +38,7 @@
             </div>
 
             <!-- Colonne droite : recherche produit -->
-            <div class="col-8 d-flex flex-column">
+            <div class="col-8 d-flex flex-column h-100">
                 <div class="p-3 border-bottom">
                     <div class="input-group mb-2">
                         <input type="text" id="sale-search" class="form-control" placeholder="Rechercher un produit par EAN ou nom">
@@ -107,6 +127,38 @@
     /* clavier visuel pour remise */
     #discount-keypad { display:flex; flex-wrap:wrap; max-width:200px; margin-top:0.5rem; }
     #discount-keypad button { width:60px; height:60px; margin:2px; font-size:1.2rem; }
+
+    #side-menu a {
+    text-decoration: none;
+    color: #000;
+    font-weight: 500;
+    }
+    #side-menu a:hover {
+        color: #0d6efd;
+    }
+    #side-menu-overlay {
+        background: rgba(0, 0, 0, 0.4); /* semi-transparent noir */
+    }
+
+    html, body {
+        height: 100%;
+        overflow: hidden; /* pas de scroll global */
+    }
+
+    #screen-dashboard {
+        height: 100vh; /* hauteur totale de l'écran */
+    }
+
+    .col-4, .col-8 {
+        height: 100%; /* colonnes prennent toute la hauteur */
+        display: flex;
+        flex-direction: column;
+    }
+
+    #sales-contents, #search-results {
+        flex-grow: 1;
+        overflow-y: auto; /* seul le contenu scrollable verticalement */
+    }
 </style>
 
 @push('scripts')
@@ -114,6 +166,18 @@
 let selectedParentId = null;
 let selectedChildId = null;
 let currentQuery = "";
+
+$(document).ready(function() {
+    $("#btn-open-menu").on("click", function() {
+        $("#side-menu").css("width", "30%");
+        $("#side-menu-overlay").show();
+    });
+
+    $("#btn-close-menu, #side-menu-overlay").on("click", function() {
+        $("#side-menu").css("width", "0");
+        $("#side-menu-overlay").hide();
+    });
+});
 
 // --- Popup remise avec select et clavier ---
 async function showDiscountModal(label = "Remise") {

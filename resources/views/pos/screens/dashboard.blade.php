@@ -29,7 +29,7 @@
                 </div>
 
                 <!-- Onglets des ventes -->
-                <ul class="nav nav-tabs" id="sales-tabs"></ul>
+                <ul class="nav nav-tabs" id="sales-tabs" style="margin-top:20px;"></ul>
 
                 <!-- Contenu des ventes -->
                 <div class="tab-content flex-grow-1 overflow-auto" id="sales-contents"></div>
@@ -181,6 +181,31 @@
     #right-panel {
         flex: 0 0 60%;
         min-width: 200px;
+    }
+
+    #sales-contents {
+        flex-grow: 1;
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column; /* important pour que footer soit en bas */
+    }
+    #sales-contents .tab-pane {
+        display: flex;           /* Toujours flex, même inactif */
+        flex-direction: column;  /* Colonne pour mettre le footer en bas */
+        min-height: 0;  
+    }
+
+    #sales-contents .tab-pane:not(.active) {
+        display: none; /* cache complètement les tab-pane inactifs */
+    }
+
+    #sales-contents .tab-pane.active {
+        display: flex !important;
+        flex-direction: column;
+        min-height: 0;
+    }
+    #sales-contents .tab-pane .flex-grow-1 {
+        overflow-y: auto;        /* contenu scrollable */
     }
 </style>
 
@@ -342,20 +367,18 @@ function renderSalesTabs() {
 
     sales.forEach((sale, idx) => {
         const activeClass = sale.id === activeSaleId ? "active" : "";
-        console.log(sale);
         if(sale.validated) return;
 
         $tabs.append(`
             <li class="nav-item">
                 <a class="nav-link ${activeClass}" data-bs-toggle="tab" href="#sale-${sale.id}">
-                    Vente ${idx+1}
+                    <i class="bi bi-receipt"></i> ${idx+1}
                 </a>
             </li>
         `);
 
         // Collecte toutes les remises (ligne + globale) pour le tableau
         const allDiscounts = [];
-
         sale.items.forEach((item,i)=>{
             if(item.discounts && item.discounts.length){
                 item.discounts.forEach(d=>{
@@ -380,19 +403,32 @@ function renderSalesTabs() {
             });
         }
 
-        // calcul total
+        // --- Calcul des totaux ---
+        let totalAvantRemise = 0;
+        let totalRemises = 0;
         let total = 0;
+
         sale.items.forEach(item=>{
             let itemTotal = item.price * item.quantity;
-            if(item.discounts)item.discounts.forEach(d=>{
-                if(d.type==='amount') itemTotal -= d.value;
-                else if(d.type==='percent') itemTotal *= (1-d.value/100);
+            totalAvantRemise += itemTotal;
+
+            let itemDiscountTotal = 0;
+            if(item.discounts) item.discounts.forEach(d=>{
+                if(d.type==='amount') itemDiscountTotal += d.value;
+                else if(d.type==='percent') itemDiscountTotal += itemTotal * d.value/100;
             });
+            itemTotal -= itemDiscountTotal;
+            totalRemises += itemDiscountTotal;
+
             total += itemTotal;
         });
-        if(sale.discounts)sale.discounts.forEach(d=>{
-            if(d.type==='amount') total -= d.value;
-            else if(d.type==='percent') total *= (1-d.value/100);
+
+        if(sale.discounts) sale.discounts.forEach(d=>{
+            let disc = 0;
+            if(d.type==='amount') disc = d.value;
+            else if(d.type==='percent') disc = total * d.value/100;
+            totalRemises += disc;
+            total -= disc;
         });
 
         const discountRows = allDiscounts.map((d,i)=>`
@@ -403,69 +439,93 @@ function renderSalesTabs() {
             </tr>
         `).join('');
 
+        // --- Alert bootstrap avec bouton pour masquer/afficher les totaux (en haut à droite) ---
         $contents.append(`
-            <div class="tab-pane fade ${activeClass?'show active':''}" id="sale-${sale.id}">
-                <table class="table table-bordered sale-table mb-0">
-                    <thead>
-                        <tr>
-                            <th>Produit</th>
-                            <th>Qté</th>
-                            <th>Prix</th>
-                            <th>Total</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${sale.items.map((item,i)=>{
-                            return `
-                                <tr>
-                                    <td>${item.name.en}</td>
-                                    <td>${item.quantity}</td>
-                                    <td>${item.price.toFixed(2)}</td>
-                                    <td>${(item.price*item.quantity).toFixed(2)}</td>
-                                    <td>
-                                        <button class="btn btn-sm btn-danger remove-item" data-sale="${sale.id}" data-idx="${i}">X</button>
-                                        <button class="btn btn-sm btn-warning line-discount" data-sale="${sale.id}" data-idx="${i}">Remise</button>
-                                    </td>
-                                </tr>
-                            `;
-                        }).join('')}
-                    </tbody>
-                </table>
-
-                ${discountRows?`
-                    <table class="table table-sm table-bordered mb-2">
-                        <thead>
-                            <tr>
-                                <th>Remise</th>
-                                <th>Valeur</th>
-                                <th></th>
-                            </tr>
-                        </thead>
-                        <tbody>${discountRows}</tbody>
-                    </table>
-                `:''}
-
-                <div class="sale-footer d-flex justify-content-between align-items-center">
-                    <strong>Total : ${total.toFixed(2)}</strong>
+            <div class="tab-pane mt-2 fade ${activeClass?'show active':''}" id="sale-${sale.id}" style="${activeClass ? 'height:100%;' : ''}">
+                <div class="sale-footer border-top pt-2 mt-2">
+                    <div class="alert alert-success text-start position-relative" role="alert" style="display:block; width:100%; font-weight:bold;">
+                        <button type="button" class="btn btn-sm btn-secondary position-absolute top-0 end-0 m-1 toggle-totals" style="padding:0.1rem 0.3rem;">☰</button>
+                        <div class="totals-hidden" style="display:none; font-weight:normal;">
+                            Total avant remise : $${totalAvantRemise.toFixed(2)} <br>
+                            Total remises : $${totalRemises.toFixed(2)}
+                            <hr />
+                        </div>
+                        Total final : $${total.toFixed(2)}
+                    </div>
                     <div>
                         <button class="btn btn-sm btn-secondary cancel-sale" data-sale="${sale.id}">Annuler</button>
                         <button class="btn btn-sm btn-success validate-sale" data-sale="${sale.id}">Valider</button>
                         <button class="btn btn-sm btn-warning set-global-discount" data-sale="${sale.id}">Remise</button>
                     </div>
                 </div>
+                <div class="overflow-auto">
+                    <table class="table table-striped sale-table mb-0">
+                        <thead>
+                            <tr>
+                                <th>Produit</th>
+                                <th>Qté</th>
+                                <th>Prix</th>
+                                <th>Total</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${sale.items.map((item,i)=>{
+                                return `
+                                    <tr>
+                                        <td>${item.name.en}</td>
+                                        <td>${item.quantity}</td>
+                                        <td>${item.price.toFixed(2)}</td>
+                                        <td>${(item.price*item.quantity).toFixed(2)}</td>
+                                        <td>
+                                            <div class="btn-group dropstart">
+                                                <button class="btn btn-sm btn-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                                    <i class="bi bi-list"></i>
+                                                </button>
+                                                <ul class="dropdown-menu">
+                                                    <li>
+                                                        <a class="dropdown-item remove-item" href="#" data-sale="${sale.id}" data-idx="${i}">
+                                                            <i class="bi bi-x-circle text-danger"></i> Supprimer
+                                                        </a>
+                                                    </li>
+                                                    <li>
+                                                        <a class="dropdown-item line-discount" href="#" data-sale="${sale.id}" data-idx="${i}">
+                                                            <i class="bi bi-percent text-warning"></i> Ajouter remise
+                                                        </a>
+                                                    </li>
+                                                </ul>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                `;
+                            }).join('')}
+                        </tbody>
+                    </table>
+
+                    ${discountRows?`
+                        <table class="table table-sm table-striped mb-2 mt-2">
+                            <thead>
+                                <tr>
+                                    <th>Remise</th>
+                                    <th>Valeur</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody>${discountRows}</tbody>
+                        </table>
+                    `:''}
+                </div>
             </div>
         `);
     });
 
-    // Listeners
+    // --- Listeners ---
     $(".remove-item").off("click").on("click", function() { const saleId=$(this).data("sale"); const idx=$(this).data("idx"); const sale=sales.find(s=>s.id===saleId); if(sale){ sale.items.splice(idx,1); renderSalesTabs(); saveSalesToLocal(); }});
     $(".cancel-sale").off("click").on("click", function(){ 
         const saleId=$(this).data("sale"); 
         sales=sales.filter(s=>s.id!==saleId); 
         if(sales.length===0)addNewSale(); 
         else activeSaleId=sales[0].id;
-
         renderSalesTabs(); 
         saveSalesToLocal();
     });
@@ -482,10 +542,8 @@ function renderSalesTabs() {
         const idx=$(this).data("idx");
         const sale=sales.find(s=>s.id===saleId);
         if(!sale) return;
-        // suppression de l'élément correspondant (ligne ou globale)
         let counter = 0;
         let removed=false;
-        // remises lignes
         for(let i=0;i<sale.items.length;i++){
             let item = sale.items[i];
             if(item.discounts){
@@ -501,8 +559,14 @@ function renderSalesTabs() {
         renderSalesTabs(); saveSalesToLocal();
     });
 
+    // --- Listener pour le bouton d'affichage des totaux ---
+    $(".toggle-totals").off("click").on("click", function(){
+        $(this).siblings(".totals-hidden").toggle();
+    });
+
     $('#sales-tabs a[data-bs-toggle="tab"]').off('shown.bs.tab').on('shown.bs.tab',function(e){ const href=$(e.target).attr('href'); activeSaleId=parseInt(href.replace('#sale-','')); });
 }
+
 
 // --- Ajouter produit à la vente active ---
 function addProductToActiveSale(product) {

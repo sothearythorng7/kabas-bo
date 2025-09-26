@@ -1,9 +1,9 @@
 <div id="screen-dashboard" class="pos-screen d-none vh-100">
-    <div class="container-fluid h-100  p-0">
-        <div class="row h-100">
-            <!-- Colonne gauche : ventes -->
-            <div class="col-4 border-end d-flex flex-column h-100">
+    <div class="container-fluid h-100 p-0">
+        <div class="d-flex h-100">
 
+            <!-- Colonne gauche : ventes -->
+            <div id="left-panel" class="border-end d-flex flex-column">
                 <!-- Menu vertical -->
                 <div id="side-menu" class="position-fixed top-0 start-0 vh-100 bg-white shadow" style="width:0; max-width:30%; overflow:auto; z-index:1050; transition: width 0.3s;">
                     <div class="d-flex justify-content-end p-2 border-bottom">
@@ -17,8 +17,6 @@
 
                 <!-- Overlay pour fermer en cliquant en dehors -->
                 <div id="side-menu-overlay" class="position-fixed top-0 start-0 w-100 h-100" style="display:none; z-index:1040;"></div>
-
-
 
                 <!-- Barre d'actions -->
                 <div class="d-flex p-2 border-bottom action-bar">
@@ -37,8 +35,11 @@
                 <div class="tab-content flex-grow-1 overflow-auto" id="sales-contents"></div>
             </div>
 
+            <!-- Resizer -->
+            <div id="resizer" style="width:5px; min-width: 5px; cursor:col-resize; background:#dee2e6;"></div>
+
             <!-- Colonne droite : recherche produit -->
-            <div class="col-8 d-flex flex-column h-100">
+            <div id="right-panel" class="d-flex flex-column">
                 <div class="p-3 border-bottom">
                     <div class="input-group mb-2">
                         <input type="text" id="sale-search" class="form-control" placeholder="Rechercher un produit par EAN ou nom">
@@ -56,9 +57,11 @@
                     <!-- Résultats de recherche / catalogue -->
                 </div>
             </div>
+
         </div>
     </div>
 </div>
+
 
 <style>
     #sales-contents .sale-table {
@@ -143,7 +146,7 @@
     html, body {
         height: 100%;
         overflow: hidden; /* pas de scroll global */
-    }
+    }   
 
     #screen-dashboard {
         height: 100vh; /* hauteur totale de l'écran */
@@ -159,6 +162,26 @@
         flex-grow: 1;
         overflow-y: auto; /* seul le contenu scrollable verticalement */
     }
+
+    #resizer {
+        background-color: #dee2e6;
+        width: 20px;
+        cursor: col-resize;
+        z-index: 1000;
+    }
+    #resizer:hover {
+        background-color: #0d6efd;
+    }
+
+    #left-panel {
+    flex: 0 0 40%;  /* ni croissance, ni rétrécissement */
+    min-width: 200px;
+    }
+
+    #right-panel {
+        flex: 0 0 60%;
+        min-width: 200px;
+    }
 </style>
 
 @push('scripts')
@@ -166,6 +189,27 @@
 let selectedParentId = null;
 let selectedChildId = null;
 let currentQuery = "";
+
+let isResizing = false;
+const resizer = $("#resizer");
+const left = $("#left-panel");
+const right = $("#right-panel");
+const container = left.parent();
+
+
+function setInitialWidths() {
+    
+    const containerWidth = container.width();
+    const resizerWidth = resizer.width();
+    console.log("resizerWidth " + resizerWidth);
+    const leftWidth = Math.max(200, Math.floor(containerWidth * 0.3));
+    const rightWidth = containerWidth - leftWidth - resizer.width();
+
+    left.css({ width: leftWidth + "px", flex: "none" });
+    right.css({ width: rightWidth + "px", flex: "none" });
+    
+    //alert('reize');
+}
 
 $(document).ready(function() {
     $("#btn-open-menu").on("click", function() {
@@ -177,6 +221,49 @@ $(document).ready(function() {
         $("#side-menu").css("width", "0");
         $("#side-menu-overlay").hide();
     });
+
+    function startResize(e) {
+        isResizing = true;
+        $("body").css("cursor", "col-resize");
+        e.preventDefault();
+    }
+
+    function doResize(clientX) {
+        if (!isResizing) return;
+        const containerWidth = container.width();
+        let newLeftWidth = clientX - left.offset().left;
+
+        // limites min/max pour éviter que la colonne disparaisse
+        const minWidth = 200;
+        const maxWidth = containerWidth - 200;
+        if (newLeftWidth < minWidth) newLeftWidth = minWidth;
+        if (newLeftWidth > maxWidth) newLeftWidth = maxWidth;
+
+        left.css("width", newLeftWidth + "px");
+        right.css("width", (containerWidth - newLeftWidth - resizer.width()) + "px");
+    }
+
+    function stopResize() {
+        if (isResizing) {
+            isResizing = false;
+            $("body").css("cursor", "default");
+        }
+    }
+
+    // --- Événements souris ---
+    resizer.on("mousedown", startResize);
+    $(document).on("mousemove", function(e){ doResize(e.pageX); });
+    $(document).on("mouseup", stopResize);
+
+    // --- Événements tactiles ---
+    resizer.on("touchstart", startResize);
+    $(document).on("touchmove", function(e){
+        if(e.touches.length > 0) doResize(e.touches[0].clientX);
+    });
+    $(document).on("touchend touchcancel", stopResize);
+
+    // --- Recalculer largeur si fenêtre redimensionnée ---
+    $(window).on("resize", setInitialWidths);  
 });
 
 // --- Popup remise avec select et clavier ---

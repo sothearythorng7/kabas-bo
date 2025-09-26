@@ -131,7 +131,9 @@ function showScreen(screenId) {
         setTimeout(() => {
             const $s = $("#sale-search");
             if ($s.length) $s.focus();
+            setInitialWidths()
         }, 80);
+        
     }
 }
 

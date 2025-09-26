@@ -10,8 +10,8 @@
                         <button class="btn btn-sm btn-outline-dark" id="btn-close-menu"><i class="bi bi-x-lg"></i></button>
                     </div>
                     <div class="p-3">
-                        <button id="btn-logout" class="btn btn-sm btn-danger d-none">Déconnexion</button>
-                        <button id="btn-end-shift" class="btn btn-sm btn-warning d-none ms-2">Terminer le shift</button>
+                        <button id="btn-logout" class="btn btn-sm btn-danger d-none">@t("logout")</button>
+                        <button id="btn-end-shift" class="btn btn-sm btn-warning d-none ms-2">@t("Close Shift")</button>
                     </div>
                 </div>
 
@@ -42,7 +42,7 @@
             <div id="right-panel" class="d-flex flex-column">
                 <div class="p-3 border-bottom">
                     <div class="input-group mb-2">
-                        <input type="text" id="sale-search" class="form-control" placeholder="Rechercher un produit par EAN ou nom">
+                        <input type="text" id="sale-search" class="form-control" placeholder="@t("Search product by name or EAN")">
                         <button class="btn btn-outline-secondary" id="btn-reset-search" type="button">&times;</button>
                     </div>
 
@@ -292,17 +292,17 @@ $(document).ready(function() {
 });
 
 // --- Popup remise avec select et clavier ---
-async function showDiscountModal(label = "Remise") {
+async function showDiscountModal(label = "Discount") {
     return new Promise(resolve => {
         const modal = $(`
             <div class="modal fade" tabindex="-1">
-                <div class="modal-dialog">
-                    <div class="modal-content p-3">
+                <div class="modal-dialog modal-sm">
+                    <div class="modal-content p-3 text-center">
                         <h5>${label}</h5>
                         <div class="mb-2">
                             <select id="discount-type" class="form-select">
-                                <option value="amount">Montant</option>
-                                <option value="percent">Pourcentage</option>
+                                <option value="amount">@t("Montant")</option>
+                                <option value="percent">@t("Percent")</option>
                             </select>
                         </div>
                         <input type="text" id="discount-value" class="form-control mb-2" readonly>
@@ -310,8 +310,8 @@ async function showDiscountModal(label = "Remise") {
                             ${[1,2,3,4,5,6,7,8,9,'.',0,'C'].map(n=>`<button data-key="${n}">${n}</button>`).join('')}
                         </div>
                         <div class="mt-2 text-end">
-                            <button class="btn btn-sm btn-secondary me-1" id="discount-cancel">Annuler</button>
-                            <button class="btn btn-sm btn-primary" id="discount-ok">OK</button>
+                            <button class="btn btn-secondary me-1" id="discount-cancel">@t("btn.cancel")</button>
+                            <button class="btn btn-primary" id="discount-ok">@t("btn.save")</button>
                         </div>
                     </div>
                 </div>
@@ -330,7 +330,7 @@ async function showDiscountModal(label = "Remise") {
         modal.find("#discount-cancel").on("click", function() { modal.modal('hide'); modal.remove(); resolve(null); });
         modal.find("#discount-ok").on("click", function() {
             const val = parseFloat($input.val());
-            if(isNaN(val) || val<=0) return alert("Valeur invalide");
+            if(isNaN(val) || val<=0) return alert("@t("Amount not valid")");
             const type = modal.find("#discount-type").val();
             modal.modal('hide'); modal.remove();
             resolve({type,value:val,label});
@@ -446,26 +446,26 @@ function renderSalesTabs() {
                     <div class="alert alert-success text-start position-relative" role="alert" style="display:block; width:100%; font-weight:bold;">
                         <button type="button" class="btn btn-sm btn-secondary position-absolute top-0 end-0 m-1 toggle-totals" style="padding:0.1rem 0.3rem;">☰</button>
                         <div class="totals-hidden" style="display:none; font-weight:normal;">
-                            Total avant remise : $${totalAvantRemise.toFixed(2)} <br>
-                            Total remises : $${totalRemises.toFixed(2)}
+                            @t("Total before discount") : $${totalAvantRemise.toFixed(2)} <br>
+                            @t("Total discount") : $${totalRemises.toFixed(2)}
                             <hr />
                         </div>
                         Total final : $${total.toFixed(2)}
                     </div>
-                    <div>
-                        <button class="btn btn-sm btn-secondary cancel-sale" data-sale="${sale.id}">Annuler</button>
-                        <button class="btn btn-sm btn-success validate-sale" data-sale="${sale.id}">Valider</button>
-                        <button class="btn btn-sm btn-warning set-global-discount" data-sale="${sale.id}">Remise</button>
+                    <div class="d-flex gap-1">
+                        <button class="btn btn-secondary flex-fill cancel-sale" data-sale="${sale.id}">@t("btn.cancel")</button>
+                        <button class="btn btn-success flex-fill validate-sale" data-sale="${sale.id}">@t("btn.validate")</button>
+                        <button class="btn btn-warning flex-fill set-global-discount" data-sale="${sale.id}">@t("Add Discount")</button>
                     </div>
                 </div>
                 <div class="overflow-auto">
                     <table class="table table-striped sale-table mb-0">
                         <thead>
                             <tr>
-                                <th>Produit</th>
-                                <th>Qté</th>
-                                <th>Prix</th>
-                                <th>Total</th>
+                                <th>@t("product.name")</th>
+                                <th>@t("Qty")</th>
+                                <th>@t("product.price")</th>
+                                <th>@t("total_value")</th>
                                 <th></th>
                             </tr>
                         </thead>
@@ -485,12 +485,12 @@ function renderSalesTabs() {
                                                 <ul class="dropdown-menu">
                                                     <li>
                                                         <a class="dropdown-item remove-item" href="#" data-sale="${sale.id}" data-idx="${i}">
-                                                            <i class="bi bi-x-circle text-danger"></i> Supprimer
+                                                            <i class="bi bi-x-circle text-danger"></i> @t("btn. delete")
                                                         </a>
                                                     </li>
                                                     <li>
                                                         <a class="dropdown-item line-discount" href="#" data-sale="${sale.id}" data-idx="${i}">
-                                                            <i class="bi bi-percent text-warning"></i> Ajouter remise
+                                                            <i class="bi bi-percent text-warning"></i> @t("Add Discount")
                                                         </a>
                                                     </li>
                                                 </ul>
@@ -506,8 +506,8 @@ function renderSalesTabs() {
                         <table class="table table-sm table-striped mb-2 mt-2">
                             <thead>
                                 <tr>
-                                    <th>Remise</th>
-                                    <th>Valeur</th>
+                                    <th>@t("Discount")</th>
+                                    <th>@t("Value")</th>
                                     <th></th>
                                 </tr>
                             </thead>

@@ -659,4 +659,8 @@ return [
     "Add Discount" => "Add Discount",
     "Qty" => "Qty",
     "Value" => "Value",
+    "Total final" => "Total final",
+    "Global discount" => "Global discount",
+    "Payment methode" => "Payment method",
+    "Sale validation" => "Sale validation",
 ];

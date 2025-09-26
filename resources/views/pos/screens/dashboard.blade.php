@@ -237,6 +237,20 @@ function setInitialWidths() {
 }
 
 $(document).ready(function() {
+
+    $(".toggle-totals").off("click").on("click", function() {
+        const $totals = $(this).siblings(".totals-hidden");
+        $totals.toggle(); // affiche / masque
+
+        // Change l'icône
+        const $icon = $(this).find("i");
+        if($totals.is(":visible")) {
+            $icon.removeClass("bi-caret-down-fill").addClass("bi-caret-up-fill");
+        } else {
+            $icon.removeClass("bi-caret-up-fill").addClass("bi-caret-down-fill");
+        }
+    });
+
     $("#btn-open-menu").on("click", function() {
         $("#side-menu").css("width", "30%");
         $("#side-menu-overlay").show();
@@ -299,15 +313,13 @@ async function showDiscountModal(label = "Discount") {
                 <div class="modal-dialog modal-sm">
                     <div class="modal-content p-3 text-center">
                         <h5>${label}</h5>
-                        <div class="mb-2">
-                            <select id="discount-type" class="form-select">
-                                <option value="amount">@t("Montant")</option>
-                                <option value="percent">@t("Percent")</option>
-                            </select>
+                        <div class="mb-2 d-flex gap-1">
+                            <button type="button" class="btn btn-outline-primary flex-fill discount-toggle active" data-type="amount">@t("Montant")</button>
+                            <button type="button" class="btn btn-outline-primary flex-fill discount-toggle" data-type="percent">@t("Percent")</button>
                         </div>
                         <input type="text" id="discount-value" class="form-control mb-2" readonly>
-                        <div id="discount-keypad">
-                            ${[1,2,3,4,5,6,7,8,9,'.',0,'C'].map(n=>`<button data-key="${n}">${n}</button>`).join('')}
+                        <div id="discount-keypad" class="d-flex flex-wrap justify-content-center gap-1">
+                            ${[1,2,3,4,5,6,7,8,9,'.',0,'C'].map(n=>`<button class="btn btn-secondary btn-sm" data-key="${n}">${n}</button>`).join('')}
                         </div>
                         <div class="mt-2 text-end">
                             <button class="btn btn-secondary me-1" id="discount-cancel">@t("btn.cancel")</button>
@@ -317,26 +329,42 @@ async function showDiscountModal(label = "Discount") {
                 </div>
             </div>
         `);
+
         $("body").append(modal);
         modal.modal('show');
 
         const $input = modal.find("#discount-value");
+
+        // Toggle buttons
+        modal.find(".discount-toggle").on("click", function() {
+            modal.find(".discount-toggle").removeClass("active");
+            $(this).addClass("active");
+        });
+
+        // Keypad
         modal.find("#discount-keypad button").on("click", function() {
             const k = $(this).data("key");
             if(k==='C') $input.val('');
             else $input.val($input.val()+k);
         });
 
-        modal.find("#discount-cancel").on("click", function() { modal.modal('hide'); modal.remove(); resolve(null); });
+        modal.find("#discount-cancel").on("click", function() { 
+            modal.modal('hide'); 
+            modal.remove(); 
+            resolve(null); 
+        });
+
         modal.find("#discount-ok").on("click", function() {
             const val = parseFloat($input.val());
-            if(isNaN(val) || val<=0) return alert("@t("Amount not valid")");
-            const type = modal.find("#discount-type").val();
-            modal.modal('hide'); modal.remove();
+            if(isNaN(val) || val<=0) return alert("@t('Amount not valid')");
+            const type = modal.find(".discount-toggle.active").data("type");
+            modal.modal('hide'); 
+            modal.remove();
             resolve({type,value:val,label});
         });
     });
 }
+
 
 function addNewSale() {
     const newSale = { 
@@ -444,13 +472,15 @@ function renderSalesTabs() {
             <div class="tab-pane mt-2 fade ${activeClass?'show active':''}" id="sale-${sale.id}" style="${activeClass ? 'height:100%;' : ''}">
                 <div class="sale-footer border-top pt-2 mt-2">
                     <div class="alert alert-success text-start position-relative" role="alert" style="display:block; width:100%; font-weight:bold;">
-                        <button type="button" class="btn btn-sm btn-secondary position-absolute top-0 end-0 m-1 toggle-totals" style="padding:0.1rem 0.3rem;">☰</button>
+                        <button type="button" class="btn btn-sm btn-secondary position-absolute top-0 end-0 m-1 toggle-totals" style="padding:0.1rem 0.3rem;">
+                            <i class="bi bi-caret-down-fill"></i>
+                        </button>
                         <div class="totals-hidden" style="display:none; font-weight:normal;">
                             @t("Total before discount") : $${totalAvantRemise.toFixed(2)} <br>
                             @t("Total discount") : $${totalRemises.toFixed(2)}
                             <hr />
                         </div>
-                        Total final : $${total.toFixed(2)}
+                        @t("Total final") : $${total.toFixed(2)}
                     </div>
                     <div class="d-flex gap-1">
                         <button class="btn btn-secondary flex-fill cancel-sale" data-sale="${sale.id}">@t("btn.cancel")</button>
@@ -485,7 +515,7 @@ function renderSalesTabs() {
                                                 <ul class="dropdown-menu">
                                                     <li>
                                                         <a class="dropdown-item remove-item" href="#" data-sale="${sale.id}" data-idx="${i}">
-                                                            <i class="bi bi-x-circle text-danger"></i> @t("btn. delete")
+                                                            <i class="bi bi-x-circle text-danger"></i> @t("btn.delete")
                                                         </a>
                                                     </li>
                                                     <li>
@@ -534,7 +564,7 @@ function renderSalesTabs() {
         handleSaleValidation(saleId);
     });
 
-    $(".set-global-discount").off("click").on("click", async function(){ const saleId=$(this).data("sale"); const sale=sales.find(s=>s.id===saleId); if(!sale) return; const d=await showDiscountModal("Remise globale"); if(!d) return; sale.discounts=sale.discounts||[]; sale.discounts.push(d); renderSalesTabs(); saveSalesToLocal(); });
+    $(".set-global-discount").off("click").on("click", async function(){ const saleId=$(this).data("sale"); const sale=sales.find(s=>s.id===saleId); if(!sale) return; const d=await showDiscountModal("@t("Global discount")"); if(!d) return; sale.discounts=sale.discounts||[]; sale.discounts.push(d); renderSalesTabs(); saveSalesToLocal(); });
     $(".line-discount").off("click").on("click", async function(){ const saleId=$(this).data("sale"); const idx=$(this).data("idx"); const sale=sales.find(s=>s.id===saleId); if(!sale) return; const item=sale.items[idx]; if(!item) return; const d=await showDiscountModal("Remise ligne"); if(!d) return; item.discounts=item.discounts||[]; item.discounts.push(d); renderSalesTabs(); saveSalesToLocal(); });
 
     $(".remove-discount").off("click").on("click", function(){
@@ -694,6 +724,111 @@ function initDashboard() {
         const product = catalog.data.find(p => p.ean === ean);
         if (product) addProductToActiveSale(product);
     });
+}
+
+function showSaleValidationModal(sale) {
+    return new Promise(resolve => {
+        $("#saleValidateModal").remove();
+        const payments = db.table("payments").data || [];
+        const discountSummary = [];
+
+        sale.items.forEach(item => {
+            if(item.discounts) item.discounts.forEach(d => discountSummary.push({label:`${item.name.en}`, type:d.type, value:d.value}));
+        });
+        if(sale.discounts) sale.discounts.forEach(d => discountSummary.push({label:d.label, type:d.type, value:d.value}));
+
+        let total = 0;
+        sale.items.forEach(item => {
+            let t = item.price*item.quantity;
+            if(item.discounts)item.discounts.forEach(d=>{
+                if(d.type==='amount') t-=d.value;
+                else if(d.type==='percent') t*=(1-d.value/100);
+            });
+            total+=t;
+        });
+        if(sale.discounts) sale.discounts.forEach(d=>{
+            if(d.type==='amount') total-=d.value;
+            else if(d.type==='percent') total*=(1-d.value/100);
+        });
+
+        const modalHtml = `
+            <div class="modal fade" id="saleValidateModal" tabindex="-1">
+                <div class="modal-dialog">
+                    <div class="modal-content p-3">
+                        <h5>@t("Sale validation") ${sale.label}</h5>
+                        <div class="mb-2">
+                            <label>@t("Payment methode")</label>
+                            <select class="form-select" id="sale-payment">
+                                ${payments.map(p=>`<option value="${p.code}">${p.name}</option>`).join('')}
+                            </select>
+                        </div>
+                        <div class="mb-2"><strong>@t("total_value") : ${total.toFixed(2)}</strong></div>
+                        ${discountSummary.length?`
+                            <table class="table table-sm table-bordered mb-2">
+                                <thead><tr><th>@t("Discount")</th><th>@t("Value")</th></tr></thead>
+                                <tbody>
+                                    ${discountSummary.map(d=>`<tr><td>${d.label}</td><td>${d.type==='percent'?d.value+'%':d.value.toFixed(2)}</td></tr>`).join('')}
+                                </tbody>
+                            </table>`:''}
+                        <div class="text-end">
+                            <button class="btn btn-secondary me-1" id="sale-cancel">@t("btn.cancel")</button>
+                            <button class="btn btn-success" id="sale-confirm">@t("btn.validate")</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        $("body").append(modalHtml);
+        const modalEl = document.getElementById("saleValidateModal");
+        const modal = new bootstrap.Modal(modalEl, {backdrop:'static',keyboard:false});
+        modal.show();
+
+        $("#sale-cancel").off("click").on("click",()=>{ modal.hide(); modalEl.remove(); resolve(false); });
+        $("#sale-confirm").off("click").on("click",()=>{
+            const payment = $("#sale-payment").val();
+            sale.payment_type = payment;
+            sale.synced = false;
+            modal.hide(); modalEl.remove();
+            resolve(true);
+        });
+    });
+}
+function handleSaleValidation(saleId) {
+    const saleIndex = sales.findIndex(s => s.id === saleId);
+    if (saleIndex === -1) return;
+
+    const sale = sales[saleIndex];
+
+    showSaleValidationModal(sale).then(valid => {
+        if (valid) {
+            // Marquer comme validée et sauvegarder
+            sale.payment_type = sale.payment_type || 'unknown';
+            sale.synced = false;
+            sale.validated = true;
+
+            // Sauvegarder dans une clé dédiée aux ventes validées
+            saveValidatedSaleToLocal(sale);
+
+            // Retirer de la liste active
+            sales.splice(saleIndex, 1);
+            saveSalesToLocal();
+
+            renderSalesTabs();   // Actualise l'affichage, l'onglet disparaît
+
+            if(sales.length == 0) {
+                addNewSale();        // Crée automatiquement une nouvelle vente
+            }
+            alert(`Vente ${sale.label} validée et enregistrée !`);
+        }
+    });
+}
+function saveValidatedSaleToLocal(sale) {
+    if (!currentShift) return;
+    const key = `pos_sales_validated_shift_${currentShift.id}`;
+    let validatedSales = JSON.parse(localStorage.getItem(key)) || [];
+    validatedSales.push(sale);
+    localStorage.setItem(key, JSON.stringify(validatedSales));
+    console.log("Vente validée sauvegardée :", sale);
 }
 </script>
 @endpush

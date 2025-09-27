@@ -534,140 +534,6 @@ function initShiftend() {
 }
 
 // --------------------
-// Dashboard (nouveau layout)
-// --------------------
-/*
-function renderSalesTabs() {
-    alert('a');
-    const $tabs = $("#sales-tabs");
-    const $contents = $("#sales-contents");
-    $tabs.empty();
-    $contents.empty();
-
-    if (sales.length === 0) {
-        $tabs.append(`<li class="nav-item"><span class="nav-link disabled">Aucune vente</span></li>`);
-        return;
-    }
-
-    sales.forEach(sale => {
-        const activeClass = sale.id === activeSaleId ? "active" : "";
-        const $tabBtn = $(`<li class="nav-item"><button class="nav-link ${activeClass}" data-sale="${sale.id}">Vente ${sale.label}</button></li>`);
-        $tabs.append($tabBtn);
-        $tabBtn.find("button").off("click").on("click", function() {
-            activeSaleId = sale.id;
-            renderSalesTabs();
-        });
-
-        const rows = sale.items.map((item, idx) => {
-            const lineTotal = item.quantity * item.price - (item.discount||0);
-            return `
-                <tr>
-                    <td>${item.name.en}</td>
-                    <td>${item.quantity}</td>
-                    <td>${item.price.toFixed(2)}</td>
-                    <td>${lineTotal.toFixed(2)}</td>
-                    <td><button class="btn btn-sm btn-danger remove-item" data-sale="${sale.id}" data-idx="${idx}">Supprimer</button></td>
-                    <td><button class="btn btn-sm btn-warning set-item-discount" data-sale="${sale.id}" data-idx="${idx}">Remise</button></td>
-                </tr>
-            `;
-        }).join("");
-
-        const total = sale.items.reduce((sum, i) => sum + i.price * i.quantity - (i.discount||0), 0) - (sale.discount_total||0);
-
-        const $pane = $(`
-            <div class="tab-pane p-2 ${sale.id === activeSaleId ? "show active" : ""}" id="sale-${sale.id}">
-                <table class="table table-sm table-bordered mb-2">
-                    <thead>
-                        <tr>
-                            <th>Produit</th>
-                            <th>Qté</th>
-                            <th>PU</th>
-                            <th>Total</th>
-                            <th></th>
-                            <th></th>
-                        </tr>
-                    </thead>
-                    <tbody>${rows}</tbody>
-                </table>
-                <div class="d-flex justify-content-between align-items-center border-top pt-2">
-                    <h5 class="mb-0">Total : ${total.toFixed(2)}</h5>
-                    <div>
-                        <button class="btn btn-outline-warning me-2 sale-discount" data-sale="${sale.id}">Remise</button>
-                        <button class="btn btn-outline-danger me-2 cancel-sale" data-sale="${sale.id}">Annuler</button>
-                        <button class="btn btn-success validate-sale" data-sale="${sale.id}">Valider</button>
-                    </div>
-                </div>
-            </div>
-        `);
-        $contents.append($pane);
-    });
-
-    // Handlers
-    $(".remove-item").off("click").on("click", function() {
-        const saleId = $(this).data("sale");
-        const idx = $(this).data("idx");
-        const sale = sales.find(s => s.id === saleId);
-        sale.items.splice(idx, 1);
-        renderSalesTabs();
-        saveSalesToLocal();
-    });
-
-    /*
-    $(".cancel-sale").off("click").on("click", function() {
-        const saleId = $(this).data("sale");
-        if (!confirm("Annuler cette vente ?")) return;
-        sales = sales.filter(s => s.id !== saleId);
-        activeSaleId = sales.length ? sales[0].id : null;
-        renderSalesTabs();
-        saveSalesToLocal();
-    });
-
-    $(".validate-sale").off("click").on("click", function() {
-        const saleId = $(this).data("sale");
-        const sale = sales.find(s => s.id === saleId);
-        if (!sale) return;
-
-        const type = prompt("Type de paiement (cash, aba, virement):", "cash");
-        if (!type) return;
-
-        sale.payment_type = type;
-        sale.synced = false;
-        renderSalesTabs();
-        saveSalesToLocal();
-
-        alert(`Vente ${sale.label} validée`);
-    });
-
-    $(".set-item-discount").off("click").on("click", async function() {
-        const saleId = $(this).data("sale");
-        const idx = $(this).data("idx");
-        const sale = sales.find(s => s.id === saleId);
-        if (!sale) return;
-        const item = sale.items[idx];
-        const value = await showNumericModal(`Remise pour ${item.name.en}`);
-        if (value > 0) {
-            item.discount = value;
-            renderSalesTabs();
-            saveSalesToLocal();
-        }
-    });
-
-    $(".sale-discount").off("click").on("click", async function() {
-        const saleId = $(this).data("sale");
-        const sale = sales.find(s => s.id === saleId);
-        if (!sale) return;
-        const value = await showNumericModal(`Remise globale pour la vente`);
-        if (value > 0) {
-            sale.discount_total = value;
-            renderSalesTabs();
-            saveSalesToLocal();
-        }
-    });
-}
-*/
-
-
-// --------------------
 // Recherche produit dans dashboard
 // --------------------
 async function performSearchAndShowModal(query) {
@@ -789,6 +655,176 @@ async function initPOS() {
     }
 }
 
+function initSalesHistory() {
+    const $tableBody = $("#sales-history-table tbody");
+
+    // --- Affichage résumé du shift ---
+    const start = currentShift.started_at ? new Date(currentShift.started_at) : null;
+    const end = currentShift.ended_at ? new Date(currentShift.ended_at) : new Date(); // si pas terminé, on prend maintenant
+
+    // Format avec année sur 2 chiffres
+    const fmt = d => d ? d.toLocaleString("fr-FR", { 
+        year: "2-digit", month: "2-digit", day: "2-digit", 
+        hour: "2-digit", minute: "2-digit" 
+    }) : "-";
+
+    // Calcul durée en heures (arrondi 2 décimales)
+    let duration = "-";
+    if (start) {
+        const diffMs = end - start;
+        const diffHrs = diffMs / (1000 * 60 * 60);
+        duration = diffHrs.toFixed(2) + " h";
+    }
+
+    $("#shift-id").text(currentShift.id);
+    $("#shift-start").text(fmt(start));
+    $("#shift-end").text(currentShift.ended_at ? fmt(end) : window.i18n.running);
+    $("#shift-duration").text(duration);
+    $("#shift-seller").text(currentUser?.name || "-");
+
+    // Bouton retour Dashboard
+    $("#btn-back-dashboard").off("click").on("click", () => {
+        showScreen("dashboard");
+    });
+
+    // --- Récupération et traitement des ventes validées ---
+    const key = `pos_sales_validated_shift_${currentShift.id}`;
+    const stored = JSON.parse(localStorage.getItem(key)) || [];
+    const validatedSales = stored.filter(s => s.validated);
+
+    let totalByPayment = {};
+    let totalArticles = 0;
+    let totalDiscounts = 0;
+
+    validatedSales.forEach(sale => {
+        const numArticles = sale.items.reduce((sum, item) => sum + item.quantity, 0);
+        totalArticles += numArticles;
+        totalDiscounts += sale.discount_total || 0;
+
+        const type = sale.payment_type || "UNKNOWN";
+        if (!totalByPayment[type]) totalByPayment[type] = 0;
+        totalByPayment[type] += sale.total || 0;
+    });
+
+    const totalSalesAmount = Object.values(totalByPayment).reduce((sum, v) => sum + v, 0);
+
+    $("#summary-total-amount").text("$" + totalSalesAmount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}));
+    $("#summary-sales-count").text(validatedSales.length.toLocaleString());
+    $("#summary-discounts-total").text("$" + totalDiscounts.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}));
+    $("#summary-items-count").text(totalArticles);
+
+    const $paymentTableBody = $("#summary-payment-table tbody").empty();
+    Object.entries(totalByPayment).forEach(([type, amount]) => {
+        $paymentTableBody.append(`
+            <tr>
+                <td>${type}</td>
+                <td>$${amount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+            </tr>
+        `);
+    });
+
+    $tableBody.empty();
+    validatedSales.forEach(sale => {
+        const numProducts = sale.items.reduce((sum, item) => sum + item.quantity, 0);
+        const totalBeforeDiscount = sale.items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+        const payment = sale.payment_type || "";
+        const syncedText = sale.synced ? window.i18n.yes : window.i18n.no;
+        const syncedBadge = sale.synced 
+            ? `<span class="badge bg-success">${syncedText}</span>` 
+            : `<span class="badge bg-danger">${syncedText}</span>`;
+        const saleDate = sale.date || new Date(sale.id).toLocaleString();
+
+        const $row = $(`
+            <tr>
+                <td>${saleDate}</td>
+                <td class="text-center">${numProducts}</td>
+                <td class="text-center">$${totalBeforeDiscount.toFixed(2)}</td>
+                <td class="text-center">$${(sale.total || 0).toFixed(2)}</td>
+                <td class="text-center">${payment}</td>
+                <td class="text-center">${syncedBadge}</td>
+                <td><button class="btn btn-info view-sale-detail" data-id="${sale.id}"><i class="bi bi-eye"></i></button></td>
+            </tr>
+        `);
+
+        $row.find(".view-sale-detail").off("click").on("click", function() {
+            const saleId = $(this).data("id");
+            showSaleDetail(saleId);
+        });
+
+        $tableBody.append($row);
+    });
+}
+
+function showSaleDetail(saleId) {
+    const key = `pos_sales_validated_shift_${currentShift.id}`;
+    const stored = JSON.parse(localStorage.getItem(key)) || [];
+    const sale = stored.find(s => s.id === saleId);
+
+    if (!sale) {
+        alert("Vente introuvable");
+        return;
+    }
+
+    // --- Produits ---
+    const $tbody = $("#sale-items-table tbody").empty();
+    sale.items.forEach(item => {
+        const discounts = item.discounts && item.discounts.length
+            ? item.discounts.map(d => {
+                if (d.type === "amount") {
+                    return `${d.label} ($${parseFloat(d.value).toFixed(2)})`;
+                } else {
+                    return `${d.label} (${d.value}%)`;
+                }
+            }).join(", ")
+            : "-";
+        const rowHtml = `
+            <tr>
+                <td>${item.name.en}</td>
+                <td class="text-center">${item.quantity}</td>
+                <td class="text-center">$${item.price.toFixed(2)}</td>
+                <td class="text-center">$${item.line_total.toFixed(2)}</td>
+                <td>${discounts}</td>
+            </tr>
+        `;
+        $tbody.append(rowHtml);
+    });
+
+    // --- Détails financiers ---
+    const totalBeforeDiscount = sale.items.reduce((sum, i) => sum + i.price * i.quantity, 0);
+    const totalDiscounts =  totalBeforeDiscount - sale.total || 0;
+    const finalTotal = sale.total || 0;
+    $("#detail-total-before-discount").text("$" + totalBeforeDiscount.toFixed(2));
+    $("#detail-discounts-total").text("$" + totalDiscounts.toFixed(2));
+    $("#detail-final-total").text("$" + finalTotal.toFixed(2));
+    $("#detail-payment-type").text(sale.payment_type || "");
+
+    // --- Réductions globales ---
+    const $globalDiscountsTbody = $("#sale-global-discounts tbody").empty();
+    if (sale.discounts && sale.discounts.length) {
+        sale.discounts.forEach(discount => {
+            const rowHtml = `
+                <tr>
+                    <td>${discount.label}</td>
+                    <td>${discount.type}</td>
+                    <td>${discount.value}</td>
+                </tr>
+            `;
+            $globalDiscountsTbody.append(rowHtml);
+        });
+    } else {
+        $globalDiscountsTbody.append('<tr><td colspan="3">' + window.i18n.No_global_discount + '</td></tr>');
+    }
+
+    // --- Bouton retour ---
+    $("#btn-back-sales-history").off("click").on("click", () => {
+        showScreen("sales-history");
+    });
+
+    // --- Affiche l'écran ---
+    showScreen("sale-detail");
+}
+
+
 // Logout handler
 function logout() {
     currentUser = null;
@@ -802,6 +838,10 @@ function logout() {
 $(document).on("click", "#btn-logout", logout);
 $(document).on("click", "#btn-end-shift", function() {
     if (currentUser) showScreen("shiftend");
+});
+$(document).on("click", "#btn-journal", function() {
+    if (currentUser) showScreen("sales-history");
+    initSalesHistory();
 });
 
 // start

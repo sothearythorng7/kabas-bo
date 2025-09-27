@@ -10,8 +10,9 @@
                         <button class="btn btn-sm btn-outline-dark" id="btn-close-menu"><i class="bi bi-x-lg"></i></button>
                     </div>
                     <div class="p-3">
-                        <button id="btn-logout" class="btn btn-sm btn-danger d-none">@t("logout")</button>
-                        <button id="btn-end-shift" class="btn btn-sm btn-warning d-none ms-2">@t("Close Shift")</button>
+                        <button id="btn-logout" class="btn btn-danger w-100 mb-2">@t("logout")</button>
+                        <button id="btn-end-shift" class="btn btn-warning w-100 mb-2">@t("Close Shift")</button>
+                        <button id="btn-journal" class="btn btn-primary w-100 mb-2">journal</button>
                     </div>
                 </div>
 

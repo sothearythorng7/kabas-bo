@@ -29,6 +29,8 @@
             @include('pos.screens.login')
             @include('pos.screens.shift-start')
             @include('pos.screens.shift-end')
+            @include('pos.screens.journal')
+            @include('pos.screens.sale-detail')
         </div>
     </div>
 
@@ -60,5 +62,14 @@
             </div>
         </div>
     </div>
+
+    <script>
+    window.i18n = {
+        yes: @json(__('messages.yes')),
+        no: @json(__('messages.no')),
+        running: @json(__('messages.en_cours')),
+        No_global_discount: @json(__('messages.No_global_discount')),
+    };
+    </script>
 </body>
 </html>

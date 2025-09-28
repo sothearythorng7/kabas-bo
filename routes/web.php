@@ -335,7 +335,7 @@ Route::get('/pos', function () {
     return view('pos.index');
 });
 
-Route::prefix('api/pos')->group(function () {
+Route::prefix('api/pos')->middleware('api')->group(function () {
     Route::get('products', [ProductController::class, 'index']);
     Route::post('sync', [SyncController::class, 'sync']);
     Route::get('users', [SyncController::class, 'users']);
@@ -345,6 +345,8 @@ Route::prefix('api/pos')->group(function () {
     Route::get('shifts/current/{userId}', [ShiftController::class, 'currentShift']);
     Route::post('shifts/start', [ShiftController::class, 'start']);
     Route::post('shifts/end', [ShiftController::class, 'end']);
+
+    Route::post('sales/sync', [SyncController::class, 'sales']);
 });
 
 

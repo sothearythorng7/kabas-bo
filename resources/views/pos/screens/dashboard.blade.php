@@ -605,7 +605,7 @@ function addProductToActiveSale(product) {
     if (!sale) return;
     const existing = sale.items.find(i => i.ean === product.ean);
     if (existing) existing.quantity += 1;
-    else sale.items.push({ ean: product.ean, name: product.name, price: parseFloat(product.price), quantity: 1, discounts: [] });
+    else sale.items.push({ product_id: product.id, ean: product.ean, name: product.name, price: parseFloat(product.price), quantity: 1, discounts: [] });
     renderSalesTabs(); saveSalesToLocal();
 }
 
@@ -642,7 +642,7 @@ function renderCatalog() {
         const title = (product.name && product.name.en) ? product.name.en : (product.name || product.title || 'Produit');
         $row.append(`
             <div class="col-3">
-                <div class="product-card" data-ean="${product.ean}">
+                <div class="product-card" data-ean="${product.ean}" data-id="${product.id}">
                     <img src="${imgUrl}" alt="${title}">
                     <div><small>${title}</small></div>
                 </div>

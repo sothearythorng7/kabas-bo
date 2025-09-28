@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use App\Models\Sale;
 
 class Shift extends Model
 {
@@ -21,5 +22,10 @@ class Shift extends Model
     public function store()
     {
         return $this->belongsTo(Store::class);
+    }
+
+    public function sales()
+    {
+        return $this->hasMany(Sale::class);
     }
 }

@@ -26,8 +26,11 @@ let currentCategoryPath = []; // chemin courant pour navigation dans l'arbre
 function calculateAndSaveSale(sale, currentShift) {
     if (!sale || !currentShift) return;
 
-    // 1️⃣ Calcul du total par ligne en appliquant les remises
     sale.items.forEach(item => {
+        if (!item.product_id && item.id) {
+            item.product_id = item.id;
+        }
+
         let lineTotal = item.price * item.quantity;
 
         if (item.discounts && item.discounts.length > 0) {
@@ -59,6 +62,100 @@ function calculateAndSaveSale(sale, currentShift) {
     else sales.push(sale);
 
     localStorage.setItem(key, JSON.stringify(sales));
+}
+
+async function syncSalesToBO() {
+    if (!currentShift) return;
+
+    const payload = prepareSalesSync();
+    if (!payload || !payload.length) return;
+
+    try {
+        const res = await fetch(`http://kabas.dev-back.fr/api/pos/sales/sync`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': getCsrfToken(),
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ shift_id: currentShift.id, sales: payload })
+        });
+
+        const data = await res.json();
+        if (data.status === 'success') {
+            // marquer les ventes locales comme synchronisées
+            const key = `pos_sales_validated_shift_${currentShift.id}`;
+            const stored = JSON.parse(localStorage.getItem(key)) || [];
+            data.synced_sales.forEach(localId => {
+                const sale = stored.find(s => s.id === localId);
+                if (sale) sale.synced = true;
+            });
+            localStorage.setItem(key, JSON.stringify(stored));
+            console.log("Ventes synchronisées :", data.synced_sales);
+        }
+    } catch (err) {
+        console.error("Erreur synchronisation ventes :", err);
+    }
+}
+
+// auto-sync toutes les 30s
+setInterval(syncSalesToBO, 30000);
+
+
+function prepareSalesSync() {
+    if (!currentShift) {
+        console.warn("Aucun shift actif pour synchroniser les ventes.");
+        return;
+    }
+
+    const key = `pos_sales_validated_shift_${currentShift.id}`;
+    const validatedSales = JSON.parse(localStorage.getItem(key)) || [];
+
+    const unsyncedSales = validatedSales.filter(s => !s.synced);
+
+    if (unsyncedSales.length === 0) {
+        console.log("Aucune vente en attente de synchronisation.");
+        return;
+    }
+
+    const payload = unsyncedSales.map(sale => ({
+        id: sale.id,
+        label: sale.label,
+        payment_type: sale.payment_type,
+        items: sale.items.map(item => ({
+            product_id: item.product_id,
+            name: item.name || null,
+            ean: item.ean || null,
+            price: item.price,
+            quantity: item.quantity,
+            discounts: item.discounts || []
+        })),
+        discounts: sale.discounts || [],
+        total: calculateSaleTotal(sale)
+    }));
+
+    console.log("JSON prêt pour synchronisation :", JSON.stringify(payload, null, 2));
+    return payload;
+}
+
+
+// Fonction utilitaire pour calculer le total final d'une vente
+function calculateSaleTotal(sale) {
+    let total = 0;
+    sale.items.forEach(item => {
+        let t = item.price * item.quantity;
+        if (item.discounts) item.discounts.forEach(d => {
+            if (d.type === 'amount') t -= d.value;
+            else if (d.type === 'percent') t *= (1 - d.value / 100);
+        });
+        total += t;
+    });
+    if (sale.discounts) sale.discounts.forEach(d => {
+        if (d.type === 'amount') total -= d.value;
+        else if (d.type === 'percent') total *= (1 - d.value / 100);
+    });
+    return total;
 }
 
 
@@ -322,6 +419,7 @@ function showProductsByCategory(path) {
             if (!sale) addNewSale();
             const targetSale = sales.find(s => s.id === activeSaleId);
             targetSale.items.push({
+                product_id: product.id,
                 id: product.id,
                 name: product.name,
                 price: parseFloat(product.price),
@@ -584,6 +682,7 @@ async function performSearchAndShowModal(query) {
             if (!sale) addNewSale();
             const targetSale = sales.find(s => s.id === activeSaleId);
             targetSale.items.push({
+                product_id: product.id,
                 id: product.id,
                 name: product.name,
                 price: parseFloat(product.price),

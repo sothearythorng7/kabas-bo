@@ -20,6 +20,55 @@ class SyncController extends Controller
             ->get();
     }
 
+    public function sales(Request $request)
+    {
+        $data = $request->validate([
+            'shift_id' => 'required|exists:shifts,id',
+            'sales' => 'required|array',
+            'sales.*.id' => 'required', // id local du POS
+            'sales.*.payment_type' => 'required|string',
+            'sales.*.total' => 'required|numeric',
+            'sales.*.discounts' => 'nullable|array',
+            'sales.*.items' => 'required|array|min:1',
+            'sales.*.items.*.product_id' => 'required|exists:products,id',
+            'sales.*.items.*.quantity' => 'required|integer|min:1',
+            'sales.*.items.*.price' => 'required|numeric',
+            'sales.*.items.*.discounts' => 'nullable|array',
+        ]);
+
+        $shift = \App\Models\Shift::findOrFail($data['shift_id']);
+
+        $syncedSales = [];
+
+        foreach ($data['sales'] as $saleData) {
+            $sale = \App\Models\Sale::create([
+                'shift_id' => $shift->id,
+                'payment_type' => $saleData['payment_type'],
+                'total' => $saleData['total'],
+                'discounts' => $saleData['discounts'] ?? [],
+                'synced_at' => now(),
+            ]);
+
+            foreach ($saleData['items'] as $item) {
+                \App\Models\SaleItem::create([
+                    'sale_id' => $sale->id,
+                    'product_id' => $item['product_id'],
+                    'quantity' => $item['quantity'],
+                    'price' => $item['price'],
+                    'discounts' => $item['discounts'] ?? [],
+                ]);
+            }
+
+            $syncedSales[] = $saleData['id']; // renvoyer l'ID local pour marquer comme "synced"
+        }
+
+        return response()->json([
+            'status' => 'success',
+            'synced_sales' => $syncedSales
+        ]);
+    }
+
+
     public function catalog(Request $request, $storeId)
     {
         $store = Store::findOrFail($storeId);

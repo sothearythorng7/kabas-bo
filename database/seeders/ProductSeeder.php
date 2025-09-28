@@ -10,6 +10,7 @@ use App\Models\Supplier;
 use App\Models\Category;
 use Illuminate\Support\Str;
 use App\Models\StockBatch;
+use App\Models\StockTransaction;
 
 class ProductSeeder extends Seeder
 {
@@ -43,7 +44,7 @@ class ProductSeeder extends Seeder
                 'ean' => 'EAN' . str_pad($i, 8, '0', STR_PAD_LEFT),
                 'name' => $names,
                 'description' => $descriptions,
-                'price' => rand(50, 500),   
+                'price' => rand(50, 500),
                 'brand_id' => $brands->random()->id,
                 'color' => fake()->safeColorName(),
                 'size' => fake()->randomElement(['S', 'M', 'L', 'XL']),
@@ -68,18 +69,27 @@ class ProductSeeder extends Seeder
 
             // Créer des lots / batchs pour chaque magasin ou reseller
             $stores->each(function ($store) use ($product, $suppliers) {
-                if ($store->is_reseller) { // uniquement les magasins gérés comme revendeurs
+                if ($store->is_reseller) {
                     $numLots = rand(1, 3);
                     for ($j = 0; $j < $numLots; $j++) {
                         $supplier = $suppliers->random();
                         $qty = 50;
 
-                        StockBatch::create([
+                        $batch = StockBatch::create([
                             'product_id' => $product->id,
                             'store_id' => $store->id,
                             'quantity' => $qty,
                             'unit_price' => rand(20, 200),
-                            'source_delivery_id' => null, // pas de livraison initiale
+                            'source_delivery_id' => null,
+                        ]);
+
+                        StockTransaction::create([
+                            'stock_batch_id' => $batch->id,
+                            'store_id'       => $store->id,
+                            'product_id'     => $product->id,
+                            'type'           => 'in',
+                            'quantity'       => $qty,
+                            'reason'         => 'seeding',
                         ]);
                     }
                 }

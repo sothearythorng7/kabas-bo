@@ -14,6 +14,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use App\Models\StockTransaction;
 
 class ProductController extends Controller
 {
@@ -328,7 +329,7 @@ class ProductController extends Controller
         ]);
 
         $newQuantity = $request->stock_quantity;
-        $alertQuantity = $request->alert_stock_quantity ?? 0;
+        $alertQuantity = $request->stock_quantity ?? 0;
 
         DB::transaction(function() use ($product, $store, $newQuantity, $alertQuantity) {
             $currentStock = $product->stockBatches()
@@ -339,13 +340,25 @@ class ProductController extends Controller
 
             if ($difference != 0) {
                 if ($difference > 0) {
-                    StockBatch::create([
+                    // Création d'un batch pour l'ajustement positif
+                    $batch = StockBatch::create([
                         'product_id' => $product->id,
                         'store_id'   => $store->id,
                         'quantity'   => $difference,
                         'label'      => 'Ajustement manuel',
                     ]);
+
+                    StockTransaction::create([
+                        'stock_batch_id' => $batch->id,
+                        'store_id'       => $store->id,
+                        'product_id'     => $product->id,
+                        'type'           => 'in',
+                        'quantity'       => $difference,
+                        'reason'         => 'manual_adjustment',
+                        'user_id'        => auth()->id(),
+                    ]);
                 } else {
+                    // FIFO pour sortie
                     $remainingToDeduct = abs($difference);
                     $batches = $product->stockBatches()
                         ->where('store_id', $store->id)
@@ -354,28 +367,27 @@ class ProductController extends Controller
 
                     foreach ($batches as $batch) {
                         if ($remainingToDeduct <= 0) break;
+
                         $deduct = min($batch->quantity, $remainingToDeduct);
                         $batch->quantity -= $deduct;
                         $batch->save();
+
+                        StockTransaction::create([
+                            'stock_batch_id' => $batch->id,
+                            'store_id'       => $store->id,
+                            'product_id'     => $product->id,
+                            'type'           => 'out',
+                            'quantity'       => $deduct,
+                            'reason'         => 'manual_adjustment',
+                            'user_id'        => auth()->id(),
+                        ]);
+
                         $remainingToDeduct -= $deduct;
                     }
                 }
-
-                $movement = StockMovement::create([
-                    'type'    => StockMovement::TYPE_ADJUSTMENT,
-                    'note'    => 'Ajustement manuel',
-                    'user_id' => auth()->id(),
-                    'status'  => StockMovement::STATUS_VALIDATED,
-                    'to_store_id' => $difference > 0 ? $store->id : null,
-                    'from_store_id' => $difference < 0 ? $store->id : null,
-                ]);
-
-                $movement->items()->create([
-                    'product_id' => $product->id,
-                    'quantity'   => $difference,
-                ]);
             }
 
+            // Mise à jour de l'alerte
             $product->stores()->syncWithoutDetaching([
                 $store->id => ['alert_stock_quantity' => $alertQuantity]
             ]);

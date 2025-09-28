@@ -6,6 +6,7 @@ use App\Models\Product;
 use App\Models\Reseller;
 use App\Models\ResellerStockDelivery;
 use App\Models\StockBatch;
+use App\Models\StockTransaction;
 use App\Models\Store;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -32,11 +33,8 @@ class ResellerStockDeliveryController extends Controller
             $resellerObj = Reseller::findOrFail($reseller);
         }
 
-        // Warehouse
         $warehouse = Store::warehouse()->first();
 
-        // Si c'est un shop, on récupère tous les produits
-        // Sinon, seulement ceux resalable
         $query = Product::query();
         if (!$isShop) {
             $query->where('is_resalable', true);
@@ -54,7 +52,6 @@ class ResellerStockDeliveryController extends Controller
             'products' => $products,
         ]);
     }
-
 
     // Affichage d'une livraison
     public function show($reseller, ResellerStockDelivery $delivery)
@@ -181,6 +178,18 @@ class ResellerStockDeliveryController extends Controller
                     $toDeduct = min($batch->quantity, $remaining);
                     $batch->quantity -= $toDeduct;
                     $batch->save();
+
+                    // Transaction stock FIFO
+                    StockTransaction::create([
+                        'stock_batch_id' => $batch->id,
+                        'store_id'       => $warehouse->id,
+                        'product_id'     => $product->id,
+                        'type'           => 'out',
+                        'quantity'       => $toDeduct,
+                        'reason'         => 'reseller_delivery',
+                        'user_id'        => auth()->id(),
+                    ]);
+
                     $remaining -= $toDeduct;
                 }
 
@@ -224,7 +233,7 @@ class ResellerStockDeliveryController extends Controller
                 foreach ($delivery->products as $product) {
                     if ($isShop) {
                         $shopId = (int) str_replace('shop-', '', $reseller);
-                        StockBatch::create([
+                        $batch = StockBatch::create([
                             'store_id' => $shopId,
                             'reseller_id' => null,
                             'product_id' => $product->id,
@@ -233,7 +242,7 @@ class ResellerStockDeliveryController extends Controller
                             'source_delivery_id' => $delivery->id,
                         ]);
                     } else {
-                        StockBatch::create([
+                        $batch = StockBatch::create([
                             'store_id' => null,
                             'reseller_id' => $reseller,
                             'product_id' => $product->id,
@@ -242,6 +251,18 @@ class ResellerStockDeliveryController extends Controller
                             'source_delivery_id' => $delivery->id,
                         ]);
                     }
+
+                    // Transaction d'entrée stock
+                    StockTransaction::create([
+                        'stock_batch_id' => $batch->id,
+                        'store_id'       => $batch->store_id,
+                        'reseller_id'    => $batch->reseller_id,
+                        'product_id'     => $product->id,
+                        'type'           => 'in',
+                        'quantity'       => $product->pivot->quantity,
+                        'reason'         => 'reseller_delivery_received',
+                        'user_id'        => auth()->id(),
+                    ]);
                 }
             }
         });

@@ -11,7 +11,7 @@ class Sale extends Model
     use HasFactory;
 
     protected $fillable = [
-        'shift_id', 'payment_type', 'total', 'discounts', 'synced_at'
+        'shift_id', 'store_id', 'payment_type', 'total', 'discounts', 'synced_at', 'financial_transaction_id'
     ];
 
     protected $casts = [
@@ -23,7 +23,17 @@ class Sale extends Model
         return $this->belongsTo(Shift::class);
     }
 
+    public function store() {
+        return $this->belongsTo(Store::class);
+    }
+
     public function items() {
         return $this->hasMany(SaleItem::class);
     }
+
+    public function financialTransaction()
+    {
+        return $this->belongsTo(FinancialTransaction::class);
+    }
 }
+

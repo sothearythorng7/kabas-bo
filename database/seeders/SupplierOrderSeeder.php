@@ -8,6 +8,7 @@ use App\Models\Product;
 use App\Models\Store;
 use App\Models\SupplierOrder;
 use App\Models\StockBatch;
+use App\Models\StockTransaction;
 
 class SupplierOrderSeeder extends Seeder
 {
@@ -23,7 +24,6 @@ class SupplierOrderSeeder extends Seeder
         }
 
         foreach ($suppliers as $supplier) {
-            // Si supplier = consignement, on retire waiting_invoice
             $statusOptions = $supplier->type === 'consignment'
                 ? ['pending', 'waiting_reception']
                 : ['pending', 'waiting_reception', 'waiting_invoice'];
@@ -40,8 +40,6 @@ class SupplierOrderSeeder extends Seeder
                     $store = $stores->random();
                     $qtyOrdered = rand(5, 30);
                     $status = $statusOptions[array_rand($statusOptions)];
-
-                    // Correction : quantité reçue logique
                     $qtyReceived = $status === 'waiting_invoice' ? $qtyOrdered : 0;
 
                     $order = SupplierOrder::create([
@@ -64,7 +62,7 @@ class SupplierOrderSeeder extends Seeder
                     $remaining = $qtyReceived;
                     while ($remaining > 0) {
                         $lotQty = rand(1, min(10, $remaining));
-                        StockBatch::create([
+                        $batch = StockBatch::create([
                             'product_id'         => $product->id,
                             'store_id'           => $store->id,
                             'reseller_id'        => null,
@@ -72,6 +70,16 @@ class SupplierOrderSeeder extends Seeder
                             'unit_price'         => $purchasePrice,
                             'source_delivery_id' => null,
                         ]);
+
+                        StockTransaction::create([
+                            'stock_batch_id' => $batch->id,
+                            'store_id'       => $store->id,
+                            'product_id'     => $product->id,
+                            'type'           => 'in',
+                            'quantity'       => $lotQty,
+                            'reason'         => 'seeding',
+                        ]);
+
                         $remaining -= $lotQty;
                     }
 

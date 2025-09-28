@@ -9,6 +9,11 @@ use App\Models\Product;
 use App\Models\Category;
 use App\Models\FinancialPaymentMethod;
 use Illuminate\Http\Request;
+use App\Models\Sale;
+use App\Models\SaleItem;
+use App\Models\Shift;
+use App\Models\StockBatch;
+use App\Models\StockTransaction;
 
 class SyncController extends Controller
 {
@@ -25,7 +30,7 @@ class SyncController extends Controller
         $data = $request->validate([
             'shift_id' => 'required|exists:shifts,id',
             'sales' => 'required|array',
-            'sales.*.id' => 'required', // id local du POS
+            'sales.*.id' => 'required',
             'sales.*.payment_type' => 'required|string',
             'sales.*.total' => 'required|numeric',
             'sales.*.discounts' => 'nullable|array',
@@ -36,30 +41,100 @@ class SyncController extends Controller
             'sales.*.items.*.discounts' => 'nullable|array',
         ]);
 
-        $shift = \App\Models\Shift::findOrFail($data['shift_id']);
+        $shift = Shift::findOrFail($data['shift_id']);
+        $storeId = $shift->store_id;
+        $store = $shift->store;
+
+        $userId = $shift->user_id;
+
+        $financialAccount = \App\Models\FinancialAccount::where('code', '701')->first();
+        if (!$financialAccount) {
+            throw new \Exception("Le compte financier 701 est introuvable.");
+        }
 
         $syncedSales = [];
 
         foreach ($data['sales'] as $saleData) {
+            // 1️⃣ Création de la vente
             $sale = \App\Models\Sale::create([
                 'shift_id' => $shift->id,
+                'store_id' => $storeId,
                 'payment_type' => $saleData['payment_type'],
                 'total' => $saleData['total'],
                 'discounts' => $saleData['discounts'] ?? [],
                 'synced_at' => now(),
             ]);
 
-            foreach ($saleData['items'] as $item) {
-                \App\Models\SaleItem::create([
-                    'sale_id' => $sale->id,
-                    'product_id' => $item['product_id'],
-                    'quantity' => $item['quantity'],
-                    'price' => $item['price'],
-                    'discounts' => $item['discounts'] ?? [],
+            // 2️⃣ Décrémentation FIFO des stocks et enregistrement des mouvements
+            foreach ($saleData['items'] as $itemData) {
+                $remainingQty = $itemData['quantity'];
+
+                $batches = \App\Models\StockBatch::where('store_id', $storeId)
+                    ->where('product_id', $itemData['product_id'])
+                    ->where('quantity', '>', 0)
+                    ->orderBy('created_at', 'asc')
+                    ->get();
+
+                foreach ($batches as $batch) {
+                    if ($remainingQty <= 0) break;
+
+                    $deduct = min($batch->quantity, $remainingQty);
+
+                    $batch->decrement('quantity', $deduct);
+
+                    \App\Models\StockTransaction::create([
+                        'stock_batch_id' => $batch->id,
+                        'store_id' => $storeId,
+                        'product_id' => $itemData['product_id'],
+                        'type' => 'out',
+                        'quantity' => $deduct,
+                        'reason' => 'sale',
+                        'sale_id' => $sale->id,
+                        'shift_id' => $shift->id,
+                    ]);
+
+                    $remainingQty -= $deduct;
+                }
+
+                if ($remainingQty > 0) {
+                    // Optionnel : déclencher une exception ou log si stock insuffisant
+                }
+
+                // 3️⃣ Création de la transaction financière par vente
+                $lastTransaction = \App\Models\FinancialTransaction::where('store_id', $storeId)
+                    ->orderBy('transaction_date', 'desc')
+                    ->orderBy('id', 'desc')
+                    ->first();
+
+                $balanceBefore = $lastTransaction?->balance_after ?? 0;
+                $balanceAfter = $balanceBefore + $saleData['total'];
+
+                $paymentMethod = \App\Models\FinancialPaymentMethod::where('code', strtoupper($saleData['payment_type']))->first();
+                $paymentMethodId = $paymentMethod ? $paymentMethod->id : 1;
+
+                $financialTransaction = \App\Models\FinancialTransaction::create([
+                    'store_id' => $storeId,
+                    'account_id' => $financialAccount->id,
+                    'amount' => $saleData['total'],
+                    'currency' => 'EUR',
+                    'direction' => 'credit',
+                    'balance_before' => $balanceBefore,
+                    'balance_after' => $balanceAfter,
+                    'label' => "Vente POS #{$sale->id}",
+                    'description' => "Vente POS n°{$sale->id} au magasin {$store->name}, shift_id {$shift->id}, user_id {$userId}, paiement {$saleData['payment_type']}",
+                    'status' => 'validated',
+                    'transaction_date' => now(),
+                    'payment_method_id' => $paymentMethodId,
+                    'user_id' => $userId,
+                    'external_reference' => $sale->id,
                 ]);
+
+                // 4️⃣ Lien de la vente avec la transaction financière
+                $sale->financial_transaction_id = $financialTransaction->id;
+                $sale->save();
             }
 
-            $syncedSales[] = $saleData['id']; // renvoyer l'ID local pour marquer comme "synced"
+            $syncedSales[] = $saleData['id'];
         }
 
         return response()->json([
@@ -145,4 +220,35 @@ class SyncController extends Controller
             'children' => $this->buildCategoryTree($cat->id),
         ]);
     }
+
+    protected function decrementStockFIFO(int $storeId, int $productId, int $quantity): void
+    {
+        $remaining = $quantity;
+
+        // On récupère les lots dans l’ordre d’entrée (FIFO = plus anciens d’abord)
+        $batches = \App\Models\StockBatch::where('store_id', $storeId)
+            ->where('product_id', $productId)
+            ->where('quantity', '>', 0)
+            ->orderBy('created_at', 'asc')
+            ->get();
+
+        foreach ($batches as $batch) {
+            if ($remaining <= 0) break;
+
+            $deduct = min($batch->quantity, $remaining);
+            $batch->quantity -= $deduct;
+            $batch->save();
+
+            $remaining -= $deduct;
+        }
+
+        if ($remaining > 0) {
+            \Log::warning("Stock insuffisant pour décrémenter", [
+                'store_id'   => $storeId,
+                'product_id' => $productId,
+                'missing'    => $remaining,
+            ]);
+        }
+    }
+
 }

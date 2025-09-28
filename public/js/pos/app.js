@@ -135,7 +135,6 @@ function prepareSalesSync() {
         total: calculateSaleTotal(sale)
     }));
 
-    console.log("JSON prêt pour synchronisation :", JSON.stringify(payload, null, 2));
     return payload;
 }
 

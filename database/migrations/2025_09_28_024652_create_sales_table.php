@@ -11,6 +11,7 @@ return new class extends Migration
         Schema::create('sales', function (Blueprint $table) {
             $table->id();
             $table->foreignId('shift_id')->constrained()->onDelete('cascade');
+            $table->foreignId('financial_transaction_id')->nullable()->constrained('financial_transactions')->cascadeOnDelete();
             $table->string('payment_type');
             $table->decimal('total', 10, 2);
             $table->json('discounts')->nullable();

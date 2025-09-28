@@ -17,6 +17,7 @@ use Barryvdh\DomPDF\Facade\Pdf;
 use App\Models\SupplierOrderInvoiceLine;
 use App\Models\PriceDifference;
 use Illuminate\Support\Facades\Session;
+use App\Models\StockTransaction;
 
 
 class SupplierOrderController extends Controller
@@ -160,14 +161,24 @@ class SupplierOrderController extends Controller
                 'quantity_received' => $qtyReceived,
             ]);
 
-            $b = StockBatch::create([
+            $batch = StockBatch::create([
                 'product_id'               => $productId,
                 'store_id'                 => $store->id,
                 'reseller_id'              => null,
                 'quantity'                 => $qtyReceived,
                 'unit_price'               => $order->products()->where('product_id', $productId)->first()->pivot->purchase_price ?? 0,
                 'source_supplier_order_id' => $order->id,
-                'label'                    => 'Réception commande fournisseur',
+            ]);
+
+            StockTransaction::create([
+                'stock_batch_id' => $batch->id,
+                'store_id'       => $store->id,
+                'product_id'     => $productId,
+                'type'           => 'in',
+                'quantity'       => $qtyReceived,
+                'reason'         => 'supplier_reception',
+                'supplier_id'    => $supplier->id,
+                'supplier_order_id' => $order->id,
             ]);
         }
 

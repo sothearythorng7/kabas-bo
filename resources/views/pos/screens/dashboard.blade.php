@@ -208,6 +208,18 @@
     #sales-contents .tab-pane .flex-grow-1 {
         overflow-y: auto;        /* contenu scrollable */
     }
+    #discount-keypad {
+        display: grid;
+        grid-template-columns: repeat(4, 60px); /* 4 colonnes fixes */
+        justify-content: center;  /* centre le grid dans le conteneur */
+        gap: 5px;                 /* espace entre boutons */
+        margin: 0 auto;           /* assure le centrage horizontal */
+    }
+    #discount-keypad button {
+        width: 60px;
+        height: 60px;
+        font-size: 1.2rem;
+    }
 </style>
 
 @push('scripts')
@@ -228,7 +240,7 @@ function setInitialWidths() {
     const containerWidth = container.width();
     const resizerWidth = resizer.width();
     console.log("resizerWidth " + resizerWidth);
-    const leftWidth = Math.max(200, Math.floor(containerWidth * 0.3));
+    const leftWidth = Math.max(200, Math.floor(containerWidth * 0.40));
     const rightWidth = containerWidth - leftWidth - resizer.width();
 
     left.css({ width: leftWidth + "px", flex: "none" });
@@ -307,21 +319,33 @@ $(document).ready(function() {
 });
 
 // --- Popup remise avec select et clavier ---
-async function showDiscountModal(label = "Discount") {
+async function showDiscountModal(label = "Discount", isLineDiscount = false, item = null) {
     return new Promise(resolve => {
         const modal = $(`
             <div class="modal fade" tabindex="-1">
-                <div class="modal-dialog modal-sm">
+                <div class="modal-dialog ${isLineDiscount ? `modal-md`: `modal-sm`} ">
                     <div class="modal-content p-3 text-center">
                         <h5>${label}</h5>
+
                         <div class="mb-2 d-flex gap-1">
                             <button type="button" class="btn btn-outline-primary flex-fill discount-toggle active" data-type="amount">@t("Montant")</button>
                             <button type="button" class="btn btn-outline-primary flex-fill discount-toggle" data-type="percent">@t("Percent")</button>
                         </div>
-                        <input type="text" id="discount-value" class="form-control mb-2" readonly>
-                        <div id="discount-keypad" class="d-flex flex-wrap justify-content-center gap-1">
+
+                        ${isLineDiscount ? `
+                        <div class="mb-2 d-flex gap-1">
+                            <button type="button" class="btn btn-outline-secondary flex-fill discount-scope" data-scope="line">@t("To line")</button>
+                            <button type="button" class="btn btn-outline-secondary flex-fill discount-scope active" data-scope="unit">@t("To unit")</button>
+                        </div>` : ''}
+
+                        <div id="discount-calculation" class="border p-2 mb-2 text-start" style="min-height:40px; font-weight:bold;">
+                            <!-- Calcul en temps réel ici -->
+                        </div>
+
+                        <div id="discount-keypad">
                             ${[1,2,3,4,5,6,7,8,9,'.',0,'C'].map(n=>`<button class="btn btn-secondary btn-sm" data-key="${n}">${n}</button>`).join('')}
                         </div>
+
                         <div class="mt-2 text-end">
                             <button class="btn btn-secondary me-1" id="discount-cancel">@t("btn.cancel")</button>
                             <button class="btn btn-primary" id="discount-ok">@t("btn.save")</button>
@@ -334,19 +358,71 @@ async function showDiscountModal(label = "Discount") {
         $("body").append(modal);
         modal.modal('show');
 
-        const $input = modal.find("#discount-value");
+        const $calc = modal.find("#discount-calculation");
+        let value = 0;
+        let type = "amount";
+        let scope = "unit";
 
-        // Toggle buttons
+        function updateCalculation() {
+            if(!item) return;
+
+            const unitPrice = item.price;
+            const qty = item.quantity;
+            let total = 0;
+            let formula = "";
+
+            if(type === "amount") {
+                if(scope === "unit") {
+                    const lineTotal = (unitPrice - value) * qty;
+                    formula = `(${unitPrice.toFixed(2)} - ${value.toFixed(2)}) × ${qty} = ${lineTotal.toFixed(2)}`;
+                    total = lineTotal;
+                } else {
+                    const lineTotal = (unitPrice * qty) - value;
+                    formula = `(${unitPrice.toFixed(2)} × ${qty}) - ${value.toFixed(2)} = ${lineTotal.toFixed(2)}`;
+                    total = lineTotal;
+                }
+            } else if(type === "percent") {
+                if(scope === "unit") {
+                    const lineTotal = (unitPrice * (1 - value/100)) * qty;
+                    formula = `(${unitPrice.toFixed(2)} - ${value.toFixed(2)}%) × ${qty} = ${lineTotal.toFixed(2)}`;
+                    total = lineTotal;
+                } else {
+                    const lineTotal = (unitPrice * qty) * (1 - value/100);
+                    formula = `(${unitPrice.toFixed(2)} × ${qty}) - ${value.toFixed(2)}% = ${lineTotal.toFixed(2)}`;
+                    total = lineTotal;
+                }
+            }
+
+            $calc.text(formula);
+        }
+
+        // --- Toggle type ---
         modal.find(".discount-toggle").on("click", function() {
             modal.find(".discount-toggle").removeClass("active");
             $(this).addClass("active");
+            type = $(this).data("type");
+            updateCalculation();
         });
 
-        // Keypad
+        // --- Toggle scope (si ligne) ---
+        if(isLineDiscount){
+            modal.find(".discount-scope").on("click", function() {
+                modal.find(".discount-scope").removeClass("active");
+                $(this).addClass("active");
+                scope = $(this).data("scope");
+                updateCalculation();
+            });
+        }
+
+        // --- Keypad ---
         modal.find("#discount-keypad button").on("click", function() {
             const k = $(this).data("key");
-            if(k==='C') $input.val('');
-            else $input.val($input.val()+k);
+            if(k==='C') value = 0;
+            else {
+                const newVal = k === '.' ? (value.toString() + '.') : (parseFloat(value.toString() + k));
+                value = isNaN(newVal) ? value : newVal;
+            }
+            updateCalculation();
         });
 
         modal.find("#discount-cancel").on("click", function() { 
@@ -356,15 +432,17 @@ async function showDiscountModal(label = "Discount") {
         });
 
         modal.find("#discount-ok").on("click", function() {
-            const val = parseFloat($input.val());
-            if(isNaN(val) || val<=0) return alert("@t('Amount not valid')");
-            const type = modal.find(".discount-toggle.active").data("type");
+            if(value <= 0) return alert("@t('Amount not valid')");
             modal.modal('hide'); 
             modal.remove();
-            resolve({type,value:val,label});
+            resolve({type, value, label, scope});
         });
+
+        // Initial update
+        updateCalculation();
     });
 }
+
 
 
 function addNewSale() {
@@ -390,213 +468,364 @@ function renderSalesTabs() {
     $tabs.empty();
     $contents.empty();
 
-    if (!activeSaleId && sales.length > 0) {
-        activeSaleId = sales[0].id;
-    }
+    if (!activeSaleId && sales.length > 0) activeSaleId = sales[0].id;
 
     sales.forEach((sale, idx) => {
         const activeClass = sale.id === activeSaleId ? "active" : "";
-        if(sale.validated) return;
+        if (sale.validated) return;
 
         $tabs.append(`
             <li class="nav-item">
                 <a class="nav-link ${activeClass}" data-bs-toggle="tab" href="#sale-${sale.id}">
-                    <i class="bi bi-receipt"></i> ${idx+1}
+                    <i class="bi bi-receipt"></i> ${idx + 1}
                 </a>
             </li>
         `);
-
-        // Collecte toutes les remises (ligne + globale) pour le tableau
-        const allDiscounts = [];
-        sale.items.forEach((item,i)=>{
-            if(item.discounts && item.discounts.length){
-                item.discounts.forEach(d=>{
-                    allDiscounts.push({
-                        type:d.type,
-                        value:d.value,
-                        label:`Remise ${item.name.en}`,
-                        saleIdx:i,
-                        item:true
-                    });
-                });
-            }
-        });
-        if(sale.discounts && sale.discounts.length){
-            sale.discounts.forEach(d=>{
-                allDiscounts.push({
-                    type:d.type,
-                    value:d.value,
-                    label:d.label,
-                    item:false
-                });
-            });
-        }
 
         // --- Calcul des totaux ---
         let totalAvantRemise = 0;
         let totalRemises = 0;
         let total = 0;
 
-        sale.items.forEach(item=>{
+        sale.items.forEach(item => {
             let itemTotal = item.price * item.quantity;
             totalAvantRemise += itemTotal;
 
             let itemDiscountTotal = 0;
-            if(item.discounts) item.discounts.forEach(d=>{
-                if(d.type==='amount') itemDiscountTotal += d.value;
-                else if(d.type==='percent') itemDiscountTotal += itemTotal * d.value/100;
-            });
-            itemTotal -= itemDiscountTotal;
-            totalRemises += itemDiscountTotal;
 
-            total += itemTotal;
+            if (Array.isArray(item.discounts)) {
+                item.discounts.forEach(d => {
+                    const value = Number(d.value) || 0;
+                    if (d.scope === 'unit') {
+                        if (d.type === 'amount') itemDiscountTotal += value * item.quantity;
+                        else if (d.type === 'percent') itemDiscountTotal += (item.price * (value / 100)) * item.quantity;
+                    } else if (d.scope === 'line') {
+                        if (d.type === 'amount') itemDiscountTotal += value;
+                        else if (d.type === 'percent') itemDiscountTotal += itemTotal * (value / 100);
+                    }
+                });
+            }
+
+            if (itemDiscountTotal > itemTotal) itemDiscountTotal = itemTotal;
+            totalRemises += itemDiscountTotal;
+            total += itemTotal - itemDiscountTotal;
         });
 
-        if(sale.discounts) sale.discounts.forEach(d=>{
+        // Global discounts
+        if (sale.discounts) sale.discounts.forEach(d => {
             let disc = 0;
-            if(d.type==='amount') disc = d.value;
-            else if(d.type==='percent') disc = total * d.value/100;
+            if (d.type === 'amount') disc = d.value;
+            else if (d.type === 'percent') disc = total * d.value / 100;
             totalRemises += disc;
             total -= disc;
         });
 
-        const discountRows = allDiscounts.map((d,i)=>`
-            <tr>
-                <td>${d.label}</td>
-                <td>${d.type==='percent'?d.value+'%':d.value.toFixed(2)}</td>
-                <td><button class="btn btn-sm btn-danger remove-discount" data-sale="${sale.id}" data-idx="${i}">X</button></td>
-            </tr>
-        `).join('');
+        // --- Tableau des items avec remises intégrées ---
+        const itemsHtml = sale.items.map((item, i) => {
+            let unitPriceCalc = item.price.toFixed(2);
+            let lineTotal = item.price * item.quantity;
+            let lineTotalCalc = lineTotal.toFixed(2);
 
-        // --- Alert bootstrap avec bouton pour masquer/afficher les totaux (en haut à droite) ---
+            // Gestion des calculs affichés
+            const calcUnit = [];
+            const calcLine = [];
+
+            if (item.discounts && item.discounts.length) {
+                item.discounts.forEach(d => {
+                    if (d.scope === 'unit') {
+                        if (d.type === 'amount') {
+                            const discountedUnit = item.price - d.value;
+                            calcUnit.push(`${item.price.toFixed(2)} - ${d.value.toFixed(2)}`);
+                            unitPriceCalc = `<div>${calcUnit.join('<br>')}<br><strong>${discountedUnit.toFixed(2)}</strong></div>`;
+                            lineTotal = discountedUnit * item.quantity;
+                            lineTotalCalc = lineTotal.toFixed(2);
+                        } else if (d.type === 'percent') {
+                            const discountedUnit = item.price * (1 - d.value / 100);
+                            calcUnit.push(`${item.price.toFixed(2)} - ${d.value}%`);
+                            unitPriceCalc = `<div>${calcUnit.join('<br>')}<br><strong>${discountedUnit.toFixed(2)}</strong></div>`;
+                            lineTotal = discountedUnit * item.quantity;
+                            lineTotalCalc = lineTotal.toFixed(2);
+                        }
+                    } else if (d.scope === 'line') {
+                        if (d.type === 'amount') {
+                            calcLine.push(`${(item.price * item.quantity).toFixed(2)} - ${d.value.toFixed(2)}`);
+                            lineTotal = item.price * item.quantity - d.value;
+                            lineTotalCalc = `<div>${calcLine.join('<br>')}<br><strong>${lineTotal.toFixed(2)}</strong></div>`;
+                        } else if (d.type === 'percent') {
+                            calcLine.push(`${(item.price * item.quantity).toFixed(2)} - ${d.value}%`);
+                            lineTotal = item.price * item.quantity * (1 - d.value / 100);
+                            lineTotalCalc = `<div>${calcLine.join('<br>')}<br><strong>${lineTotal.toFixed(2)}</strong></div>`;
+                        }
+                    }
+                });
+            } else {
+                unitPriceCalc = `<div>${unitPriceCalc}</div>`;
+                lineTotalCalc = `<div>${lineTotalCalc}</div>`;
+            }
+
+            // Menu contextuel des items
+            let discountMenuHtml = '';
+            if (item.discounts && item.discounts.length) {
+                discountMenuHtml = item.discounts.map((d, di) => `
+                    <li>
+                        <a class="dropdown-item remove-line-discount" href="#" data-sale="${sale.id}" data-idx="${i}" data-disc="${di}">
+                            <i class="bi bi-x-circle text-danger"></i> Supprimer remise
+                        </a>
+                    </li>
+                `).join('');
+            }
+
+            return `
+                <tr>
+                    <td colspan="4" class="align-middle bg-light text-primary">${item.name.en}</td>
+                    <tr>
+                    <td class="text-center">${item.quantity}</td>
+                    <td class="text-center">${unitPriceCalc}</td>
+                    <td class="text-center">${lineTotalCalc}</td>
+                    <td>
+                        <div class="btn-group dropstart">
+                            <button class="btn btn-sm btn-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="bi bi-list"></i>
+                            </button>
+                            <ul class="dropdown-menu">
+                                <li>
+                                    <a class="dropdown-item remove-item" href="#" data-sale="${sale.id}" data-idx="${i}">
+                                        <i class="bi bi-x-circle text-danger"></i> Supprimer produit
+                                    </a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item line-discount" href="#" data-sale="${sale.id}" data-idx="${i}">
+                                        <i class="bi bi-percent text-warning"></i> Ajouter remise
+                                    </a>
+                                </li>
+                                ${discountMenuHtml}
+                            </ul>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+
         $contents.append(`
-            <div class="tab-pane mt-2 fade ${activeClass?'show active':''}" id="sale-${sale.id}" style="${activeClass ? 'height:100%;' : ''}">
+            <div class="tab-pane mt-2 fade ${activeClass ? 'show active' : ''}" id="sale-${sale.id}" style="${activeClass ? 'height:100%;' : ''}">
                 <div class="sale-footer border-top pt-2 mt-2">
                     <div class="alert alert-success text-start position-relative" role="alert" style="display:block; width:100%; font-weight:bold;">
-                        <button type="button" class="btn btn-sm btn-secondary position-absolute top-0 end-0 m-1 toggle-totals" style="padding:0.1rem 0.3rem;">
-                            <i class="bi bi-caret-down-fill"></i>
-                        </button>
+
+                        <!-- Bouton dropdown pour remises globales -->
+                        <div class="btn-group position-absolute top-0 end-0 m-1">
+                            <button type="button" class="btn btn-sm btn-secondary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="bi bi-list"></i>
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end">
+                                ${!sale.discounts || sale.discounts.length === 0 ? `
+                                    <li>
+                                        <a class="dropdown-item add-global-discount" href="#" data-sale="${sale.id}">
+                                            <i class="bi bi-percent text-warning"></i> Ajouter remise globale
+                                        </a>
+                                    </li>` : `
+                                    <li>
+                                        <a class="dropdown-item remove-global-discount" href="#" data-sale="${sale.id}">
+                                            <i class="bi bi-x-circle text-danger"></i> Supprimer remise globale
+                                        </a>
+                                    </li>`}
+                            </ul>
+                        </div>
+
                         <div class="totals-hidden" style="display:none; font-weight:normal;">
-                            @t("Total before discount") : $${totalAvantRemise.toFixed(2)} <br>
-                            @t("Total discount") : $${totalRemises.toFixed(2)}
+                            Total avant remise : $${totalAvantRemise.toFixed(2)} <br>
+                            Total remises : $${totalRemises.toFixed(2)}
                             <hr />
                         </div>
-                        @t("Total final") : $${total.toFixed(2)}
+
+                        <div>
+                            <!-- Affiche le calcul de remise globale si présent -->
+                            ${sale.discounts && sale.discounts.length > 0 ? `
+                                <small>Calcul remise globale : ${sale.discounts.map(d => 
+                                    d.type === 'amount' ? `- $${d.value.toFixed(2)}` : `- ${d.value}%`
+                                ).join(' + ')}</small><br>` : ''}
+                            Total final : <strong>$${total.toFixed(2)}</strong>
+                        </div>
                     </div>
                     <div class="d-flex gap-1">
-                        <button class="btn btn-secondary flex-fill cancel-sale" data-sale="${sale.id}">@t("btn.cancel")</button>
-                        <button class="btn btn-success flex-fill validate-sale" data-sale="${sale.id}">@t("btn.validate")</button>
-                        <button class="btn btn-warning flex-fill set-global-discount" data-sale="${sale.id}">@t("Add Discount")</button>
-                    </div>
+                        <button class="btn btn-secondary flex-fill cancel-sale" data-sale="${sale.id}">Annuler</button>
+                        <button class="btn btn-success flex-fill validate-sale" data-sale="${sale.id}">Valider</button>
+                        <button class="btn btn-primary flex-fill print-sale" data-sale="${sale.id}">Imprimer</button>
+                     </div>
+                     <div class="d-flex gap-1 mt-2 text-center">
+                         <button id="open-cash-drawer" class="btn btn-warning">Ouvrir le tiroir-caisse</button>
+                   </div>
                 </div>
+
                 <div class="overflow-auto">
-                    <table class="table table-striped sale-table mb-0">
+                    <table class="table sale-table mb-0">
                         <thead>
                             <tr>
-                                <th>@t("product.name")</th>
-                                <th>@t("Qty")</th>
-                                <th>@t("product.price")</th>
-                                <th>@t("total_value")</th>
+                                <th class="text-center">Qté</th>
+                                <th class="text-center">Prix unitaire</th>
+                                <th class="text-center">Total ligne</th>
                                 <th></th>
                             </tr>
                         </thead>
-                        <tbody>
-                            ${sale.items.map((item,i)=>{
-                                return `
-                                    <tr>
-                                        <td>${item.name.en}</td>
-                                        <td>${item.quantity}</td>
-                                        <td>${item.price.toFixed(2)}</td>
-                                        <td>${(item.price*item.quantity).toFixed(2)}</td>
-                                        <td>
-                                            <div class="btn-group dropstart">
-                                                <button class="btn btn-sm btn-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
-                                                    <i class="bi bi-list"></i>
-                                                </button>
-                                                <ul class="dropdown-menu">
-                                                    <li>
-                                                        <a class="dropdown-item remove-item" href="#" data-sale="${sale.id}" data-idx="${i}">
-                                                            <i class="bi bi-x-circle text-danger"></i> @t("btn.delete")
-                                                        </a>
-                                                    </li>
-                                                    <li>
-                                                        <a class="dropdown-item line-discount" href="#" data-sale="${sale.id}" data-idx="${i}">
-                                                            <i class="bi bi-percent text-warning"></i> @t("Add Discount")
-                                                        </a>
-                                                    </li>
-                                                </ul>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                `;
-                            }).join('')}
-                        </tbody>
+                        <tbody>${itemsHtml}</tbody>
                     </table>
-
-                    ${discountRows?`
-                        <table class="table table-sm table-striped mb-2 mt-2">
-                            <thead>
-                                <tr>
-                                    <th>@t("Discount")</th>
-                                    <th>@t("Value")</th>
-                                    <th></th>
-                                </tr>
-                            </thead>
-                            <tbody>${discountRows}</tbody>
-                        </table>
-                    `:''}
                 </div>
             </div>
         `);
     });
 
+
+$(".print-sale").off("click").on("click", function() {
+    const saleId = $(this).data("sale");
+    const sale = sales.find(s => s.id === saleId);
+    if (!sale) return;
+
+    // On ne prépare que les infos dynamiques
+    let lines = [];
+
+    let total = 0;
+
+    sale.items.forEach(item => {
+        const name = (typeof item.name === "object" && item.name.en) ? item.name.en : item.name;
+        const qty = item.quantity;
+        const unitPrice = item.price;
+        let lineTotal = unitPrice * qty;
+
+        // Calcul remises ligne
+        let itemDiscountTotal = 0;
+        if (Array.isArray(item.discounts)) {
+            item.discounts.forEach(d => {
+                const value = Number(d.value) || 0;
+                if (d.scope === 'unit') {
+                    if (d.type === 'amount') itemDiscountTotal += value * qty;
+                    else if (d.type === 'percent') itemDiscountTotal += unitPrice * (value / 100) * qty;
+                } else if (d.scope === 'line') {
+                    if (d.type === 'amount') itemDiscountTotal += value;
+                    else if (d.type === 'percent') itemDiscountTotal += lineTotal * (value / 100);
+                }
+            });
+        }
+        if (itemDiscountTotal > lineTotal) itemDiscountTotal = lineTotal;
+        lineTotal -= itemDiscountTotal;
+        total += lineTotal;
+
+        lines.push({
+            name,
+            qty,
+            unitPrice,
+            lineTotal,
+            discounts: item.discounts || []
+        });
+    });
+
+    // Remises globales
+    const globalDiscounts = sale.discounts || [];
+
+    // Envoi au serveur
+    $.ajax({
+        url: "http://192.168.1.50:5000/print",
+        method: "POST",
+        contentType: "application/json",
+        data: JSON.stringify({ sale: { items: lines, discounts: globalDiscounts, ticket_number: sale.ticket_number, total } }),
+        success: function() {},
+        error: function(err) { console.error(err); alert("Erreur lors de l'impression !"); }
+    });
+});
+
+
+$("#open-cash-drawer").off("click").on("click", openCashDrawer);
+
+
     // --- Listeners ---
-    $(".remove-item").off("click").on("click", function() { const saleId=$(this).data("sale"); const idx=$(this).data("idx"); const sale=sales.find(s=>s.id===saleId); if(sale){ sale.items.splice(idx,1); renderSalesTabs(); saveSalesToLocal(); }});
-    $(".cancel-sale").off("click").on("click", function(){ 
-        const saleId=$(this).data("sale"); 
-        sales=sales.filter(s=>s.id!==saleId); 
-        if(sales.length===0)addNewSale(); 
-        else activeSaleId=sales[0].id;
-        renderSalesTabs(); 
+    $(".remove-item").off("click").on("click", function () {
+        const saleId = $(this).data("sale");
+        const idx = $(this).data("idx");
+        const sale = sales.find(s => s.id === saleId);
+        if (sale) { sale.items.splice(idx, 1); renderSalesTabs(); saveSalesToLocal(); }
+    });
+
+    $(".remove-line-discount").off("click").on("click", function () {
+        const saleId = $(this).data("sale");
+        const idx = $(this).data("idx");
+        const discIdx = $(this).data("disc");
+        const sale = sales.find(s => s.id === saleId);
+        if (sale && sale.items[idx] && sale.items[idx].discounts) {
+            sale.items[idx].discounts.splice(discIdx, 1);
+            renderSalesTabs();
+            saveSalesToLocal();
+        }
+    });
+
+    $(".cancel-sale").off("click").on("click", function () {
+        const saleId = $(this).data("sale");
+        sales = sales.filter(s => s.id !== saleId);
+        if (sales.length === 0) addNewSale();
+        else activeSaleId = sales[0].id;
+        renderSalesTabs();
         saveSalesToLocal();
     });
-    $(".validate-sale").off("click").on("click", function(){
+
+    $(".validate-sale").off("click").on("click", function () {
         const saleId = $(this).data("sale");
         handleSaleValidation(saleId);
     });
 
-    $(".set-global-discount").off("click").on("click", async function(){ const saleId=$(this).data("sale"); const sale=sales.find(s=>s.id===saleId); if(!sale) return; const d=await showDiscountModal("@t("Global discount")"); if(!d) return; sale.discounts=sale.discounts||[]; sale.discounts.push(d); renderSalesTabs(); saveSalesToLocal(); });
-    $(".line-discount").off("click").on("click", async function(){ const saleId=$(this).data("sale"); const idx=$(this).data("idx"); const sale=sales.find(s=>s.id===saleId); if(!sale) return; const item=sale.items[idx]; if(!item) return; const d=await showDiscountModal("Remise ligne"); if(!d) return; item.discounts=item.discounts||[]; item.discounts.push(d); renderSalesTabs(); saveSalesToLocal(); });
-
-    $(".remove-discount").off("click").on("click", function(){
-        const saleId=$(this).data("sale");
-        const idx=$(this).data("idx");
-        const sale=sales.find(s=>s.id===saleId);
-        if(!sale) return;
-        let counter = 0;
-        let removed=false;
-        for(let i=0;i<sale.items.length;i++){
-            let item = sale.items[i];
-            if(item.discounts){
-                if(counter+item.discounts.length>idx){
-                    item.discounts.splice(idx-counter,1);
-                    removed=true; break;
-                } else counter+=item.discounts.length;
-            }
-        }
-        if(!removed && sale.discounts && sale.discounts.length>0){
-            sale.discounts.splice(idx-counter,1);
-        }
-        renderSalesTabs(); saveSalesToLocal();
+    $(".set-global-discount").off("click").on("click", async function () {
+        const saleId = $(this).data("sale");
+        const sale = sales.find(s => s.id === saleId);
+        if (!sale) return;
+        const d = await showDiscountModal("Remise globale", false);
+        if (!d) return;
+        sale.discounts = sale.discounts || [];
+        sale.discounts.push(d);
+        renderSalesTabs();
+        saveSalesToLocal();
     });
 
-    // --- Listener pour le bouton d'affichage des totaux ---
-    $(".toggle-totals").off("click").on("click", function(){
-        $(this).siblings(".totals-hidden").toggle();
+    $(".line-discount").off("click").on("click", async function () {
+        const saleId = $(this).data("sale");
+        const idx = $(this).data("idx");
+        const sale = sales.find(s => s.id === saleId);
+        if (!sale) return;
+        const item = sale.items[idx];
+        if (!item) return;
+        const d = await showDiscountModal("Remise ligne", true, item);
+        if (!d) return;
+        item.discounts = item.discounts || [];
+        item.discounts.push(d);
+        renderSalesTabs();
+        saveSalesToLocal();
     });
 
-    $('#sales-tabs a[data-bs-toggle="tab"]').off('shown.bs.tab').on('shown.bs.tab',function(e){ const href=$(e.target).attr('href'); activeSaleId=parseInt(href.replace('#sale-','')); });
+    // Ajouter remise globale
+    $(".add-global-discount").off("click").on("click", async function(e) {
+        e.preventDefault();
+        const saleId = $(this).data("sale");
+        const sale = sales.find(s => s.id === saleId);
+        if (!sale) return;
+
+        const d = await showDiscountModal("Remise globale", false);
+        if (!d) return;
+
+        sale.discounts = sale.discounts || [];
+        sale.discounts.push(d);
+        renderSalesTabs();
+        saveSalesToLocal();
+    });
+
+    // Supprimer remise globale
+    $(".remove-global-discount").off("click").on("click", function(e) {
+        e.preventDefault();
+        const saleId = $(this).data("sale");
+        const sale = sales.find(s => s.id === saleId);
+        if (!sale || !sale.discounts) return;
+
+        sale.discounts = []; // supprime toutes les remises globales
+        renderSalesTabs();
+        saveSalesToLocal();
+    });
+
 }
+
 
 
 // --- Ajouter produit à la vente active ---
@@ -801,28 +1030,88 @@ function handleSaleValidation(saleId) {
     const sale = sales[saleIndex];
 
     showSaleValidationModal(sale).then(valid => {
-        if (valid) {
-            // Marquer comme validée et sauvegarder
-            sale.payment_type = sale.payment_type || 'unknown';
-            sale.synced = false;
-            sale.validated = true;
+        if (!valid) return;
 
-            // Sauvegarder dans une clé dédiée aux ventes validées
-            saveValidatedSaleToLocal(sale);
+        // Marquer comme validée et sauvegarder
+        sale.payment_type = sale.payment_type || 'unknown';
+        sale.synced = false;
+        sale.validated = true;
 
-            // Retirer de la liste active
-            sales.splice(saleIndex, 1);
-            saveSalesToLocal();
+        // Sauvegarder dans une clé dédiée aux ventes validées
+        saveValidatedSaleToLocal(sale);
 
-            renderSalesTabs();   // Actualise l'affichage, l'onglet disparaît
+        // Retirer de la liste active
+        sales.splice(saleIndex, 1);
+        saveSalesToLocal();
+        renderSalesTabs();   // Actualise l'affichage, l'onglet disparaît
 
-            if(sales.length == 0) {
-                addNewSale();        // Crée automatiquement une nouvelle vente
-            }
-            alert(`Vente ${sale.label} validée et enregistrée !`);
+        if (sales.length == 0) addNewSale(); // Crée automatiquement une nouvelle vente
+
+        // --- Impression automatique ---
+        printSale(sale);
+
+        // --- Ouvrir le tiroir si paiement cash ---
+        if (sale.payment_type === "CASH") {
+            openCashDrawer();
         }
+
+        alert(`Vente ${sale.label} validée et enregistrée !`);
     });
 }
+
+function printSale(sale) {
+    // Préparer les lignes
+    let lines = [];
+    let total = 0;
+
+    sale.items.forEach(item => {
+        const name = (typeof item.name === "object" && item.name.en) ? item.name.en : item.name;
+        const qty = item.quantity;
+        const unitPrice = item.price;
+        let lineTotal = unitPrice * qty;
+
+        let itemDiscountTotal = 0;
+        if (Array.isArray(item.discounts)) {
+            item.discounts.forEach(d => {
+                const value = Number(d.value) || 0;
+                if (d.scope === 'unit') {
+                    if (d.type === 'amount') itemDiscountTotal += value * qty;
+                    else if (d.type === 'percent') itemDiscountTotal += unitPrice * (value / 100) * qty;
+                } else if (d.scope === 'line') {
+                    if (d.type === 'amount') itemDiscountTotal += value;
+                    else if (d.type === 'percent') itemDiscountTotal += lineTotal * (value / 100);
+                }
+            });
+        }
+        if (itemDiscountTotal > lineTotal) itemDiscountTotal = lineTotal;
+        lineTotal -= itemDiscountTotal;
+        total += lineTotal;
+
+        lines.push({ name, qty, unitPrice, lineTotal, discounts: item.discounts || [] });
+    });
+
+    const globalDiscounts = sale.discounts || [];
+
+    $.ajax({
+        url: "http://192.168.1.50:5000/print",
+        method: "POST",
+        contentType: "application/json",
+        data: JSON.stringify({ sale: { items: lines, discounts: globalDiscounts, ticket_number: sale.ticket_number, total } }),
+        success: function() {},
+        error: function(err) { console.error(err); alert("Erreur lors de l'impression !"); }
+    });
+}
+
+function openCashDrawer() {
+    $.ajax({
+        url: "http://192.168.1.50:5000/open-drawer",
+        method: "POST",
+        success: function() { console.log("Tiroir-caisse ouvert automatiquement"); },
+        error: function(err) { console.error("Erreur ouverture tiroir :", err); }
+    });
+}
+
+
 function saveValidatedSaleToLocal(sale) {
     if (!currentShift) return;
     const key = `pos_sales_validated_shift_${currentShift.id}`;

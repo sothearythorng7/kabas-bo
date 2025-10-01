@@ -12,6 +12,10 @@
         href="{{ route('financial.general-invoices.index', $store->id) }}">@t("invoices")</a>
     </li>
     <li class="nav-item">
+        <a class="nav-link @if(str_contains($currentRoute, 'shift')) active @endif"
+           href="{{ route('financial.shifts.index', $store->id) }}">@t("Shifts")</a>
+    </li>
+    <li class="nav-item">
         <a class="nav-link @if(str_contains($currentRoute, 'transactions')) active @endif"
            href="{{ route('financial.transactions.index', $store->id) }}">@t("Transactions")</a>
     </li>

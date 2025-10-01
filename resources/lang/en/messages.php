@@ -690,4 +690,7 @@ return [
     "Sale details" => "Sale details",
     "Unit price" => "Unit price",
     "Total paid" => "Total paid",
+    "Shifts" => "Shifts",
+    "To line" => "To line",
+    "To unit" => "To unit",
 ];

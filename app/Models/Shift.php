@@ -14,6 +14,12 @@ class Shift extends Model
         'user_id', 'store_id', 'opening_cash', 'closing_cash', 'started_at', 'ended_at', 'synced'
     ];
 
+    protected $casts = [
+        'started_at' => 'datetime',
+        'ended_at' => 'datetime',
+        'synced' => 'boolean',
+    ];
+
     public function user()
     {
         return $this->belongsTo(User::class);

@@ -35,6 +35,7 @@ use App\Http\Controllers\Financial\FinancialTransactionController;
 use App\Http\Controllers\Financial\FinancialPaymentMethodController;
 use App\Http\Controllers\Financial\FinancialDashboardController;
 use App\Http\Controllers\Financial\FinancialJournalController;
+use App\Http\Controllers\Financial\FinancialShiftController;
 use App\Http\Controllers\Financial\GeneralInvoiceController;
 use App\Http\Controllers\POS\SyncController;
 use App\Http\Controllers\POS\ShiftController;
@@ -323,7 +324,8 @@ Route::middleware(['auth', SetUserLocale::class])->group(function () {
         Route::get('journals', [FinancialJournalController::class, 'index'])->name('journals.index');
         Route::get('journals/{journal}', [FinancialJournalController::class, 'show'])->name('journals.show');
         Route::get('dashboard', [FinancialDashboardController::class, 'index'])->name('dashboard');
-
+        Route::get('shifts', [FinancialShiftController::class, 'index'])->name('shifts.index');
+        Route::get('shifts/{shift}', [FinancialShiftController::class, 'show'])->name('shifts.show');
         // --- NOUVELLES ROUTES pour Factures générales ---
         Route::resource('general-invoices', GeneralInvoiceController::class);
     });

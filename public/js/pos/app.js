@@ -135,6 +135,7 @@ function prepareSalesSync() {
         total: calculateSaleTotal(sale)
     }));
 
+    console.log("JSON prêt pour synchronisation :", JSON.stringify(payload, null, 2));
     return payload;
 }
 
@@ -868,11 +869,20 @@ function showSaleDetail(saleId) {
     sale.items.forEach(item => {
         const discounts = item.discounts && item.discounts.length
             ? item.discounts.map(d => {
-                if (d.type === "amount") {
-                    return `${d.label} ($${parseFloat(d.value).toFixed(2)})`;
-                } else {
-                    return `${d.label} (${d.value}%)`;
+                let label = "";
+                // Scope par défaut 'line' si absent
+                const scope = d.scope || "line";
+
+                if(scope === "line") {
+                    label = d.type === "percent"
+                        ? `Remise ligne: ${d.value}%`
+                        : `Remise ligne: $${parseFloat(d.value).toFixed(2)}`;
+                } else { // unit
+                    label = d.type === "percent"
+                        ? `Remise par article: ${d.value}%`
+                        : `Remise par article: $${parseFloat(d.value).toFixed(2)}`;
                 }
+                return label;
             }).join(", ")
             : "-";
         const rowHtml = `

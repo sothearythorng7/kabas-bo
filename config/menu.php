@@ -115,6 +115,24 @@ return [
                 'route' => 'brands.index',
                 'active_pattern' => 'brands*',
             ],
+            [
+                'label' => 'messages.menu.variations',
+                'icon'  => 'bi-bezier2',
+                'active_pattern' => 'variation*',
+                'submenu' => [
+                    [
+                        'label' => 'messages.menu.variations_types',
+                        'icon'  => 'bi-eye',
+                        'route' => 'variation-types.index',
+                        'active_pattern' => 'supplier-orders*',
+                    ],
+                    [
+                        'label' => 'messages.menu.variations_values',
+                        'icon'  => 'bi-list',
+                        'route' => 'variation-values.index',
+                    ],
+                ]
+            ],
         ],
     ],
 ];

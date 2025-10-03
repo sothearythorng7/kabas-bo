@@ -39,6 +39,8 @@ use App\Http\Controllers\Financial\FinancialShiftController;
 use App\Http\Controllers\Financial\GeneralInvoiceController;
 use App\Http\Controllers\POS\SyncController;
 use App\Http\Controllers\POS\ShiftController;
+use App\Http\Controllers\VariationTypeController;
+use App\Http\Controllers\VariationValueController;
 
 Route::get('/', function () {
     return auth()->check() ? redirect()->route('dashboard') : redirect()->route('login');
@@ -87,6 +89,8 @@ Route::middleware(['auth', SetUserLocale::class])->group(function () {
     Route::get('/scanner', function () {
         return view('scanner');
     })->name('scanner');
+    
+    Route::get('products/search', [ProductController::class, 'search'])->name('products.search'); // Ajax recherche EAN / nom
 
     Route::middleware(['role:admin'])->group(function () {
         Route::resource('roles', RoleController::class)->parameters(['roles' => 'role']);
@@ -99,6 +103,11 @@ Route::middleware(['auth', SetUserLocale::class])->group(function () {
         Route::post('products/{product}/photos', [ProductController::class, 'uploadPhotos'])->name('products.photos.upload');
         Route::delete('products/{product}/photos/{photo}', [ProductController::class, 'deletePhoto'])->name('products.photos.delete');
         Route::post('products/{product}/photos/{photo}/set-primary', [ProductController::class, 'setPrimaryPhoto'])->name('products.photos.setPrimary');
+        Route::get('products/{product}/variations', [ProductController::class, 'variationsIndex'])->name('products.variations.index');
+        Route::post('products/{product}/variations', [ProductController::class, 'variationsStore'])->name('products.variations.store');
+        Route::delete('products/{product}/variations/{variation}', [ProductController::class, 'variationsDestroy'])->name('products.variations.destroy');
+
+        Route::get('variation-types/{type}/values', [VariationTypeController::class, 'values'])->name('variation-types.values'); // Ajax
 
         // Gestion des catégories
         Route::post('products/{product}/categories/attach', [ProductController::class, 'attachCategory'])->name('products.categories.attach');
@@ -326,9 +335,12 @@ Route::middleware(['auth', SetUserLocale::class])->group(function () {
         Route::get('dashboard', [FinancialDashboardController::class, 'index'])->name('dashboard');
         Route::get('shifts', [FinancialShiftController::class, 'index'])->name('shifts.index');
         Route::get('shifts/{shift}', [FinancialShiftController::class, 'show'])->name('shifts.show');
-        // --- NOUVELLES ROUTES pour Factures générales ---
         Route::resource('general-invoices', GeneralInvoiceController::class);
     });
+
+    Route::resource('variation-types', \App\Http\Controllers\VariationTypeController::class);
+    Route::resource('variation-values', \App\Http\Controllers\VariationValueController::class);
+
 });
 
 

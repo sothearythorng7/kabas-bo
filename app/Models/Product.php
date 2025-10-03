@@ -127,4 +127,39 @@ class Product extends Model
     {
         return $this->name[app()->getLocale()] ?? reset($this->name);
     }
+
+
+    // Relation vers ses valeurs de déclinaison
+    public function variationValues()
+    {
+        return $this->belongsToMany(VariationValue::class, 'product_variations')
+                    ->withTimestamps();
+    }
+
+    // Produits liés en tant que déclinaisons
+    public function relatedProducts()
+    {
+        return $this->belongsToMany(Product::class, 'product_variation_links',
+            'product_id', 'related_product_id')
+            ->withTimestamps();
+    }
+
+    // Symétrie (inverse)
+    public function linkedTo()
+    {
+        return $this->belongsToMany(Product::class, 'product_variation_links',
+            'related_product_id', 'product_id')
+            ->withTimestamps();
+    }
+
+    // Récupérer toutes les déclinaisons liées (symétriques)
+    public function allVariations()
+    {
+        return $this->relatedProducts->merge($this->linkedTo);
+    }
+
+    public function variations()
+    {
+        return $this->hasMany(ProductVariation::class, 'product_id');
+    }
 }

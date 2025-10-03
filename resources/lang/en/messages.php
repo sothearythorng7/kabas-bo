@@ -30,7 +30,10 @@ return [
         'journals' => 'Journals',
         'suppliers_overview' => 'Overview',
         'suppliers_list' => 'Suppliers list',
-        'invoice_overview' => 'Invoice Overview'
+        'invoice_overview' => 'Invoice Overview',
+        'variations' => 'Variations',
+        'variations_types' => 'Variation Types',
+        'variations_values' => 'Variation Values',
     ],
     'dashboard' => 'Dashboard',
     'shops' => 'Shops',
@@ -213,9 +216,17 @@ return [
         'tab_photos' => 'Photos',
         'tab_descriptions' => 'Descriptions',
         'active' => "Active",
-        'best_seller' => 'Best Seller'
+        'best_seller' => 'Best Seller',
+        'tab_variations' => 'Variations',
+        'variations' => 'Variations',
     ],
-
+    'variation' => [
+        'type' => 'Type',
+        'value' => 'Value',
+        'linked_product' => 'Linked Product',
+        'name' => 'Name',
+        'label' => 'Label',
+    ],
     'store' => [
         'title' => 'Shop management',
         'title_edit' => 'Edit shop',
@@ -404,7 +415,8 @@ return [
         'receive' => 'Receive',
         "search" => "Search",
         'invoice' => 'Invoice',
-        'actions' => 'Actions'
+        'actions' => 'Actions',
+        'add_variation' => 'Add Variation',
     ],
 
     'main' => [
@@ -693,4 +705,13 @@ return [
     "Shifts" => "Shifts",
     "To line" => "To line",
     "To unit" => "To unit",
+    "Create value for variation" => "Create value for variation",
+    "Select type" => "Select type",
+    "Edit value for variation" => "Edit value for variation",
+    "Values of variations" => "Values of variations",
+    "Add value" => "Add value",
+    "Variation types" => "Variation types",
+    "Add type" => "Add type",
+    "Edit variation type" => "Edit variation type",
+    "Add variation type" => "Add variation type",
 ];

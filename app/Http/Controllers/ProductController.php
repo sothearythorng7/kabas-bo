@@ -15,6 +15,9 @@ use Illuminate\Support\Str;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use App\Models\StockTransaction;
+use App\Models\ProductVariation;
+use App\Models\VariationType;
+use App\Models\VariationValue;
 
 class ProductController extends Controller
 {
@@ -34,6 +37,11 @@ class ProductController extends Controller
         $products = $query->orderBy('id', 'desc')->paginate(20)->withQueryString();
 
         return view('products.index', compact('products'));
+    }
+
+    public function show(Product $product)
+    {
+        return response()->json($product);
     }
 
     public function create()
@@ -114,6 +122,7 @@ class ProductController extends Controller
         $allSuppliers  = Supplier::all();
         $stores        = Store::all();
         $brands        = Brand::all();
+        $types          = VariationType::with('values')->get();
 
         $supplierPivot = $product->suppliers
             ->pluck('pivot.purchase_price', 'id')
@@ -133,7 +142,8 @@ class ProductController extends Controller
             'stores',
             'brands',
             'supplierPivot',
-            'storePivot'
+            'storePivot',
+            'types'
         ));
     }
 
@@ -411,4 +421,73 @@ class ProductController extends Controller
         return back()->with('success', 'Primary photo updated.')->withFragment('tab-photos');
     }
 
+
+    public function variationsIndex(Product $product)
+{
+    $product->load(['variations.linkedProduct', 'variations.type', 'variations.value']);
+    $types = \App\Models\VariationType::orderBy('name')->get();
+    return view('products.variations', compact('product', 'types'));
+}
+
+public function variationsStore(Request $request, Product $product)
+{
+    $data = $request->validate([
+        'variation_type_id' => 'required|exists:variation_types,id',
+        'variation_value_id' => 'required|exists:variation_values,id',
+        'linked_product_id' => 'required|exists:products,id|not_in:'.$product->id,
+    ]);
+
+    // Crée le lien
+    $variation = $product->variations()->firstOrCreate([
+        'variation_type_id' => $data['variation_type_id'],
+        'variation_value_id' => $data['variation_value_id'],
+        'linked_product_id' => $data['linked_product_id'],
+    ]);
+
+    // Crée le lien réciproque
+    $linkedProduct = Product::find($data['linked_product_id']);
+    $linkedProduct->variations()->firstOrCreate([
+        'variation_type_id' => $data['variation_type_id'],
+        'variation_value_id' => $data['variation_value_id'],
+        'linked_product_id' => $product->id,
+    ]);
+
+    return back()->with('success', 'Variation added.')->withFragment('tab-variations');
+}
+
+public function variationsDestroy(Product $product, $variationId)
+{
+    $variation = $product->variations()->findOrFail($variationId);
+    $linkedProduct = Product::find($variation->linked_product_id);
+
+    $variation->delete();
+
+    // Supprime aussi le lien réciproque
+    $linkedProduct->variations()
+        ->where('linked_product_id', $product->id)
+        ->where('variation_type_id', $variation->variation_type_id)
+        ->where('variation_value_id', $variation->variation_value_id)
+        ->delete();
+
+    return back()->with('success', 'Variation removed.')->withFragment('tab-variations');
+}
+
+// Ajax pour récupérer les valeurs d’un type
+public function values(VariationType $type)
+{
+    return response()->json($type->values()->orderBy('label')->get());
+}
+
+// Ajax pour rechercher un produit par EAN ou nom
+public function search(Request $request)
+{
+    $q = $request->q;
+    $products = Product::where('ean', 'like', "%$q%")
+        ->orWhere('name->fr', 'like', "%$q%")
+        ->orWhere('name->en', 'like', "%$q%")
+        ->limit(20)
+        ->get(['id','ean','name']);
+
+    return response()->json($products);
+}
 }

@@ -30,6 +30,14 @@
                 </span>
             </button>
         </li>
+        <li class="nav-item">
+            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-variations" type="button" role="tab">
+                <i class="bi bi-bezier2"></i> {{ __('messages.product.tab_variations') }}
+                <span class="badge bg-{{ ($product->variations->count() ?? 0) > 0 ? 'success' : 'danger' }}">
+                    {{ $product->variations->count() ?? 0 }}
+                </span>
+            </button>
+        </li>
         <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-stores" type="button" role="tab"><i class="bi bi-shop"></i> {{ __('messages.product.tab_stores') }}</button></li>
         <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-photos" type="button" role="tab"><i class="bi bi-images"></i> {{ __('messages.product.tab_photos') }}</button></li>
         <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-descriptions" type="button" role="tab"><i class="bi bi-blockquote-right"></i> {{ __('messages.product.tab_descriptions') }}</button></li>
@@ -44,6 +52,8 @@
             <option value="#tab-stores">{{ __('messages.product.tab_stores') }}</option>
             <option value="#tab-photos">{{ __('messages.product.tab_photos') }}</option>
             <option value="#tab-descriptions">{{ __('messages.product.tab_descriptions') }}</option>
+            <option value="#tab-variations">{{ __('messages.product.tab_variations') }} ({{ $product->variations->count() ?? 0 }})</option>
+
         </select>
     </div>
 
@@ -137,6 +147,9 @@
         {{-- Categories --}}
         <div class="tab-pane fade" id="tab-categories" role="tabpanel">
             <h5>{{ __('messages.product.categories') }}</h5>
+            <button type="button" class="btn btn-success mb-3" data-bs-toggle="modal" data-bs-target="#addCategoryModal">
+                <i class="bi bi-plus-circle"></i> {{ __('messages.product.add_category') }}
+            </button>
             <ul class="list-group mb-3">
                 @forelse($product->categories ?? [] as $category)
                     <li class="list-group-item d-flex justify-content-between align-items-center">
@@ -153,14 +166,14 @@
                     <li class="list-group-item text-muted">{{ __('messages.product.no_category') }}</li>
                 @endforelse
             </ul>
-            <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#addCategoryModal">
-                <i class="bi bi-plus-circle"></i> {{ __('messages.product.add_category') }}
-            </button>
         </div>
 
         {{-- Suppliers --}}
         <div class="tab-pane fade" id="tab-suppliers" role="tabpanel">
             <h5>{{ __('messages.product.suppliers') }}</h5>
+            <button type="button" class="btn btn-success mb-3" data-bs-toggle="modal" data-bs-target="#addSupplierModal">
+                <i class="bi bi-plus-circle"></i> {{ __('messages.product.add_supplier') }}
+            </button>
             <table class="table table-bordered align-middle">
                 <thead>
                     <tr>
@@ -194,57 +207,53 @@
                     @endforelse
                 </tbody>
             </table>
-            <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#addSupplierModal">
-                <i class="bi bi-plus-circle"></i> {{ __('messages.product.add_supplier') }}
-            </button>
         </div>
 
         {{-- Stores --}}
         <div class="tab-pane fade" id="tab-stores" role="tabpanel">
             <h5>{{ __('messages.product.stores') }}</h5>
-<table class="table table-bordered align-middle">
-    <thead>
-        <tr>
-            <th>{{ __('messages.store.name') }}</th>
-            <th style="width: 150px;">{{ __('messages.store.stock_quantity') }}</th>
-            <th style="width: 150px;">{{ __('messages.store.stock_alert') }}</th>
-            <th style="width: 120px;"></th>
-        </tr>
-    </thead>
-    <tbody>
-        @forelse($product->stores as $store)
-            @php
-                // Nouveau calcul basé sur les batches
-                $realStock = $product->stockBatches()
-                    ->where('store_id', $store->id)
-                    ->sum('quantity');
-            @endphp
-            <tr>
-                <td>{{ $store->name }}</td>
-                <form action="{{ route('products.stores.updateStock', [$product, $store]) }}" method="POST" class="d-flex">
-                    @csrf
-                    @method('PUT')
-                    <td>
-                        <input type="number" min="0" name="stock_quantity" class="form-control form-control-sm" 
-                               value="{{ $realStock }}">
-                    </td>
-                    <td>
-                        <input type="number" min="0" name="alert_stock_quantity" class="form-control form-control-sm" 
-                               placeholder="Alert" value="{{ $store->pivot->alert_stock_quantity }}">
-                    </td>
-                    <td>
-                        <button class="btn btn-sm btn-success ms-2"><i class="bi bi-check"></i></button>
-                    </td>
-                </form>
-            </tr>
-        @empty
-            <tr>
-                <td colspan="4" class="text-muted">{{ __('messages.product.no_store') }}</td>
-            </tr>
-        @endforelse
-    </tbody>
-</table>
-
+            <table class="table table-bordered align-middle">
+                <thead>
+                    <tr>
+                        <th>{{ __('messages.store.name') }}</th>
+                        <th style="width: 150px;">{{ __('messages.store.stock_quantity') }}</th>
+                        <th style="width: 150px;">{{ __('messages.store.stock_alert') }}</th>
+                        <th style="width: 120px;"></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @forelse($product->stores as $store)
+                        @php
+                            // Nouveau calcul basé sur les batches
+                            $realStock = $product->stockBatches()
+                                ->where('store_id', $store->id)
+                                ->sum('quantity');
+                        @endphp
+                        <tr>
+                            <td>{{ $store->name }}</td>
+                            <form action="{{ route('products.stores.updateStock', [$product, $store]) }}" method="POST" class="d-flex">
+                                @csrf
+                                @method('PUT')
+                                <td>
+                                    <input type="number" min="0" name="stock_quantity" class="form-control form-control-sm" 
+                                        value="{{ $realStock }}">
+                                </td>
+                                <td>
+                                    <input type="number" min="0" name="alert_stock_quantity" class="form-control form-control-sm" 
+                                        placeholder="Alert" value="{{ $store->pivot->alert_stock_quantity }}">
+                                </td>
+                                <td>
+                                    <button class="btn btn-sm btn-success ms-2"><i class="bi bi-check"></i></button>
+                                </td>
+                            </form>
+                        </tr>
+                    @empty
+                        <tr>
+                            <td colspan="4" class="text-muted">{{ __('messages.product.no_store') }}</td>
+                        </tr>
+                    @endforelse
+                </tbody>
+            </table>
         </div>
 
         {{-- Photos --}}
@@ -315,6 +324,142 @@
                 <button class="btn btn-success">{{ __('messages.btn.save') }}</button>
             </form>
         </div>
+
+
+        <div class="tab-pane fade" id="tab-variations" role="tabpanel">
+            <h5>{{ __('messages.product.variations') }}</h5>
+            <button type="button" class="btn btn-success mb-3" data-bs-toggle="modal" data-bs-target="#addVariationModal">
+                <i class="bi bi-plus-circle"></i> {{ __('messages.btn.add_variation') }}
+            </button>
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>{{ __('messages.variation.type') }}</th>
+                        <th>{{ __('messages.variation.value') }}</th>
+                        <th>{{ __('messages.variation.linked_product') }}</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach($product->variations as $var)
+                    <tr>
+                        <td>{{ $var->type->name }}</td>
+                        <td>{{ $var->value->value }}</td>
+                        <td>
+                            <a href="{{route('products.edit', $var->linkedProduct)}}" target="_blank">
+                                {{ $var->linkedProduct->ean }} - {{ $var->linkedProduct->name['fr'] ?? reset($var->linkedProduct->name) }}
+                            </a>
+                        </td>
+                        <td>
+                            <form method="POST" action="{{ route('products.variations.destroy', [$product, $var->id]) }}" onsubmit="return confirm('Confirm?')">
+                                @csrf
+                                @method('DELETE')
+                                <button class="btn btn-sm btn-danger">{{ __('messages.btn.delete') }}</button>
+                            </form>
+                        </td>
+                    </tr>
+                    @endforeach
+                </tbody>
+            </table>
+
+            <div class="modal fade" id="addVariationModal" tabindex="-1" aria-labelledby="addVariationModalLabel" aria-hidden="true">
+                <div class="modal-dialog modal-lg">
+                    <div class="modal-content">
+                        <form id="addVariationForm" method="POST" action="{{ route('products.variations.store', $product) }}">
+                            @csrf
+                            <div class="modal-header">
+                                <h5 class="modal-title" id="addVariationModalLabel">{{ __('messages.btn.add_variation') }}</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body">
+                                <div class="row g-2 align-items-end">
+                                    <div class="col-md-4">
+                                        <label>{{ __('messages.variation.type') }}</label>
+                                        <select class="form-select" name="variation_type_id" id="variation_type">
+                                            <option value="">--</option>
+                                            @foreach($types as $type)
+                                                <option value="{{ $type->id }}">{{ $type->name }}</option>
+                                            @endforeach
+                                        </select>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label>{{ __('messages.variation.value') }}</label>
+                                        <select class="form-select" name="variation_value_id" id="variation_value">
+                                            <option value="">--</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label>{{ __('messages.variation.linked_product') }}</label>
+                                        <input type="text" class="form-control" id="linked_product_search" placeholder="EAN / name">
+                                        <input type="hidden" name="linked_product_id" id="linked_product_id">
+                                        <div id="linked_product_results" class="list-group position-absolute zindex-1" style="max-height:200px; overflow-y:auto;"></div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ __('messages.btn.cancel') }}</button>
+                                <button type="submit" class="btn btn-success">{{ __('messages.btn.add') }}</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <script>
+            // Ajax pour récupérer les valeurs selon le type
+            document.getElementById('variation_type').addEventListener('change', function() {
+                let typeId = this.value;
+                let valueSelect = document.getElementById('variation_value');
+                valueSelect.innerHTML = '<option>Loading...</option>';
+                fetch('/variation-types/'+typeId+'/values')
+                    .then(res => res.json())
+                    .then(data => {
+                        valueSelect.innerHTML = '<option value="">--</option>';
+                        data.forEach(v => {
+                            console.log(v);
+                            let opt = document.createElement('option');
+                            opt.value = v.id;
+                            opt.text = v.value;
+                            valueSelect.appendChild(opt);
+                        });
+                    });
+            });
+
+            // Recherche produit via Ajax
+            let searchInput = document.getElementById('linked_product_search');
+            let resultsDiv = document.getElementById('linked_product_results');
+            let hiddenInput = document.getElementById('linked_product_id');
+
+            let timeout = null;
+            searchInput.addEventListener('input', function() {
+                clearTimeout(timeout);
+                let q = this.value;
+                if(q.length < 2) { resultsDiv.innerHTML=''; return; }
+                timeout = setTimeout(() => {
+                    fetch('/products/search?q='+encodeURIComponent(q))
+                    .then(res => res.json())
+                    .then(data => {
+                        resultsDiv.innerHTML = '';
+                        data.forEach(p => {
+                            let a = document.createElement('a');
+                            a.href = '#';
+                            a.className = 'list-group-item list-group-item-action';
+                            a.textContent = p.ean+' - '+(p.name.fr||Object.values(p.name)[0]);
+                            a.dataset.id = p.id;
+                            a.addEventListener('click', function(e){
+                                e.preventDefault();
+                                hiddenInput.value = this.dataset.id;
+                                searchInput.value = this.textContent;
+                                resultsDiv.innerHTML = '';
+                            });
+                            resultsDiv.appendChild(a);
+                        });
+                    });
+                }, 300);
+            });
+        </script>
     </div>
 </div>
 {{-- Modal Ajouter une Catégorie --}}

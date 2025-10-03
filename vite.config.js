@@ -9,7 +9,8 @@ export default defineConfig({
             input: [
                 'resources/sass/app.scss',       // BO
                 'resources/js/app.js',           // BO
-                'resources/js/pos/main.js',      // POS SPA
+                'resources/js/menu.js',
+                //'resources/js/pos/main.js',      // POS SPA
             ],
             refresh: true,
         }),

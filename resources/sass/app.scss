@@ -6,3 +6,26 @@
 
 // Ensuite les imports CSS externes
 @import url('https://fonts.bunny.net/css?family=Nunito');
+
+
+/* Espacement horizontal déjà géré avec .mx-2, mais on peut augmenter */
+.navbar-nav .nav-link {
+    padding-left: 1rem;
+    padding-right: 1rem;
+}
+
+/* Hover sur éléments principaux */
+.navbar-nav .nav-link:hover,
+.navbar-nav .nav-link:focus {
+    background-color: var(--bs-primary);
+    color: #fff !important;
+    border-radius: 0.25rem;
+}
+
+/* Hover sur dropdown items */
+.dropdown-menu .dropdown-item:hover,
+.dropdown-menu .dropdown-item:focus {
+    background-color: var(--bs-primary);
+    color: #fff !important;
+}
+

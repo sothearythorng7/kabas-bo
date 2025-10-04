@@ -1,6 +1,6 @@
 <li class="category-item">
     <div class="category-label">
-        {{-- Flèche (icône Bootstrap) --}}
+        {{-- Flèche --}}
         @if($category->children->count())
             <i class="bi bi-chevron-right toggle-arrow"></i>
         @else
@@ -10,10 +10,12 @@
         <span class="category-name">{{ $category->translation()?->name ?? '—' }}</span>
 
         <div class="ms-auto d-flex gap-1">
-            {{-- Edit: type="button" + data-bs-target vers modal plate (ID unique) --}}
-            <button type="button" class="btn btn-sm btn-warning"
+            {{-- Edit: data attributes pour modal dynamique --}}
+            <button type="button" 
+                    class="btn btn-sm btn-warning btn-edit-category"
+                    data-category-id="{{ $category->id }}"
                     data-bs-toggle="modal"
-                    data-bs-target="#editCategoryModal-{{ $category->id }}">
+                    data-bs-target="#editCategoryModal">
                 {{ __('messages.btn.edit') ?? 'Edit' }}
             </button>
 
@@ -31,7 +33,7 @@
     @if($category->children->count())
         <ul class="category-children list-unstyled">
             @foreach($category->children as $child)
-                @include('categories.partials.category_node', ['category' => $child, 'allCategories' => $allCategories])
+                @include('categories.partials.category_node', ['category' => $child])
             @endforeach
         </ul>
     @endif

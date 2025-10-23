@@ -96,6 +96,7 @@ return [
         'created' => 'Produit créé avec succès.',
         'products' => 'Produits',
         'purchase_price' => 'Prix d’achat',
+        'view_public' => 'Voir sur le site',
     ],
 
     'store' => [

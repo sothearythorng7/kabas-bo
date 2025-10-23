@@ -9,9 +9,9 @@ return new class extends Migration {
         Schema::create('products', function (Blueprint $table) {
             $table->id();
             $table->string('ean')->unique();
-            $table->json('name');          // { "en": "...", "fr": "..." }
-            $table->json('description')->nullable(); // { "en": "...", "fr": "..." }
-            $table->json('slugs');         // { "en": "slug", "fr": "slug" }
+            $table->json('name');
+            $table->json('description')->nullable();
+            $table->json('slugs');
             $table->decimal('price', 10, 2)->default(0);
             $table->foreignId('brand_id')->nullable()->constrained('brands')->nullOnDelete();
             $table->string('color')->nullable();

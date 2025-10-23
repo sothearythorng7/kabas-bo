@@ -26,8 +26,8 @@ class SupplierController extends Controller
     {
         $request->validate([
             'name'       => 'required|string|max:255',
-            'address'    => 'required|string',
-            'type'       => 'required|in:buyer,consignment', // nouveau champ
+            'address'    => 'nullable|string',
+            'type'       => 'required|in:buyer,consignment',
             'last_name'  => 'required|string|max:255',
             'first_name' => 'required|string|max:255',
             'email'      => 'required|email',
@@ -109,7 +109,7 @@ public function edit(Supplier $supplier, Request $request)
     {
         $request->validate([
             'name'    => 'required|string|max:255',
-            'address' => 'required|string',
+            'address' => 'nullable|string',
         ]);
 
         $supplier->update($request->only(['name','address']));

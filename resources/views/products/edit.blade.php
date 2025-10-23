@@ -6,6 +6,10 @@
     <a href="{{ route('products.index') }}" class="btn btn-secondary mb-3">
         <i class="bi bi-arrow-left"></i> {{ __('messages.btn.back_to_list') }}
     </a>
+    <a href="{{ $product->publicUrl() }}" target="_blank" rel="noopener"
+    class="btn btn-primary mb-3 me-2">
+        <i class="bi bi-box-arrow-up-right"></i> {{ __('messages.product.view_public') ?? 'Voir sur le site' }}
+    </a>
 
     {{-- Onglets version desktop --}}
     <ul class="nav nav-tabs d-none d-md-flex" role="tablist">

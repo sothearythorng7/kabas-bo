@@ -19,6 +19,10 @@ class Category extends Model
 
     public function products() { return $this->belongsToMany(Product::class)->withTimestamps(); }
 
+    public function slugHistories()
+    {
+        return $this->hasMany(CategorySlugHistory::class);
+    }
 
     public function translations(): HasMany {
         return $this->hasMany(CategoryTranslation::class);
@@ -27,6 +31,11 @@ class Category extends Model
     public function translation($locale = null) {
         $locale = $locale ?? app()->getLocale();
         return $this->translations()->where('locale', $locale)->first();
+    }
+
+    public function slug($locale = null)
+    {
+        return $this->translation($locale)?->slug;
     }
 
     public function fullPathName($locale = null)
@@ -40,5 +49,19 @@ class Category extends Model
         return $name;
     }
 
-    
+    /**
+     * Retourne le slug complet basé sur l'arborescence
+     */
+    public function fullSlug($locale = null): string
+    {
+        $locale = $locale ?? app()->getLocale();
+
+        $slug = $this->translation($locale)?->slug ?? '';
+
+        if ($this->parent) {
+            return $this->parent->fullSlug($locale) . '/' . $slug;
+        }
+
+        return $slug;
+    }
 }

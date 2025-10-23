@@ -34,6 +34,7 @@ return [
         'variations' => 'Variations',
         'variations_types' => 'Variation Types',
         'variations_values' => 'Variation Values',
+        'static_pages' => 'Static Pages',
     ],
     'dashboard' => 'Dashboard',
     'shops' => 'Shops',
@@ -219,6 +220,7 @@ return [
         'best_seller' => 'Best Seller',
         'tab_variations' => 'Variations',
         'variations' => 'Variations',
+        'view_public' => 'View on public site',
     ],
     'variation' => [
         'type' => 'Type',
@@ -714,4 +716,9 @@ return [
     "Add type" => "Add type",
     "Edit variation type" => "Edit variation type",
     "Add variation type" => "Add variation type",
+    'all_brands' => 'All brands',
+    'no_brand' => 'No brand',
+    'photo' => 'Photo',
+    'Force catalog sync'=> 'Force catalog sync',
+    'Dashboard' => 'Cashier',
 ];

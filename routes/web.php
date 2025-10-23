@@ -41,6 +41,7 @@ use App\Http\Controllers\POS\SyncController;
 use App\Http\Controllers\POS\ShiftController;
 use App\Http\Controllers\VariationTypeController;
 use App\Http\Controllers\VariationValueController;
+use App\Http\Controllers\PageController;
 
 Route::get('/', function () {
     return auth()->check() ? redirect()->route('dashboard') : redirect()->route('login');
@@ -321,6 +322,11 @@ Route::middleware(['auth', SetUserLocale::class])->group(function () {
 
             Route::get('dashboard', [StoreDashboardController::class, 'index'])->name('dashboard.index');
         });
+
+        Route::resource('pages', \App\Http\Controllers\PageController::class)
+            ->names('admin.pages');
+        Route::patch('pages/{page}/toggle', [\App\Http\Controllers\PageController::class, 'toggle'])
+            ->name('admin.pages.toggle');
     });
 
     Route::get('/financial', [FinancialDashboardController::class, 'overviewInvoices'])->name('financial.overview');

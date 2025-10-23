@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Support\Str;
 
 class Product extends Model
 {
@@ -161,5 +162,32 @@ class Product extends Model
     public function variations()
     {
         return $this->hasMany(ProductVariation::class, 'product_id');
+    }
+
+    public function setTranslation(string $field, string $locale, string $value)
+    {
+        $data = $this->{$field} ?? [];
+        if (!is_array($data)) {
+            $data = []; // assure que c’est un tableau
+        }
+        $data[$locale] = $value;
+        $this->{$field} = $data;
+        return $this;
+    }
+
+    public function publicSlug(?string $locale = null): string
+    {
+        $loc = $locale ?: app()->getLocale();
+        $name = $this->name[$loc] ?? reset($this->name) ?? (string)$this->ean;
+        return $this->slugs[$loc] ?? Str::slug($name);
+    }
+
+    public function publicUrl(?string $locale = null): string
+    {
+        $base  = rtrim(config('app.public_shop_url'), '/');
+        $path  = trim(config('app.public_product_path', 'product'), '/'); // ex: "product"
+        $slug  = $this->publicSlug($locale);
+        $loc = $locale ?: app()->getLocale();
+        return "{$base}/{$loc}/{$path}/{$slug}";
     }
 }

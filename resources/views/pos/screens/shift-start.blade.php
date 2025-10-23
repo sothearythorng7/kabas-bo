@@ -1,5 +1,13 @@
 <div id="screen-shiftstart" class="pos-screen d-none text-center">
-    <h2>Démarrer votre shift</h2>
+
+    <!-- En-tête : bouton menu + titre alignés à gauche -->
+    <div class="d-flex justify-content-start align-items-center mb-3 gap-2">
+        <button id="btn-open-menu" class="btn btn-outline-secondary" title="@t('Menu')">
+            <i class="bi bi-list"></i>
+        </button>
+        <h2 class="mb-0">Démarrer votre shift</h2>
+    </div>
+
     <p>Entrez le montant initial dans la caisse</p>
 
     <input type="text" id="shift-start-input" class="form-control mb-3 text-center fs-3" readonly>
@@ -13,9 +21,15 @@
                 <div class="w-100"></div>
             @endif
         @endfor
-        <div class="col-4"><button class="btn btn-outline-danger btn-lg w-100" id="shift-start-clear">C</button></div>
-        <div class="col-4"><button class="btn btn-outline-dark btn-lg w-100 shift-num-btn">0</button></div>
-        <div class="col-4"><button class="btn btn-outline-success btn-lg w-100" id="shift-start-ok">Démarrer</button></div>
+        <div class="col-4">
+            <button class="btn btn-outline-danger btn-lg w-100" id="shift-start-clear">C</button>
+        </div>
+        <div class="col-4">
+            <button class="btn btn-outline-dark btn-lg w-100 shift-num-btn">0</button>
+        </div>
+        <div class="col-4">
+            <button class="btn btn-outline-success btn-lg w-100" id="shift-start-ok">Démarrer</button>
+        </div>
     </div>
 </div>
 

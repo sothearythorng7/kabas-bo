@@ -20,7 +20,7 @@ let activeSaleId = null;
 let saleCounter = 1;
 
 // Categories tree
-let categoryTree = {}; // arbre global des catégories
+//let categoryTree = {}; // arbre global des catégories
 let currentCategoryPath = []; // chemin courant pour navigation dans l'arbre
 
 function calculateAndSaveSale(sale, currentShift) {
@@ -326,7 +326,7 @@ function buildCategoryTreeFromJson(jsonCategoryTree) {
 // --------------------
 // Navigation et affichage catégories
 // --------------------
-function renderCategoryButtons(nodes = categoryTree, path = []) {
+function renderCategoryButtons(nodes = window.categoryTree, path = []) {
     const $container = $("#category-buttons");
     $container.empty();
 
@@ -348,7 +348,7 @@ function renderCategoryButtons(nodes = categoryTree, path = []) {
         $backBtn.on("click", () => {
             const parentPath = path.slice(0, -1);
 
-            let parentNodes = categoryTree;
+            let parentNodes = window.categoryTree;
             for (let i = 0; i < parentPath.length; i++) {
                 const id = parentPath[i];
                 const found = parentNodes.find(x => String(x.id) === String(id));
@@ -479,9 +479,9 @@ async function loadCatalog(storeId) {
         }
 
         // --- 3️⃣ Categories ---
-        categoryTree = buildCategoryTreeFromJson(json.category_tree);
+        window.categoryTree = buildCategoryTreeFromJson(json.category_tree);
         console.log("RAW categoryTree from BO:", json.category_tree);
-        console.log("Normalized categoryTree (array with numeric ids):", categoryTree);
+        console.log("Normalized categoryTree (array with numeric ids):", window.categoryTree);
 
     } catch (err) {
         console.error("Erreur loadCatalog:", err);

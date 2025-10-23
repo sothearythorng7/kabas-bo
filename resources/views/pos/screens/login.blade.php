@@ -29,6 +29,35 @@
 <script>
 let pinBuffer = "";
 
+function updatePinDisplay() {
+    let masked = "*".repeat(pinBuffer.length);
+    masked = masked.padEnd(6, "•");
+    $("#pin-display").text(masked);
+}
+
+// Synchro SEULEMENT si le catalogue n'est pas en cache.
+// Toujours restaurer les catégories depuis la clef dédiée si déjà présentes.
+async function ensureCatalogSyncedIfNeeded(storeId) {
+  if (hasCatalogCachedForStore(storeId)) {
+    restoreCategoryTreeFromLocal(storeId); // <- lit pos_category_tree_store_{id}
+    return;
+  }
+
+  const syncModalEl = document.getElementById('syncModal');
+  const syncModal = new bootstrap.Modal(syncModalEl, { backdrop: 'static', keyboard: false });
+  syncModal.show();
+  try {
+    await loadCatalog(storeId);                // remplit db (catalog + payments) et window.categoryTree
+    writeCatalogCache(storeId);                // sauve catalog + payments
+    saveCategoryTreeToLocal(storeId);          // sauve le tree dans la clef dédiée
+    console.log("Login sync → hasCategoryTree:", !!window.categoryTree);
+  } catch (err) {
+    console.error("Catalog sync error:", err);
+  } finally {
+    syncModal.hide();
+  }
+}
+
 function initLogin() {
     pinBuffer = "";
     updatePinDisplay();
@@ -49,50 +78,37 @@ function initLogin() {
         const users = db.table("users");
         const match = users.findExact({ pin_code: pinBuffer });
 
-        if (match.length > 0) {
-            currentUser = match[0];
-            console.log("Utilisateur connecté :", currentUser);
-
-            // Modal de synchronisation
-            const syncModalEl = document.getElementById('syncModal');
-            const syncModal = new bootstrap.Modal(syncModalEl, { backdrop: 'static', keyboard: false });
-            syncModal.show();
-
-            try {
-                await loadCatalog(currentUser.store_id); // chargement catalogue
-                // Vérification shift
-                const res = await fetch(`http://kabas.dev-back.fr/api/pos/shifts/current/${currentUser.id}`);
-                const shift = await res.json();
-
-                if (!shift || !shift.id) {
-                    // Pas de shift → passer à l'écran shiftstart
-                    showScreen("shiftstart");
-                } else {
-                    currentShift = shift;
-                    loadSalesFromLocal();
-                    renderSalesTabs();
-                    showScreen("dashboard");
-                }
-
-            } catch (err) {
-                alert("Erreur lors de la synchronisation !");
-                console.error(err);
-            } finally {
-                syncModal.hide();
-            }
-
-        } else {
+        if (match.length === 0) {
             alert("PIN incorrect !");
             pinBuffer = "";
             updatePinDisplay();
+            return;
+        }
+
+        currentUser = match[0];
+        console.log("Utilisateur connecté :", currentUser);
+
+        try {
+            // 1) Vérifier le shift courant
+            const res = await fetch(`http://kabas.dev-back.fr/api/pos/shifts/current/${currentUser.id}`);
+            const shift = await res.json();
+
+            if (shift && shift.id) {
+                currentShift = shift;
+                await ensureCatalogSyncedIfNeeded(currentUser.store_id);
+
+                loadSalesFromLocal();
+                renderSalesTabs();
+                showScreen("dashboard");
+            } else {
+                await ensureCatalogSyncedIfNeeded(currentUser.store_id);
+                showScreen("shiftstart");
+            }
+        } catch (e) {
+            console.error("Erreur lors de la vérification du shift :", e);
+            // pas d’alert
         }
     });
-}
-
-function updatePinDisplay() {
-    let masked = "*".repeat(pinBuffer.length);
-    masked = masked.padEnd(6, "•");
-    $("#pin-display").text(masked);
 }
 </script>
 @endpush

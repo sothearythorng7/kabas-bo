@@ -126,4 +126,7 @@ return [
     'website_locales' => ['en', 'fr'],
 
     'tiny_mce' => 'mts8jhsme411zd7da0cio6is57y0r9sjhyu59ftpz538zh7x',
+
+    'public_shop_url' => 'http://site.kabas.dev-back.fr',
+    'public_product_path' => 'product',
 ];

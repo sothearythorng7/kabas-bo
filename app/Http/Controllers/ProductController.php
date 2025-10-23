@@ -23,7 +23,7 @@ class ProductController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Product::with('brand', 'stores');
+        $query = Product::with('brand', 'stores')->withCount('images');
 
         if ($request->filled('q')) {
             $q = $request->q;
@@ -34,9 +34,18 @@ class ProductController extends Controller
             });
         }
 
-        $products = $query->orderBy('id', 'desc')->paginate(20)->withQueryString();
+        if ($request->filled('brand_id')) {
+            if ($request->brand_id === 'none') {
+                $query->whereNull('brand_id');
+            } else {
+                $query->where('brand_id', $request->brand_id);
+            }
+        }
 
-        return view('products.index', compact('products'));
+        $products = $query->orderBy('id', 'desc')->paginate(100)->withQueryString();
+         $brands = Brand::orderBy('name')->get();
+
+        return view('products.index', compact('products', 'brands'));
     }
 
     public function show(Product $product)
@@ -61,59 +70,61 @@ class ProductController extends Controller
         ));
     }
 
-    public function store(Request $request)
-    {
-        $locales = config('app.website_locales', ['en']);
+public function store(Request $request)
+{
+    $locales = config('app.website_locales', ['en']);
 
-        $data = $request->validate([
-            'ean' => 'required|string|unique:products,ean',
-            'price' => 'nullable|numeric',
-            'price_btob' => 'nullable|numeric',
-            'brand_id' => 'nullable|exists:brands,id',
-            'color' => 'nullable|string',
-            'size' => 'nullable|string',
-            'is_active' => 'sometimes|boolean',
-            'is_best_seller' => 'sometimes|boolean',
-            'name' => 'required|array',
-            'name.*' => 'required|string',
+    $data = $request->validate([
+        'ean' => 'required|string|unique:products,ean',
+        'price' => 'nullable|numeric',
+        'price_btob' => 'nullable|numeric',
+        'brand_id' => 'nullable|exists:brands,id',
+        'color' => 'nullable|string',
+        'size' => 'nullable|string',
+        'is_active' => 'sometimes|boolean',
+        'is_best_seller' => 'sometimes|boolean',
+        'name' => 'required|array',
+        'name.*' => 'required|string',
+    ]);
+
+    $product = null;
+
+    DB::transaction(function () use ($data, $locales, &$product) {
+        $product = Product::create([
+            'ean' => $data['ean'],
+            'price' => $data['price'] ?? 0,
+            'price_btob' => $data['price_btob'] ?? 0,
+            'brand_id' => $data['brand_id'] ?? null,
+            'color' => $data['color'] ?? null,
+            'size' => $data['size'] ?? null,
+            'is_active' => $data['is_active'] ?? false,
+            'is_best_seller' => $data['is_best_seller'] ?? false,
+            'is_resalable' => false,
         ]);
 
-        $slugs = [];
-        foreach ($data['name'] as $locale => $name) {
-            $slugs[$locale] = Str::slug($name);
+        foreach ($locales as $locale) {
+            $product->setTranslation('name', $locale, $data['name'][$locale] ?? '');
+            $product->setTranslation('slugs', $locale, Str::slug($data['name'][$locale] ?? ''));
         }
 
-        $product = null;
+        $product->save();
 
-        DB::transaction(function () use ($data, $slugs, &$product) {
-            $product = Product::create([
-                'ean' => $data['ean'],
-                'name' => $data['name'],
-                'slugs' => $slugs,
-                'price' => $data['price'] ?? 0,
-                'price_btob' => $data['price_btob'] ?? 0,
-                'brand_id' => $data['brand_id'] ?? null,
-                'color' => $data['color'] ?? null,
-                'size' => $data['size'] ?? null,
-                'is_active' => $data['is_active'] ?? false,
-                'is_best_seller' => $data['is_best_seller'] ?? false,
-                'is_resalable' => false
-            ]);
+        // Attacher tous les magasins avec stock initial 0
+        $stores = Store::all();
+        $syncData = [];
+        foreach ($stores as $store) {
+            $syncData[$store->id] = [
+                'stock_quantity' => 0,
+                'alert_stock_quantity' => 0
+            ];
+        }
+        $product->stores()->attach($syncData);
+    });
 
-            $stores = Store::all();
-            $syncData = [];
-            foreach ($stores as $store) {
-                $syncData[$store->id] = [
-                    'stock_quantity' => 0,
-                    'alert_stock_quantity' => 0
-                ];
-            }
-            $product->stores()->attach($syncData);
-        });
+    return redirect()->route('products.edit', $product)
+                     ->with('success', __('messages.common.created'));
+}
 
-        return redirect()->route('products.edit', $product)
-                        ->with('success', __('messages.common.created'));
-    }
 
     public function edit(Product $product)
     {
@@ -147,81 +158,81 @@ class ProductController extends Controller
         ));
     }
 
-    public function update(Request $request, Product $product)
-    {
-        $locales = config('app.website_locales', ['en']);
+public function update(Request $request, Product $product)
+{
+    $locales = config('app.website_locales', ['en']);
 
-        $data = $request->validate([
-            'ean' => 'required|string|unique:products,ean,'.$product->id,
-            'name' => 'required|array',
-            'name.*' => 'required|string',
-            'description' => 'nullable|array',
-            'description.*' => 'nullable|string',
-            'price' => 'required|numeric|min:0',
-            'price_btob' => 'nullable|numeric|min:0',
-            'brand_id' => 'nullable|exists:brands,id',
-            'color' => 'nullable|string',
-            'size'  => 'nullable|string',
-            'is_active' => 'boolean',
-            'is_best_seller' => 'boolean',
-            'is_resalable' => 'sometimes|boolean',
-            'categories' => 'nullable|array',
-            'categories.*' => 'exists:categories,id',
-            'suppliers' => 'nullable|array',
-            'suppliers.*.id' => 'exists:suppliers,id',
-            'suppliers.*.purchase_price' => 'nullable|numeric|min:0',
-            'stores' => 'nullable|array',
-            'stores.*.id' => 'exists:stores,id',
-            'stores.*.stock_quantity' => 'nullable|integer|min:0',
-            'stores.*.alert_stock_quantity' => 'nullable|integer|min:0',
+    $data = $request->validate([
+        'ean' => 'required|string|unique:products,ean,'.$product->id,
+        'name' => 'required|array',
+        'name.*' => 'required|string',
+        'description' => 'nullable|array',
+        'description.*' => 'nullable|string',
+        'price' => 'required|numeric|min:0',
+        'price_btob' => 'nullable|numeric|min:0',
+        'brand_id' => 'nullable|exists:brands,id',
+        'color' => 'nullable|string',
+        'size'  => 'nullable|string',
+        'is_active' => 'boolean',
+        'is_best_seller' => 'boolean',
+        'is_resalable' => 'sometimes|boolean',
+        'categories' => 'nullable|array',
+        'categories.*' => 'exists:categories,id',
+        'suppliers' => 'nullable|array',
+        'suppliers.*.id' => 'exists:suppliers,id',
+        'suppliers.*.purchase_price' => 'nullable|numeric|min:0',
+        'stores' => 'nullable|array',
+        'stores.*.id' => 'exists:stores,id',
+        'stores.*.stock_quantity' => 'nullable|integer|min:0',
+        'stores.*.alert_stock_quantity' => 'nullable|integer|min:0',
+    ]);
+
+    DB::transaction(function () use ($product, $data, $locales) {
+        $product->update([
+            'ean' => $data['ean'],
+            'price' => $data['price'],
+            'price_btob' => $data['price_btob'],
+            'brand_id' => $data['brand_id'] ?? null,
+            'color' => $data['color'] ?? null,
+            'size' => $data['size'] ?? null,
+            'is_active' => $data['is_active'] ?? false,
+            'is_resalable' => $data['is_resalable'] ?? false,
+            'is_best_seller' => $data['is_best_seller'] ?? false,
         ]);
 
-        $slugs = [];
         foreach ($locales as $locale) {
-            $slugs[$locale] = Str::slug($data['name'][$locale] ?? '');
+            $product->setTranslation('name', $locale, $data['name'][$locale] ?? '');
+            $product->setTranslation('slugs', $locale, Str::slug($data['name'][$locale] ?? ''));
+            $product->setTranslation('description', $locale, $data['description'][$locale] ?? '');
         }
-        $data['slugs'] = $slugs;
 
-        DB::transaction(function () use ($product, $data) {
-            $product->update([
-                'ean'            => $data['ean'],
-                'name'           => $data['name'],
-                'description'    => $data['description'] ?? [],
-                'slugs'          => $data['slugs'],
-                'price'          => $data['price'],
-                'price_btob'     => $data['price_btob'],
-                'brand_id'       => $data['brand_id'] ?? null,
-                'color'          => $data['color'] ?? null,
-                'size'           => $data['size'] ?? null,
-                'is_active'      => $data['is_active'] ?? false,
-                'is_resalable'   => $data['is_resalable'] ?? false,
-                'is_best_seller' => $data['is_best_seller'] ?? false,
-            ]);
+        $product->save();
 
-            $product->categories()->sync($data['categories'] ?? []);
+        // Catégories, suppliers et stores
+        $product->categories()->sync($data['categories'] ?? []);
 
-            $syncSup = [];
-            foreach (($data['suppliers'] ?? []) as $sup) {
-                if (!empty($sup['id'])) {
-                    $syncSup[$sup['id']] = ['purchase_price' => $sup['purchase_price'] ?? null];
-                }
+        $syncSup = [];
+        foreach (($data['suppliers'] ?? []) as $sup) {
+            if (!empty($sup['id'])) {
+                $syncSup[$sup['id']] = ['purchase_price' => $sup['purchase_price'] ?? null];
             }
-            $product->suppliers()->sync($syncSup);
+        }
+        $product->suppliers()->sync($syncSup);
 
-            $syncStores = [];
-            foreach (($data['stores'] ?? []) as $st) {
-                if (!empty($st['id'])) {
-                    $syncStores[$st['id']] = [
-                        'stock_quantity' => $st['stock_quantity'] ?? 0,
-                        'alert_stock_quantity' => $st['alert_stock_quantity'] ?? 0,
-                    ];
-                }
+        $syncStores = [];
+        foreach (($data['stores'] ?? []) as $st) {
+            if (!empty($st['id'])) {
+                $syncStores[$st['id']] = [
+                    'stock_quantity' => $st['stock_quantity'] ?? 0,
+                    'alert_stock_quantity' => $st['alert_stock_quantity'] ?? 0,
+                ];
             }
-            $product->stores()->sync($syncStores);
-        });
+        }
+        $product->stores()->sync($syncStores);
+    });
 
-        return redirect()->route('products.index')->with('success', __('messages.common.updated'));
-    }
+    return redirect()->route('products.index')->with('success', __('messages.common.updated'));
+}
 
     public function uploadPhotos(Request $request, Product $product)
     {
@@ -490,4 +501,5 @@ public function search(Request $request)
 
     return response()->json($products);
 }
+
 }

@@ -7,6 +7,7 @@ use App\Models\CategoryTranslation;
 use Illuminate\Console\Command;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Str;
 
 class ImportCategoriesCommand extends Command
 {
@@ -15,6 +16,7 @@ class ImportCategoriesCommand extends Command
 
     private array $categoryCache = [];
     private array $translationCache = [];
+    private array $generatedFullSlugs = [];
 
     public function handle()
     {
@@ -27,31 +29,25 @@ class ImportCategoriesCommand extends Command
 
         $this->info('Loading Excel file...');
         $spreadsheet = IOFactory::load($filePath);
-        
-        // Récupérer l'onglet "Categories"
+
         $worksheet = $spreadsheet->getSheetByName('Categories');
-        
         if (!$worksheet) {
             $this->error('Sheet "Categories" not found in the Excel file.');
             return Command::FAILURE;
         }
 
         $this->info('Clearing existing categories...');
-        
-        // Désactiver les vérifications de clés étrangères
         \DB::statement('SET FOREIGN_KEY_CHECKS=0;');
         CategoryTranslation::truncate();
         Category::truncate();
         \DB::statement('SET FOREIGN_KEY_CHECKS=1;');
-        
+
         $this->categoryCache = [];
         $this->translationCache = [];
 
         $this->info('Importing categories...');
         $rows = $worksheet->toArray();
-        
-        // Ignorer la première ligne (en-tête)
-        array_shift($rows);
+        array_shift($rows); // Ignore header
 
         $bar = $this->output->createProgressBar(count($rows));
         $bar->start();
@@ -67,14 +63,11 @@ class ImportCategoriesCommand extends Command
                 continue;
             }
 
-            // Créer la catégorie principale
             $parent = $this->findOrCreateCategory($mainCategory, null, $autoTranslate);
 
-            // Créer la sous-catégorie si elle existe
             if (!empty($subCategory)) {
                 $child = $this->findOrCreateCategory($subCategory, $parent->id, $autoTranslate);
 
-                // Créer la sous-sous-catégorie si elle existe
                 if (!empty($subSubCategory)) {
                     $this->findOrCreateCategory($subSubCategory, $child->id, $autoTranslate);
                 }
@@ -97,59 +90,54 @@ class ImportCategoriesCommand extends Command
 
     private function findOrCreateCategory(string $nameEn, ?int $parentId = null, bool $autoTranslate = true): Category
     {
-        // Créer une clé unique pour le cache
         $cacheKey = $parentId . '|' . $nameEn;
-
         if (isset($this->categoryCache[$cacheKey])) {
             return $this->categoryCache[$cacheKey];
         }
 
-        // Chercher si la catégorie existe déjà
+        // Vérifie si la catégorie existe déjà en anglais
         $category = Category::whereHas('translations', function ($query) use ($nameEn) {
-            $query->where('locale', 'en')
-                  ->where('name', $nameEn);
+            $query->where('locale', 'en')->where('name', $nameEn);
         })->where('parent_id', $parentId)->first();
 
         if (!$category) {
-            // Créer la catégorie
-            $category = Category::create([
-                'parent_id' => $parentId,
-            ]);
+            $category = Category::create(['parent_id' => $parentId]);
 
-            // Créer la traduction en anglais
+            // Traduction anglaise
+            $fullSlugEn = $this->generateUniqueFullSlug($category, 'en', $nameEn);
             CategoryTranslation::create([
                 'category_id' => $category->id,
                 'locale' => 'en',
                 'name' => $nameEn,
+                'full_slug' => $fullSlugEn
             ]);
 
-            // Créer la traduction en français si demandé
+            // Traduction française
             if ($autoTranslate) {
                 $nameFr = $this->translateToFrench($nameEn);
-                
+                if (empty($nameFr)) $nameFr = $nameEn;
+
+                $fullSlugFr = $this->generateUniqueFullSlug($category, 'fr', $nameFr);
                 CategoryTranslation::create([
                     'category_id' => $category->id,
                     'locale' => 'fr',
                     'name' => $nameFr,
+                    'full_slug' => $fullSlugFr
                 ]);
             }
         }
 
-        // Mettre en cache
         $this->categoryCache[$cacheKey] = $category;
-
         return $category;
     }
 
     private function translateToFrench(string $text): string
     {
-        // Vérifier le cache de traduction
         if (isset($this->translationCache[$text])) {
             return $this->translationCache[$text];
         }
 
         try {
-            // Utiliser MyMemory Translation API (gratuit)
             $response = Http::timeout(5)
                 ->get('https://api.mymemory.translated.net/get', [
                     'q' => $text,
@@ -158,26 +146,51 @@ class ImportCategoriesCommand extends Command
 
             if ($response->successful()) {
                 $data = $response->json();
-                
                 if (isset($data['responseData']['translatedText'])) {
                     $translated = $data['responseData']['translatedText'];
-                    
-                    // Mettre en cache
                     $this->translationCache[$text] = $translated;
-                    
-                    // Petit délai pour éviter le rate limiting
-                    usleep(200000); // 0.2 seconde
-                    
+                    usleep(200000);
                     return $translated;
                 }
             }
         } catch (\Exception $e) {
-            // En cas d'erreur, log mais continue
             $this->warn("Translation failed for: {$text}");
         }
 
-        // Fallback : retourner le texte original
         $this->translationCache[$text] = $text;
         return $text;
+    }
+
+    private function generateUniqueFullSlug(Category $category, string $locale, string $name): string
+    {
+        $slug = Str::slug($name);
+        $fullSlug = $this->computeFullSlug($category, $locale, $slug);
+        $counter = 1;
+
+        while (CategoryTranslation::where('full_slug', $fullSlug)->exists() ||
+               in_array($fullSlug, $this->generatedFullSlugs)) {
+            $fullSlug = $this->computeFullSlug($category, $locale, $slug . '-' . $counter++);
+        }
+
+        $this->generatedFullSlugs[] = $fullSlug;
+        return $fullSlug;
+    }
+
+    private function computeFullSlug(Category $category, string $locale, string $slug): string
+    {
+        $parts = [$slug];
+        $parent = $category->parent;
+
+        while ($parent) {
+            $parentTranslation = $parent->translations()->where('locale', $locale)->first();
+            if ($parentTranslation) {
+                array_unshift($parts, $parentTranslation->name); // On utilise le nom traduit pour le full_slug
+            }
+            $parent = $parent->parent;
+        }
+
+        array_unshift($parts, $locale); // Ajout de la langue au début
+        $parts = array_map(fn($p) => Str::slug($p), $parts); // Slugify chaque segment
+        return implode('/', $parts);
     }
 }

@@ -116,6 +116,12 @@ return [
                 'active_pattern' => 'brands*',
             ],
             [
+                'label' => 'messages.menu.static_pages',
+                'icon'  => 'bi-award',
+                'route' => 'admin.pages.index',
+                'active_pattern' => 'pages*',
+            ],
+            [
                 'label' => 'messages.menu.variations',
                 'icon'  => 'bi-bezier2',
                 'active_pattern' => 'variation*',

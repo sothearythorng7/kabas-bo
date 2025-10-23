@@ -35,13 +35,32 @@
                 <th></th>
                 <th>@t("product.ean")</th>
                 <th>@t("Product name")</th>
-                <th>@t("product.brand_label")</th>
+                <th style="min-width:220px;">
+                    <form action="{{ route('products.index') }}" method="GET" id="brandFilterForm">
+                        {{-- préserver les autres filtres/params --}}
+                        @if(request('q'))
+                            <input type="hidden" name="q" value="{{ request('q') }}">
+                        @endif
+
+                        <select name="brand_id" class="form-select form-select-sm" onchange="this.form.submit()">
+                            <option value="">{{ __('messages.all_brands') }}</option>
+                            <option value="none" {{ request('brand_id') === 'none' ? 'selected' : '' }}>
+                                {{ __('messages.no_brand') }}
+                            </option>
+                            @foreach($brands as $b)
+                                <option value="{{ $b->id }}" {{ (string)$b->id === request('brand_id') ? 'selected' : '' }}>
+                                    {{ $b->name }}
+                                </option>
+                            @endforeach
+                        </select>
+                    </form>
+                </th>
                 <th>@t("product.price")</th>
                 <th>@t("product.price_btob")</th> <!-- Nouvelle colonne -->
                 <th>@t("product.active")</th>
                 <th>@t("Best")</th>
                 <th>@t("Resalable")</th>
-                <th></th>
+                <th class="text-center" style="width:90px;">@t("photo")</th>
             </tr>
         </thead>
         <tbody>
@@ -86,7 +105,8 @@
                     @endif
                 </td>
                 <td>{{ $p->ean }}</td>
-                <td>{{ $p->name[app()->getLocale()] ?? reset($p->name) }}</td>
+                <td>{{ is_array($p->name) ? ($p->name[app()->getLocale()] ?? reset($p->name)) : $p->name }}</td>
+
                 <td>{{ $p->brand?->name ?? '-' }}</td>
                 <td>{{ number_format($p->price, 2) }}</td>
                 <td>
@@ -99,6 +119,13 @@
                 <td style="text-center">{{ $p->is_active ? 'Yes' : 'No' }}</td>
                 <td style="text-center">{{ $p->is_best_seller ? 'Yes' : 'No' }}</td>
                 <td style="text-center">{{ $p->is_resalable ? 'Yes' : 'No' }}</td>
+                <td class="text-center">
+                    @if($p->images_count > 0)
+                        <span class="badge bg-success">{{ $p->images_count }}</span>
+                    @else
+                        <span class="badge bg-secondary">0</span>
+                    @endif
+                </td>
             </tr>
             @endforeach
         </tbody>

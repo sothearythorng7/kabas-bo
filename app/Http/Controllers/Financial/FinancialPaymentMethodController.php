@@ -33,7 +33,7 @@ class FinancialPaymentMethodController extends Controller
         ]);
 
         return redirect()->route('financial.payment-methods.index', $store->id)
-            ->with('success', 'Méthode de paiement créée.');
+            ->with('success', __('messages.financial_payment_method.created'));
     }
 
     public function edit(Store $store, FinancialPaymentMethod $paymentMethod)
@@ -54,7 +54,7 @@ class FinancialPaymentMethodController extends Controller
         ]);
 
         return redirect()->route('financial.payment-methods.index', $store->id)
-            ->with('success', 'Méthode de paiement mise à jour.');
+            ->with('success', __('messages.financial_payment_method.updated'));
     }
 
     public function destroy(Store $store, FinancialPaymentMethod $paymentMethod)
@@ -62,6 +62,6 @@ class FinancialPaymentMethodController extends Controller
         $paymentMethod->delete();
 
         return redirect()->route('financial.payment-methods.index', $store->id)
-            ->with('success', 'Méthode de paiement supprimée.');
+            ->with('success', __('messages.financial_payment_method.deleted'));
     }
 }

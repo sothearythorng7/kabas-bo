@@ -8,9 +8,14 @@
     <div class="d-flex justify-content-between mb-3 align-items-center">
         <div class="btn-toolbar" role="toolbar" aria-label="Barre d'actions">
             <div class="btn-group me-2" role="group" aria-label="Actions principales">
-                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#invoiceModal">
-                    <i class="bi bi-plus-lg"></i>@t("Add Invoice")
-                </button>
+                <a href="{{ route('financial.general-invoices.create', $store->id) }}" class="btn btn-primary">
+                    <i class="bi bi-plus-lg"></i> @t("Add Invoice")
+                </a>
+            </div>
+            <div class="btn-group" role="group" aria-label="Export">
+                <a href="{{ route('financial.general-invoices.export', array_merge(['store' => $store->id], request()->all())) }}" class="btn btn-success">
+                    <i class="bi bi-file-earmark-excel"></i> @t("Exporter Excel")
+                </a>
             </div>
         </div>
     </div>
@@ -27,15 +32,58 @@
         </li>
     </ul>
 
+    <!-- Filtres -->
+    <div class="card mb-3">
+        <div class="card-header">
+            <h5 class="mb-0"><i class="bi bi-funnel"></i> @t('Filtres')</h5>
+        </div>
+        <div class="card-body">
+            <form method="GET" action="{{ route('financial.general-invoices.index', $store->id) }}">
+                <input type="hidden" name="status" value="{{ request('status') }}">
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <label class="form-label">@t('Catégorie')</label>
+                        <select name="category_id" class="form-select">
+                            <option value="">-- @t('Toutes les catégories') --</option>
+                            @foreach($categories as $category)
+                                <option value="{{ $category->id }}" @selected(request('category_id') == $category->id)>
+                                    {{ $category->name }}
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">@t('Date limite après')</label>
+                        <input type="date" name="date_after" class="form-control" value="{{ request('date_after') }}">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">@t('Date limite avant')</label>
+                        <input type="date" name="date_before" class="form-control" value="{{ request('date_before') }}">
+                    </div>
+                </div>
+                <div class="mt-3">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-search"></i> @t('Filtrer')
+                    </button>
+                    <a href="{{ route('financial.general-invoices.index', [$store->id, 'status' => request('status')]) }}" class="btn btn-secondary">
+                        <i class="bi bi-x-circle"></i> @t('Réinitialiser')
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- Tableau des factures -->
     <table class="table table-hover table-striped">
         <thead>
             <tr>
                 <th></th> <!-- Dropdown actions -->
                 <th>@t("Libellé")</th>
+                <th>@t("Catégorie")</th>
                 <th>@t("Compte")</th>
                 <th>@t("Montant")</th>
                 <th>@t("Due to")</th>
+                <th>@t("Date de paiement")</th>
             </tr>
         </thead>
         <tbody>
@@ -50,6 +98,16 @@
                             @if($invoice->type === 'general')
                                 <li><a class="dropdown-item" href="{{ route('financial.general-invoices.show', [$store->id, $invoice->id]) }}">@t("See")</a></li>
                                 <li><a class="dropdown-item" href="{{ route('financial.general-invoices.edit', [$store->id, $invoice->id]) }}">@t("edit")</a></li>
+                                @if($invoice->status !== 'paid')
+                                    <li>
+                                        <form method="POST" action="{{ route('financial.general-invoices.mark-as-paid', [$store->id, $invoice->id]) }}" class="m-0 p-0">
+                                            @csrf
+                                            <button class="dropdown-item text-success" onclick="return confirm('@t("Marquer cette facture comme payée ?")')">
+                                                <i class="bi bi-check-circle"></i> @t("Marquer comme payée")
+                                            </button>
+                                        </form>
+                                    </li>
+                                @endif
                                 <li>
                                     <form method="POST" action="{{ route('financial.general-invoices.destroy', [$store->id, $invoice->id]) }}" class="m-0 p-0">
                                         @csrf @method('DELETE')
@@ -70,6 +128,15 @@
                     @endif
                 </td>
                 <td>
+                    @if($invoice->type === 'general' && $invoice->category)
+                        <span class="badge" style="background-color: {{ $invoice->category->color }}">
+                            {{ $invoice->category->name }}
+                        </span>
+                    @else
+                        -
+                    @endif
+                </td>
+                <td>
                     @if($invoice->type === 'general')
                         {{ $invoice->account?->name ?? '-' }}
                     @elseif($invoice->type === 'supplier')
@@ -85,93 +152,41 @@
                 </td>
                 <td>
                     @if($invoice->type === 'general')
-                        {{ $invoice->due_date ? $invoice->due_date->format('d/m/Y') : '-' }}
+                        @if($invoice->due_date)
+                            @php
+                                $isOverdue = $invoice->due_date->isPast() && $invoice->status !== 'paid';
+                            @endphp
+                            <span class="{{ $isOverdue ? 'text-danger fw-bold' : '' }}">
+                                @if($isOverdue)
+                                    <i class="bi bi-exclamation-triangle-fill"></i>
+                                @endif
+                                {{ $invoice->due_date->format('d/m/Y') }}
+                            </span>
+                        @else
+                            -
+                        @endif
                     @elseif($invoice->type === 'supplier')
+                        -
+                    @endif
+                </td>
+                <td>
+                    @if($invoice->type === 'general' && $invoice->payment_date)
+                        <span class="badge bg-success">
+                            <i class="bi bi-check-circle"></i> {{ $invoice->payment_date->format('d/m/Y') }}
+                        </span>
+                    @else
                         -
                     @endif
                 </td>
             </tr>
         @empty
-            <tr><td colspan="6" class="text-center">@t("No invoices to show")</td></tr>
+            <tr><td colspan="8" class="text-center">@t("No invoices to show")</td></tr>
         @endforelse
         </tbody>
     </table>
 
     {{ $invoices->links() }}
 
-    <!-- Modal création/édition -->
-    <div class="modal fade" id="invoiceModal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                @php
-                    $isEdit = isset($editingInvoice);
-                    $action = $isEdit 
-                        ? route('financial.general-invoices.update', [$store->id, $editingInvoice->id]) 
-                        : route('financial.general-invoices.store', $store->id);
-                    $method = $isEdit ? 'PUT' : 'POST';
-                    $invoice = $isEdit ? $editingInvoice : null;
-                @endphp
-                <form action="{{ $action }}" method="POST" enctype="multipart/form-data">
-                    @csrf
-                    @if($isEdit)
-                        @method('PUT')
-                    @endif
-                    <div class="modal-header">
-                        <h5 class="modal-title">@if($isEdit) @t("Edit invoice") @else @t("new Invoice") @endif</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                    </div>
-                    <div class="modal-body">
-                        <div class="mb-3">
-                            <label>@t("Libellé")</label>
-                            <input type="text" name="label" class="form-control" value="{{ old('label', $invoice->label ?? '') }}" required>
-                        </div>
-                        <div class="mb-3">
-                            <label>@t("Note")</label>
-                            <textarea name="note" class="form-control">{{ old('note', $invoice->note ?? '') }}</textarea>
-                        </div>
-                        <div class="mb-3">
-                            <label>@t("Montant")</label>
-                            <input type="number" step="0.01" name="amount" class="form-control" value="{{ old('amount', $invoice->amount ?? '') }}" required>
-                        </div>
-                        <div class="mb-3">
-                            <label>@t("Date échéance")</label>
-                            <input type="date" name="due_date" class="form-control" value="{{ old('due_date', optional($invoice)->due_date?->format('Y-m-d')) }}">
-                        </div>
-                        <div class="mb-3">
-                            <label>@t("Compte")</label>
-                            <select name="account_id" class="form-select" required>
-                                @foreach($accounts as $account)
-                                    <option value="{{ $account->id }}" {{ old('account_id', optional($invoice)->account_id) == $account->id ? 'selected' : '' }}>
-                                        {{ $account->name }}
-                                    </option>
-                                @endforeach
-                            </select>
-                        </div>
-                        <div class="mb-3">
-                            <label>@t("Attachment")</label>
-                            <input type="file" name="attachment" class="form-control" {{ $isEdit ? '' : 'required' }}>
-                            @if($isEdit && $invoice->attachment)
-                                <a href="{{ Storage::url($invoice->attachment) }}" target="_blank">@t("Voir le fichier actuel")</a>
-                            @endif
-                        </div>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">@t("btn.cancel")</button>
-                        <button type="submit" class="btn btn-primary">@if($isEdit) @t("btn.update") @else @t("btn.create") @endif</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
-
 </div>
-
-@if(isset($editingInvoice))
-<script>
-    // Ouvrir automatiquement la modal si on est en édition
-    var invoiceModal = new bootstrap.Modal(document.getElementById('invoiceModal'));
-    invoiceModal.show();
-</script>
-@endif
 
 @endsection

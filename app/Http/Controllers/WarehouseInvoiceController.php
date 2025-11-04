@@ -103,7 +103,7 @@ class WarehouseInvoiceController extends Controller
         }
 
         return redirect()->route('warehouse-invoices.edit', $invoice)
-                        ->with('success', 'Facture mise à jour.');
+                        ->with('success', __('messages.warehouse_invoice.updated'));
     }
 
     public function uploadFiles(Request $request, WarehouseInvoice $invoice)
@@ -124,7 +124,7 @@ class WarehouseInvoiceController extends Controller
             ]);
         }
 
-        return back()->with('success', 'Fichier(s) ajouté(s) avec succès.');
+        return back()->with('success', __('messages.warehouse_invoice.files_added'));
     }
 
     public function deleteFile(WarehouseInvoice $invoice, $fileId)
@@ -133,7 +133,7 @@ class WarehouseInvoiceController extends Controller
         Storage::delete($file->path);
         $file->delete();
 
-        return redirect()->back()->with('success', 'Fichier supprimé.');
+        return redirect()->back()->with('success', __('messages.warehouse_invoice.file_deleted'));
     }
 
     public function store(Request $request)
@@ -182,7 +182,7 @@ class WarehouseInvoiceController extends Controller
         }
 
         return redirect()->route('warehouse-invoices.edit', $invoice)
-                        ->with('success', 'Facture créée avec succès.');
+                        ->with('success', __('messages.warehouse_invoice.created'));
     }
 
     public function bills(Request $request)

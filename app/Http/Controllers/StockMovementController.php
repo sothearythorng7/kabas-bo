@@ -73,7 +73,7 @@ class StockMovementController extends Controller
         });
 
         return redirect()->route('stock-movements.index')
-            ->with('success', 'Mouvement enregistré et validé.');
+            ->with('success', __('messages.stock_movement.saved_and_validated'));
     }
 
     public function receive(StockMovement $movement)
@@ -103,7 +103,7 @@ class StockMovementController extends Controller
         });
 
         return redirect()->route('stock-movements.index')
-            ->with('success', 'Mouvement réceptionné et stock mis à jour.');
+            ->with('success', __('messages.stock_movement.received_and_updated'));
     }
 
     public function cancel(StockMovement $movement)
@@ -132,7 +132,7 @@ class StockMovementController extends Controller
         });
 
         return redirect()->route('stock-movements.index')
-            ->with('success', 'Mouvement annulé et stock restauré.');
+            ->with('success', __('messages.stock_movement.cancelled_and_restored'));
     }
 
     public function show(StockMovement $movement)

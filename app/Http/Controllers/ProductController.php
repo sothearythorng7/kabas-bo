@@ -79,8 +79,6 @@ public function store(Request $request)
         'price' => 'nullable|numeric',
         'price_btob' => 'nullable|numeric',
         'brand_id' => 'nullable|exists:brands,id',
-        'color' => 'nullable|string',
-        'size' => 'nullable|string',
         'is_active' => 'sometimes|boolean',
         'is_best_seller' => 'sometimes|boolean',
         'name' => 'required|array',
@@ -95,8 +93,6 @@ public function store(Request $request)
             'price' => $data['price'] ?? 0,
             'price_btob' => $data['price_btob'] ?? 0,
             'brand_id' => $data['brand_id'] ?? null,
-            'color' => $data['color'] ?? null,
-            'size' => $data['size'] ?? null,
             'is_active' => $data['is_active'] ?? false,
             'is_best_seller' => $data['is_best_seller'] ?? false,
             'is_resalable' => false,
@@ -171,8 +167,6 @@ public function update(Request $request, Product $product)
         'price' => 'required|numeric|min:0',
         'price_btob' => 'nullable|numeric|min:0',
         'brand_id' => 'nullable|exists:brands,id',
-        'color' => 'nullable|string',
-        'size'  => 'nullable|string',
         'is_active' => 'boolean',
         'is_best_seller' => 'boolean',
         'is_resalable' => 'sometimes|boolean',
@@ -193,8 +187,6 @@ public function update(Request $request, Product $product)
             'price' => $data['price'],
             'price_btob' => $data['price_btob'],
             'brand_id' => $data['brand_id'] ?? null,
-            'color' => $data['color'] ?? null,
-            'size' => $data['size'] ?? null,
             'is_active' => $data['is_active'] ?? false,
             'is_resalable' => $data['is_resalable'] ?? false,
             'is_best_seller' => $data['is_best_seller'] ?? false,
@@ -257,7 +249,7 @@ public function update(Request $request, Product $product)
             $product->images()->orderBy('sort_order')->first()?->update(['is_primary' => true]);
         }
 
-        return back()->with('success', 'Photos uploaded successfully.')->withFragment('tab-photos');
+        return back()->with('success', __('messages.product.photos_uploaded'))->withFragment('tab-photos');
     }
 
     public function deletePhoto(Product $product, ProductImage $photo)
@@ -273,7 +265,7 @@ public function update(Request $request, Product $product)
             $product->images()->orderBy('sort_order')->first()?->update(['is_primary' => true]);
         }
 
-        return back()->with('success', 'Photo deleted successfully.')->withFragment('tab-photos');
+        return back()->with('success', __('messages.product.photo_deleted'))->withFragment('tab-photos');
     }
 
     public function destroy(Product $product)
@@ -312,13 +304,13 @@ public function update(Request $request, Product $product)
     {
         $request->validate(['category_id' => 'required|exists:categories,id']);
         $product->categories()->syncWithoutDetaching([$request->category_id]);
-        return back()->with('success', 'Category added.')->withFragment('tab-categories');
+        return back()->with('success', __('messages.product.category_added'))->withFragment('tab-categories');
     }
 
     public function detachCategory(Product $product, Category $category)
     {
         $product->categories()->detach($category->id);
-        return back()->with('success', 'Category removed.')->withFragment('tab-categories');
+        return back()->with('success', __('messages.product.category_removed'))->withFragment('tab-categories');
     }
 
     public function attachSupplier(Request $request, Product $product)
@@ -328,20 +320,20 @@ public function update(Request $request, Product $product)
             'purchase_price' => 'required|numeric|min:0',
         ]);
         $product->suppliers()->syncWithoutDetaching([ $request->supplier_id => ['purchase_price' => $request->purchase_price] ]);
-        return back()->with('success', 'Supplier added.')->withFragment('tab-suppliers');
+        return back()->with('success', __('messages.product.supplier_added'))->withFragment('tab-suppliers');
     }
 
     public function detachSupplier(Product $product, Supplier $supplier)
     {
         $product->suppliers()->detach($supplier->id);
-        return back()->with('success', 'Supplier removed.')->withFragment('tab-suppliers');
+        return back()->with('success', __('messages.product.supplier_removed'))->withFragment('tab-suppliers');
     }
 
     public function updateSupplierPrice(Request $request, Product $product, Supplier $supplier)
     {
         $request->validate(['purchase_price' => 'required|numeric|min:0']);
         $product->suppliers()->updateExistingPivot($supplier->id, ['purchase_price' => $request->purchase_price]);
-        return back()->with('success', 'Supplier price updated.')->withFragment('tab-suppliers');
+        return back()->with('success', __('messages.product.supplier_price_updated'))->withFragment('tab-suppliers');
     }
 
     public function updateStoreStock(Request $request, Product $product, Store $store)
@@ -416,7 +408,7 @@ public function update(Request $request, Product $product)
             ]);
         });
 
-        return back()->with('success', 'Store stock updated.')->withFragment('tab-stores');
+        return back()->with('success', __('messages.product.store_stock_updated'))->withFragment('tab-stores');
     }
 
     public function setPrimaryPhoto(Product $product, ProductImage $photo)
@@ -431,7 +423,7 @@ public function update(Request $request, Product $product)
         // On met celle sélectionnée en true
         $photo->update(['is_primary' => true]);
 
-        return back()->with('success', 'Primary photo updated.')->withFragment('tab-photos');
+        return back()->with('success', __('messages.product.primary_photo_updated'))->withFragment('tab-photos');
     }
 
 
@@ -448,6 +440,14 @@ public function variationsStore(Request $request, Product $product)
         'variation_type_id'  => 'required|exists:variation_types,id',
         'variation_value_id' => 'required|exists:variation_values,id',
         'linked_product_id'  => 'required|exists:products,id|not_in:'.$product->id,
+    ], [
+        'variation_type_id.required' => __('messages.validation.variation_type_required'),
+        'variation_type_id.exists' => __('messages.validation.variation_type_invalid'),
+        'variation_value_id.required' => __('messages.validation.variation_value_required'),
+        'variation_value_id.exists' => __('messages.validation.variation_value_invalid'),
+        'linked_product_id.required' => __('messages.validation.linked_product_required'),
+        'linked_product_id.exists' => __('messages.validation.linked_product_invalid'),
+        'linked_product_id.not_in' => __('messages.validation.linked_product_same'),
     ]);
 
     DB::transaction(function () use ($data, $product) {
@@ -476,7 +476,7 @@ public function variationsStore(Request $request, Product $product)
         );
     });
 
-    return back()->with('success', 'Variation ajoutée.')->withFragment('tab-variations');
+    return back()->with('success', __('messages.product.variation_added'))->withFragment('tab-variations');
 }
 
 public function variationsUpdate(Request $request, Product $product, $variationId)
@@ -487,6 +487,14 @@ public function variationsUpdate(Request $request, Product $product, $variationI
         'variation_type_id'  => 'required|exists:variation_types,id',
         'variation_value_id' => 'required|exists:variation_values,id',
         'linked_product_id'  => 'required|exists:products,id|not_in:'.$product->id,
+    ], [
+        'variation_type_id.required' => __('messages.validation.variation_type_required'),
+        'variation_type_id.exists' => __('messages.validation.variation_type_invalid'),
+        'variation_value_id.required' => __('messages.validation.variation_value_required'),
+        'variation_value_id.exists' => __('messages.validation.variation_value_invalid'),
+        'linked_product_id.required' => __('messages.validation.linked_product_required'),
+        'linked_product_id.exists' => __('messages.validation.linked_product_invalid'),
+        'linked_product_id.not_in' => __('messages.validation.linked_product_same'),
     ]);
 
     $oldLinkedProductId = $variation->linked_product_id;
@@ -523,7 +531,7 @@ public function variationsUpdate(Request $request, Product $product, $variationI
         );
     });
 
-    return back()->with('success', 'Variation mise à jour.')->withFragment('tab-variations');
+    return back()->with('success', __('messages.product.variation_updated'))->withFragment('tab-variations');
 }
 
 public function variationsDestroy(Product $product, $variationId)
@@ -540,7 +548,7 @@ public function variationsDestroy(Product $product, $variationId)
         ->where('variation_value_id', $variation->variation_value_id)
         ->delete();
 
-    return back()->with('success', 'Variation removed.')->withFragment('tab-variations');
+    return back()->with('success', __('messages.product.variation_removed'))->withFragment('tab-variations');
 }
 
 // Ajax pour récupérer les valeurs d’un type

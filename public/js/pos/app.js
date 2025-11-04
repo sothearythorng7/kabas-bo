@@ -71,7 +71,7 @@ async function syncSalesToBO() {
     if (!payload || !payload.length) return;
 
     try {
-        const res = await fetch(`http://kabas.dev-back.fr/api/pos/sales/sync`, {
+        const res = await fetch(`${APP_BASE_URL}/api/pos/sales/sync`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -442,7 +442,7 @@ function showProductsByCategory(path) {
 // --------------------
 async function loadCatalog(storeId) {
     try {
-        const res = await fetch(`http://kabas.dev-back.fr/api/pos/catalog/${storeId}`);
+        const res = await fetch(`${APP_BASE_URL}/api/pos/catalog/${storeId}`);
         if (!res.ok) throw new Error('Erreur catalogue');
 
         const json = await res.json();
@@ -499,7 +499,7 @@ async function checkUserShift(userId) {
     if (syncModal) syncModal.show();
 
     try {
-        const res = await fetch(`http://kabas.dev-back.fr/api/pos/shifts/current/${userId}`);
+        const res = await fetch(`${APP_BASE_URL}/api/pos/shifts/current/${userId}`);
         if (!res.ok) throw new Error('Erreur check shift');
         const shift = await res.json();
 
@@ -520,7 +520,7 @@ async function checkUserShift(userId) {
 
 async function startShift(userId, startAmount) {
     try {
-        const res = await fetch(`http://kabas.dev-back.fr/api/pos/shifts/start`, {
+        const res = await fetch(`${APP_BASE_URL}/api/pos/shifts/start`, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
@@ -544,7 +544,7 @@ async function startShift(userId, startAmount) {
 
 async function endShift(userId, endAmount) {
     try {
-        const res = await fetch(`http://kabas.dev-back.fr/api/pos/shifts/end`, {
+        const res = await fetch(`${APP_BASE_URL}/api/pos/shifts/end`, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
@@ -740,7 +740,7 @@ function initDashboard() {
 // --------------------
 async function initPOS() {
     try {
-        const res = await fetch("http://kabas.dev-back.fr/api/pos/users");
+        const res = await fetch(`${APP_BASE_URL}/api/pos/users`);
         if (!res.ok) throw new Error("Erreur users");
         const data = await res.json();
         const users = db.table("users");

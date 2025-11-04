@@ -39,7 +39,7 @@ class FinancialAccountController extends Controller
         ]);
 
         return redirect()->route('financial.accounts.index', $store->id)
-            ->with('success', 'Compte créé.');
+            ->with('success', __('messages.financial_account.created'));
     }
 
     public function edit(Store $store, FinancialAccount $account)
@@ -65,7 +65,7 @@ class FinancialAccountController extends Controller
         ]);
 
         return redirect()->route('financial.accounts.index', $store->id)
-            ->with('success', 'Compte mis à jour.');
+            ->with('success', __('messages.financial_account.updated'));
     }
 
     public function destroy(Store $store, FinancialAccount $account)
@@ -73,6 +73,6 @@ class FinancialAccountController extends Controller
         $account->delete();
 
         return redirect()->route('financial.accounts.index', $store->id)
-            ->with('success', 'Compte supprimé.');
+            ->with('success', __('messages.financial_account.deleted'));
     }
 }

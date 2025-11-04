@@ -63,17 +63,6 @@
                     @endforeach
                 </div>
 
-                <div class="row">
-                    <div class="col-md-6 mb-3">
-                        <label class="form-label">@t("product.color")</label>
-                        <input type="text" name="color" class="form-control" value="{{ old('color') }}">
-                    </div>
-                    <div class="col-md-6 mb-3">
-                        <label class="form-label">@t("product.size")</label>
-                        <input type="text" name="size" class="form-control" value="{{ old('size') }}">
-                    </div>
-                </div>
-
                 <div class="form-check form-switch mb-2">
                     <input class="form-check-input" type="checkbox" name="is_active" id="is_active" value="1" {{ old('is_active', true) ? 'checked' : '' }}>
                     <label class="form-check-label" for="is_active">@t("active")</label>

@@ -23,7 +23,7 @@ class FinancialShiftController extends Controller
             ->count();
 
         if ($openShiftsCount > 1) {
-            session()->flash('warning', 'Attention : plusieurs shifts ouverts pour ce magasin !');
+            session()->flash('warning', __('messages.financial_shift.multiple_open_warning'));
         }
 
         $sales = $shift ? $shift->sales()->with('items.product')->get() : collect();

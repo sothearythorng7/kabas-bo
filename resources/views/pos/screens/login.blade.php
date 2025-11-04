@@ -90,7 +90,7 @@ function initLogin() {
 
         try {
             // 1) Vérifier le shift courant
-            const res = await fetch(`http://kabas.dev-back.fr/api/pos/shifts/current/${currentUser.id}`);
+            const res = await fetch(`{{ config('app.url') }}/api/pos/shifts/current/${currentUser.id}`);
             const shift = await res.json();
 
             if (shift && shift.id) {

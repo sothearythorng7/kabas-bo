@@ -28,7 +28,7 @@ class ExpenseCategoryController extends Controller
 
         ExpenseCategory::create($data);
 
-        return redirect()->route('stores.expense-categories.index', $site)->with('success', 'Catégorie ajoutée.');
+        return redirect()->route('stores.expense-categories.index', $site)->with('success', __('messages.expense_category.created'));
     }
 
     public function edit(Store $site, ExpenseCategory $category)
@@ -45,12 +45,12 @@ class ExpenseCategoryController extends Controller
 
         $category->update($data);
 
-        return redirect()->route('stores.expense-categories.index', $site)->with('success', 'Catégorie mise à jour.');
+        return redirect()->route('stores.expense-categories.index', $site)->with('success', __('messages.expense_category.updated'));
     }
 
     public function destroy(Store $site, ExpenseCategory $category)
     {
         $category->delete();
-        return redirect()->route('stores.expense-categories.index', $site)->with('success', 'Catégorie supprimée.');
+        return redirect()->route('stores.expense-categories.index', $site)->with('success', __('messages.expense_category.deleted'));
     }
 }

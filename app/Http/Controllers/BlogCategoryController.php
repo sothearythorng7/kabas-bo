@@ -51,7 +51,7 @@ class BlogCategoryController extends Controller
         $category->save();
 
         return redirect()->route('blog.categories.index')
-                        ->with('success', 'Catégorie créée avec succès');
+                        ->with('success', __('messages.blog_category.created'));
     }
 
     public function edit(BlogCategory $category)
@@ -86,19 +86,19 @@ class BlogCategoryController extends Controller
         $category->save();
 
         return redirect()->route('blog.categories.index')
-                        ->with('success', 'Catégorie mise à jour avec succès');
+                        ->with('success', __('messages.blog_category.updated'));
     }
 
     public function destroy(BlogCategory $category)
     {
         // Check if category has posts
         if ($category->posts()->count() > 0) {
-            return back()->with('error', 'Impossible de supprimer une catégorie contenant des articles');
+            return back()->with('error', __('messages.blog_category.cannot_delete_with_posts'));
         }
 
         $category->delete();
 
         return redirect()->route('blog.categories.index')
-                        ->with('success', 'Catégorie supprimée avec succès');
+                        ->with('success', __('messages.blog_category.deleted'));
     }
 }

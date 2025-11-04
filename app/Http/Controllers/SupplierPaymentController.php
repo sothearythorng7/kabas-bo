@@ -36,7 +36,7 @@ class SupplierPaymentController extends Controller
 
         $site->supplierPayments()->create($data);
 
-        return redirect()->route('stores.payments.index', $site)->with('success', 'Paiement ajouté avec succès.');
+        return redirect()->route('stores.payments.index', $site)->with('success', __('messages.supplier_payment.created'));
     }
 
     public function edit(Store $site, SupplierPayment $payment)
@@ -63,7 +63,7 @@ class SupplierPaymentController extends Controller
 
         $payment->update($data);
 
-        return redirect()->route('stores.payments.index', $site)->with('success', 'Paiement mis à jour.');
+        return redirect()->route('stores.payments.index', $site)->with('success', __('messages.supplier_payment.updated'));
     }
 
     public function destroy(Store $site, SupplierPayment $payment)
@@ -73,6 +73,6 @@ class SupplierPaymentController extends Controller
         }
         $payment->delete();
 
-        return redirect()->route('stores.payments.index', $site)->with('success', 'Paiement supprimé.');
+        return redirect()->route('stores.payments.index', $site)->with('success', __('messages.supplier_payment.deleted'));
     }
 }

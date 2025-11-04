@@ -33,7 +33,7 @@ class JournalController extends Controller
 
         $site->journals()->create($data);
 
-        return redirect()->route('stores.journals.index', $site)->with('success', 'Transaction ajoutée avec succès.');
+        return redirect()->route('stores.journals.index', $site)->with('success', __('messages.journal.transaction_added'));
     }
 
     public function show(Store $site, Journal $journal)
@@ -44,6 +44,6 @@ class JournalController extends Controller
     public function destroy(Store $site, Journal $journal)
     {
         $journal->delete();
-        return redirect()->route('stores.journals.index', $site)->with('success', 'Transaction supprimée.');
+        return redirect()->route('stores.journals.index', $site)->with('success', __('messages.journal.transaction_deleted'));
     }
 }

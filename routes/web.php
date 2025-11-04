@@ -369,6 +369,12 @@ Route::middleware(['auth', SetUserLocale::class])->group(function () {
             ->names('admin.pages');
         Route::patch('pages/{page}/toggle', [\App\Http\Controllers\PageController::class, 'toggle'])
             ->name('admin.pages.toggle');
+
+        // Promotion bar
+        Route::get('promotion-bar', [\App\Http\Controllers\PromotionBarController::class, 'index'])
+            ->name('promotion-bar.index');
+        Route::put('promotion-bar', [\App\Http\Controllers\PromotionBarController::class, 'update'])
+            ->name('promotion-bar.update');
     });
 
     Route::get('/financial', [FinancialDashboardController::class, 'overviewInvoices'])->name('financial.overview');
@@ -383,11 +389,15 @@ Route::middleware(['auth', SetUserLocale::class])->group(function () {
         Route::get('dashboard', [FinancialDashboardController::class, 'index'])->name('dashboard');
         Route::get('shifts', [FinancialShiftController::class, 'index'])->name('shifts.index');
         Route::get('shifts/{shift}', [FinancialShiftController::class, 'show'])->name('shifts.show');
+        Route::get('general-invoices/export', [GeneralInvoiceController::class, 'export'])->name('general-invoices.export');
+        Route::get('general-invoices/{generalInvoice}/attachment', [GeneralInvoiceController::class, 'downloadAttachment'])->name('general-invoices.attachment');
         Route::resource('general-invoices', GeneralInvoiceController::class);
+        Route::post('general-invoices/{generalInvoice}/mark-as-paid', [GeneralInvoiceController::class, 'markAsPaid'])->name('general-invoices.mark-as-paid');
     });
 
     Route::resource('variation-types', \App\Http\Controllers\VariationTypeController::class);
     Route::resource('variation-values', \App\Http\Controllers\VariationValueController::class);
+    Route::resource('invoice-categories', \App\Http\Controllers\InvoiceCategoryController::class);
 
 });
 
@@ -436,6 +446,14 @@ Route::middleware(['auth'])->group(function () {
 Route::middleware(['auth'])->group(function () {
     Route::get('home-content', [App\Http\Controllers\HomeContentController::class, 'edit'])->name('home-content.edit');
     Route::put('home-content', [App\Http\Controllers\HomeContentController::class, 'update'])->name('home-content.update');
+});
+
+// Backup Routes
+Route::middleware(['auth'])->group(function () {
+    Route::get('backups', [App\Http\Controllers\BackupController::class, 'index'])->name('backups.index');
+    Route::post('backups/create', [App\Http\Controllers\BackupController::class, 'create'])->name('backups.create');
+    Route::get('backups/download/{filename}', [App\Http\Controllers\BackupController::class, 'download'])->name('backups.download');
+    Route::delete('backups/{filename}', [App\Http\Controllers\BackupController::class, 'delete'])->name('backups.delete');
 });
 
 

@@ -58,7 +58,7 @@ function initShiftstart() {
 
         try {
             const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
-            const res = await fetch(`http://kabas.dev-back.fr/api/pos/shifts/start`, {
+            const res = await fetch(`{{ config('app.url') }}/api/pos/shifts/start`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json",  "X-CSRF-TOKEN": csrfToken },
                 body: JSON.stringify({ user_id: currentUser.id, start_amount: amount })

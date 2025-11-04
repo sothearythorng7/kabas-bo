@@ -43,7 +43,7 @@ class BlogTagController extends Controller
         $tag->save();
 
         return redirect()->route('blog.tags.index')
-                        ->with('success', 'Tag créé avec succès');
+                        ->with('success', __('messages.blog_tag.created'));
     }
 
     public function edit(BlogTag $tag)
@@ -70,7 +70,7 @@ class BlogTagController extends Controller
         $tag->save();
 
         return redirect()->route('blog.tags.index')
-                        ->with('success', 'Tag mis à jour avec succès');
+                        ->with('success', __('messages.blog_tag.updated'));
     }
 
     public function destroy(BlogTag $tag)
@@ -78,6 +78,6 @@ class BlogTagController extends Controller
         $tag->delete();
 
         return redirect()->route('blog.tags.index')
-                        ->with('success', 'Tag supprimé avec succès');
+                        ->with('success', __('messages.blog_tag.deleted'));
     }
 }

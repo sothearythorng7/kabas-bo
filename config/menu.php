@@ -108,13 +108,19 @@ return [
     [
         'label' => 'Website',
         'icon'  => 'bi-globe',
-        'active_pattern' => 'blog*|contact-messages*|pages*|hero-slides*|home-content*',
+        'active_pattern' => 'blog*|contact-messages*|pages*|hero-slides*|home-content*|promotion-bar*',
         'submenu' => [
             [
                 'label' => 'Contenu Homepage',
                 'icon'  => 'bi-house-heart',
                 'route' => 'home-content.edit',
                 'active_pattern' => 'home-content*',
+            ],
+            [
+                'label' => 'messages.menu.promotion_bar',
+                'icon'  => 'bi-megaphone',
+                'route' => 'promotion-bar.index',
+                'active_pattern' => 'promotion-bar*',
             ],
             [
                 'label' => 'Blog',
@@ -164,7 +170,7 @@ return [
     [
         'label' => 'messages.menu.settings',
         'icon'  => 'bi-gear',
-        'active_pattern' => 'roles*|users*|stores*|categories*|brands*|variation*', // parent actif si une sous-page est active
+        'active_pattern' => 'roles*|users*|stores*|categories*|brands*|variation*|backups*', // parent actif si une sous-page est active
         'submenu' => [
             [
                 'label' => 'messages.menu.roles',
@@ -214,6 +220,12 @@ return [
                         'active_pattern' => 'variation-values*',
                     ],
                 ]
+            ],
+            [
+                'label' => 'messages.menu.backups',
+                'icon'  => 'bi-hdd-stack',
+                'route' => 'backups.index',
+                'active_pattern' => 'backups*',
             ],
         ],
     ],

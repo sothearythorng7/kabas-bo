@@ -2,28 +2,28 @@
 
 @section('content')
 <div class="container mt-4">
-    <h1 class="crud_title">Confirmation des Ajustements d'Inventaire</h1>
+    <h1 class="crud_title">{{ __('messages.inventory.confirm_title') }}</h1>
 
     <div class="alert alert-warning">
         <i class="bi bi-exclamation-triangle"></i>
-        <strong>Attention:</strong> Les modifications suivantes seront appliquées aux stocks du site <strong>{{ $store->name }}</strong>.
+        <strong>{{ __('messages.inventory.warning_same_store') }}</strong> {{ __('messages.inventory.confirm_warning') }} <strong>{{ $store->name }}</strong>.
     </div>
 
     <div class="card mb-4">
         <div class="card-header">
-            <h5 class="mb-0">Ajustements à effectuer ({{ count($updates) }} produit(s))</h5>
+            <h5 class="mb-0">{{ __('messages.inventory.confirm_adjustments_count', ['count' => count($updates)]) }}</h5>
         </div>
         <div class="card-body">
             <div class="table-responsive">
                 <table class="table table-striped table-hover">
                     <thead>
                         <tr>
-                            <th>ID</th>
-                            <th>Produit</th>
-                            <th class="text-center">Stock Théorique</th>
-                            <th class="text-center">Stock Réel</th>
-                            <th class="text-center">Différence</th>
-                            <th class="text-center">Action</th>
+                            <th>{{ __('messages.inventory.confirm_table_id') }}</th>
+                            <th>{{ __('messages.inventory.confirm_table_product') }}</th>
+                            <th class="text-center">{{ __('messages.inventory.confirm_table_theoretical') }}</th>
+                            <th class="text-center">{{ __('messages.inventory.confirm_table_real') }}</th>
+                            <th class="text-center">{{ __('messages.inventory.confirm_table_difference') }}</th>
+                            <th class="text-center">{{ __('messages.inventory.confirm_table_action') }}</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -42,9 +42,9 @@
                                 </td>
                                 <td class="text-center">
                                     @if($update['difference'] > 0)
-                                        <span class="text-success"><i class="bi bi-arrow-up-circle"></i> Ajout de stock</span>
+                                        <span class="text-success"><i class="bi bi-arrow-up-circle"></i> {{ __('messages.inventory.confirm_action_add') }}</span>
                                     @else
-                                        <span class="text-danger"><i class="bi bi-arrow-down-circle"></i> Retrait de stock</span>
+                                        <span class="text-danger"><i class="bi bi-arrow-down-circle"></i> {{ __('messages.inventory.confirm_action_remove') }}</span>
                                     @endif
                                 </td>
                             </tr>
@@ -56,28 +56,28 @@
     </div>
 
     <div class="d-flex gap-3">
-        <form action="{{ route('inventory.apply') }}" method="POST" onsubmit="return confirm('Êtes-vous sûr de vouloir appliquer ces ajustements aux stocks ?');">
+        <form action="{{ route('inventory.apply') }}" method="POST" onsubmit="return confirm('{{ __('messages.inventory.confirm_prompt') }}');">
             @csrf
             <button type="submit" class="btn btn-success btn-lg">
-                <i class="bi bi-check-circle"></i> Confirmer et Appliquer les Ajustements
+                <i class="bi bi-check-circle"></i> {{ __('messages.inventory.confirm_button') }}
             </button>
         </form>
 
         <form action="{{ route('inventory.cancel') }}" method="POST">
             @csrf
             <button type="submit" class="btn btn-secondary btn-lg">
-                <i class="bi bi-x-circle"></i> Annuler
+                <i class="bi bi-x-circle"></i> {{ __('messages.inventory.confirm_cancel') }}
             </button>
         </form>
     </div>
 
     <div class="alert alert-info mt-4">
         <i class="bi bi-info-circle"></i>
-        <strong>Information:</strong>
+        <strong>{{ __('messages.inventory.confirm_info_title') }}</strong>
         <ul class="mb-0 mt-2">
-            <li>Les ajouts de stock créeront de nouveaux batches avec un prix unitaire de 0$ (ajustement d'inventaire).</li>
-            <li>Les retraits de stock seront déduits des batches existants selon la méthode FIFO (First In, First Out).</li>
-            <li>Cette opération ne peut pas être annulée une fois appliquée.</li>
+            <li>{{ __('messages.inventory.confirm_info_add') }}</li>
+            <li>{{ __('messages.inventory.confirm_info_remove') }}</li>
+            <li>{{ __('messages.inventory.confirm_info_irreversible') }}</li>
         </ul>
     </div>
 </div>

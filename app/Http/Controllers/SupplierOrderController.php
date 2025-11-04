@@ -70,7 +70,7 @@ class SupplierOrderController extends Controller
 
         $order->products()->sync($syncData);
 
-        return redirect()->route('suppliers.edit', $supplier)->with('success', 'Commande créée avec succès.');
+        return redirect()->route('suppliers.edit', $supplier)->with('success', __('messages.supplier_order.created'));
     }
 
     public function show(Supplier $supplier, SupplierOrder $order)
@@ -115,19 +115,19 @@ class SupplierOrderController extends Controller
             ]);
         }
 
-        return redirect()->route('suppliers.edit', $supplier)->with('success', 'Commande mise à jour.');
+        return redirect()->route('suppliers.edit', $supplier)->with('success', __('messages.supplier_order.updated'));
     }
 
     public function destroy(Supplier $supplier, SupplierOrder $order)
     {
         $order->delete();
-        return redirect()->route('suppliers.edit', $supplier)->with('success', 'Commande supprimée.');
+        return redirect()->route('suppliers.edit', $supplier)->with('success', __('messages.supplier_order.deleted'));
     }
 
     public function validateOrder(Supplier $supplier, SupplierOrder $order)
     {
         $order->update(['status' => 'waiting_reception']);
-        return back()->with('success', 'Commande validée et en attente de réception.');
+        return back()->with('success', __('messages.supplier_order.validated'));
     }
 
     public function generatePdf(Supplier $supplier, SupplierOrder $order)
@@ -190,7 +190,7 @@ class SupplierOrderController extends Controller
 
         $url = route('suppliers.edit', $supplier) . '#orders';
 
-        return redirectBackLevels(2)->with('success', 'Commande réceptionnée.');
+        return redirectBackLevels(2)->with('success', __('messages.supplier_order.received'));
     }
 
     public function receptionInvoiceForm(Supplier $supplier, SupplierOrder $order)
@@ -261,7 +261,7 @@ class SupplierOrderController extends Controller
 
         $order->update(['status' => 'received']);
 
-        return redirectBackLevels(2)->with('success', 'Réception de facture enregistrée avec succès.');
+        return redirectBackLevels(2)->with('success', __('messages.supplier_order.invoice_received'));
     }
 
 
@@ -374,6 +374,6 @@ class SupplierOrderController extends Controller
         // Mettre à jour le statut de paiement de la commande
         $order->update(['is_paid' => true]);
 
-        return redirect()->back()->with('success', 'Commande marquée comme payée et transaction créée.');
+        return redirect()->back()->with('success', __('messages.supplier_order.marked_paid'));
     }
 }

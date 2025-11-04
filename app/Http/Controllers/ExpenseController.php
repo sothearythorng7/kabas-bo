@@ -38,7 +38,7 @@ class ExpenseController extends Controller
 
         $site->expenses()->create($data);
 
-        return redirect()->route('stores.expenses.index', $site)->with('success', 'Dépense ajoutée.');
+        return redirect()->route('stores.expenses.index', $site)->with('success', __('messages.expense.created'));
     }
 
     public function edit(Store $site, Expense $expense)
@@ -66,7 +66,7 @@ class ExpenseController extends Controller
 
         $expense->update($data);
 
-        return redirect()->route('stores.expenses.index', $site)->with('success', 'Dépense mise à jour.');
+        return redirect()->route('stores.expenses.index', $site)->with('success', __('messages.expense.updated'));
     }
 
     public function destroy(Store $site, Expense $expense)
@@ -77,6 +77,6 @@ class ExpenseController extends Controller
 
         $expense->delete();
 
-        return redirect()->route('stores.expenses.index', $site)->with('success', 'Dépense supprimée.');
+        return redirect()->route('stores.expenses.index', $site)->with('success', __('messages.expense.deleted'));
     }
 }

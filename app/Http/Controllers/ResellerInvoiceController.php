@@ -122,7 +122,7 @@ class ResellerInvoiceController extends Controller
         }
 
         return redirect()->route('reseller-invoices.show', $invoice)
-            ->with('success', 'Paiement enregistré et transaction générée.');
+            ->with('success', __('messages.reseller_invoice.payment_recorded'));
     }
 
 }

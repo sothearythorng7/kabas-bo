@@ -68,7 +68,7 @@ class GiftCardController extends Controller
         });
 
         return redirect()->route('gift-cards.edit', $giftCard)
-                         ->with('success', 'Carte cadeau créée avec succès');
+                         ->with('success', __('messages.gift_card.created'));
     }
 
     public function edit(GiftCard $giftCard)
@@ -114,7 +114,7 @@ class GiftCardController extends Controller
         });
 
         return redirect()->route('gift-cards.edit', $giftCard)
-                         ->with('success', 'Carte cadeau mise à jour avec succès');
+                         ->with('success', __('messages.gift_card.updated'));
     }
 
     public function destroy(GiftCard $giftCard)
@@ -122,7 +122,7 @@ class GiftCardController extends Controller
         $giftCard->delete();
 
         return redirect()->route('gift-cards.index')
-                         ->with('success', 'Carte cadeau supprimée avec succès');
+                         ->with('success', __('messages.gift_card.deleted'));
     }
 
     // Gestion des catégories
@@ -136,12 +136,12 @@ class GiftCardController extends Controller
             $giftCard->categories()->attach($data['category_id']);
         }
 
-        return redirect()->back()->with('success', 'Catégorie ajoutée avec succès');
+        return redirect()->back()->with('success', __('messages.gift_card.category_added'));
     }
 
     public function detachCategory(GiftCard $giftCard, $categoryId)
     {
         $giftCard->categories()->detach($categoryId);
-        return redirect()->back()->with('success', 'Catégorie retirée avec succès');
+        return redirect()->back()->with('success', __('messages.gift_card.category_removed'));
     }
 }

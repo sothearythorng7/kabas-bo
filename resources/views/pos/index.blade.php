@@ -71,6 +71,10 @@
     <script src="{{ asset('js/pos/tables/PaymentsTable.js') }}"></script>
 
     <!-- App -->
+    <script>
+        // Base URL for API calls
+        const APP_BASE_URL = '{{ config('app.url') }}';
+    </script>
     <script src="{{ asset('js/pos/app.js') }}"></script>
 
 <script>

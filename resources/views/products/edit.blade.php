@@ -117,17 +117,6 @@
                     @endforeach
                 </div>
 
-                <div class="row">
-                    <div class="col-md-6 mb-3">
-                        <label class="form-label">{{ __('messages.product.color') }}</label>
-                        <input type="text" name="color" class="form-control" value="{{ old('color', $product->color) }}">
-                    </div>
-                    <div class="col-md-6 mb-3">
-                        <label class="form-label">{{ __('messages.product.size') }}</label>
-                        <input type="text" name="size" class="form-control" value="{{ old('size', $product->size) }}">
-                    </div>
-                </div>
-
                 <div class="form-check form-switch mb-2">
                     <input class="form-check-input" type="checkbox" name="is_active" id="is_active" value="1" {{ old('is_active', $product->is_active) ? 'checked' : '' }}>
                     <label class="form-check-label" for="is_active">{{ __('messages.product.active') }}</label>
@@ -332,6 +321,17 @@
 
         <div class="tab-pane fade" id="tab-variations" role="tabpanel">
             <h5>{{ __('messages.product.variations') }}</h5>
+
+            @if ($errors->any())
+                <div class="alert alert-danger">
+                    <ul class="mb-0">
+                        @foreach ($errors->all() as $error)
+                            <li>{{ $error }}</li>
+                        @endforeach
+                    </ul>
+                </div>
+            @endif
+
             <button type="button" class="btn btn-success mb-3" data-bs-toggle="modal" data-bs-target="#addVariationModal">
                 <i class="bi bi-plus-circle"></i> {{ __('messages.btn.add_variation') }}
             </button>
@@ -377,7 +377,7 @@
             <div class="modal fade" id="addVariationModal" tabindex="-1" aria-labelledby="addVariationModalLabel" aria-hidden="true">
                 <div class="modal-dialog modal-lg">
                     <div class="modal-content">
-                        <form id="addVariationForm" method="POST" action="{{ route('products.variations.store', $product) }}">
+                        <form id="addVariationForm" method="POST" action="{{ route('products.variations.store', $product) }}" onsubmit="return validateAddForm()">
                             @csrf
                             <div class="modal-header">
                                 <h5 class="modal-title" id="addVariationModalLabel">{{ __('messages.btn.add_variation') }}</h5>
@@ -386,8 +386,8 @@
                             <div class="modal-body">
                                 <div class="row g-2 align-items-end">
                                     <div class="col-md-4">
-                                        <label>{{ __('messages.variation.type') }}</label>
-                                        <select class="form-select" name="variation_type_id" id="variation_type">
+                                        <label>{{ __('messages.variation.type') }} <span class="text-danger">*</span></label>
+                                        <select class="form-select" name="variation_type_id" id="variation_type" required>
                                             <option value="">--</option>
                                             @foreach($types as $type)
                                                 <option value="{{ $type->id }}">{{ $type->name }}</option>
@@ -395,15 +395,15 @@
                                         </select>
                                     </div>
                                     <div class="col-md-4">
-                                        <label>{{ __('messages.variation.value') }}</label>
-                                        <select class="form-select" name="variation_value_id" id="variation_value">
+                                        <label>{{ __('messages.variation.value') }} <span class="text-danger">*</span></label>
+                                        <select class="form-select" name="variation_value_id" id="variation_value" required>
                                             <option value="">--</option>
                                         </select>
                                     </div>
                                     <div class="col-md-4">
-                                        <label>{{ __('messages.variation.linked_product') }}</label>
-                                        <input type="text" class="form-control" id="linked_product_search" placeholder="EAN / name">
-                                        <input type="hidden" name="linked_product_id" id="linked_product_id">
+                                        <label>{{ __('messages.variation.linked_product') }} <span class="text-danger">*</span></label>
+                                        <input type="text" class="form-control" id="linked_product_search" placeholder="EAN / name" required>
+                                        <input type="hidden" name="linked_product_id" id="linked_product_id" required>
                                         <div id="linked_product_results" class="list-group position-absolute zindex-1" style="max-height:200px; overflow-y:auto;"></div>
                                     </div>
                                 </div>
@@ -602,22 +602,44 @@
                 modal.show();
             }
 
-            // Fonction de validation avant soumission
+            // Fonction de validation avant soumission (Modal Ajout)
+            function validateAddForm() {
+                const linkedProductId = document.getElementById('linked_product_id').value;
+                const typeId = document.getElementById('variation_type').value;
+                const valueId = document.getElementById('variation_value').value;
+
+                if (!typeId) {
+                    alert('{{ __("messages.validation.select_variation_type") ?? "Veuillez sélectionner un type de variation" }}');
+                    return false;
+                }
+                if (!valueId) {
+                    alert('{{ __("messages.validation.select_variation_value") ?? "Veuillez sélectionner une valeur de variation" }}');
+                    return false;
+                }
+                if (!linkedProductId) {
+                    alert('{{ __("messages.validation.select_linked_product") ?? "Veuillez sélectionner un produit lié" }}');
+                    return false;
+                }
+
+                return true;
+            }
+
+            // Fonction de validation avant soumission (Modal Édition)
             function validateEditForm() {
                 const linkedProductId = document.getElementById('edit_linked_product_id').value;
                 const typeId = document.getElementById('edit_variation_type').value;
                 const valueId = document.getElementById('edit_variation_value').value;
 
-                if (!linkedProductId) {
-                    alert('Veuillez sélectionner un produit lié');
-                    return false;
-                }
                 if (!typeId) {
-                    alert('Veuillez sélectionner un type de variation');
+                    alert('{{ __("messages.validation.select_variation_type") ?? "Veuillez sélectionner un type de variation" }}');
                     return false;
                 }
                 if (!valueId) {
-                    alert('Veuillez sélectionner une valeur de variation');
+                    alert('{{ __("messages.validation.select_variation_value") ?? "Veuillez sélectionner une valeur de variation" }}');
+                    return false;
+                }
+                if (!linkedProductId) {
+                    alert('{{ __("messages.validation.select_linked_product") ?? "Veuillez sélectionner un produit lié" }}');
                     return false;
                 }
 

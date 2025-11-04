@@ -29,7 +29,8 @@ class UserController extends Controller
             'email' => 'required|email|unique:users,email',
             'password' => 'required|confirmed',
             'role' => 'required|string|exists:roles,name',
-            'store_id' => $request->role === 'saler' ? 'required|exists:stores,id' : 'nullable',
+            'store_id' => $request->role === 'Saler' ? 'required|exists:stores,id' : 'nullable',
+            'pin_code' => 'nullable|digits:6',
         ]);
 
         $user = User::create([
@@ -37,12 +38,13 @@ class UserController extends Controller
             'email' => $request->email,
             'password' => Hash::make($request->password),
             'store_id'=> $request->store_id,
+            'pin_code' => $request->pin_code,
             'locale' => $request->locale ?? 'fr',
         ]);
 
         $user->assignRole($request->role);
 
-        return redirect()->route('users.index')->with('success', 'Utilisateur créé avec succès.');
+        return redirect()->route('users.index')->with('success', __('messages.user.created'));
     }
 
     public function edit(User $user)
@@ -59,7 +61,8 @@ class UserController extends Controller
             'email' => 'required|email|unique:users,email,' . $user->id,
             'password' => 'nullable|confirmed',
             'role' => 'required|string|exists:roles,name',
-            'store_id' => $request->role === 'saler' ? 'required|exists:stores,id' : 'nullable',
+            'store_id' => $request->role === 'Saler' ? 'required|exists:stores,id' : 'nullable',
+            'pin_code' => 'nullable|digits:6',
         ]);
 
         $user->update([
@@ -67,17 +70,18 @@ class UserController extends Controller
             'email' => $request->email,
             'password' => $request->password ? Hash::make($request->password) : $user->password,
             'store_id'=> $request->store_id,
+            'pin_code' => $request->pin_code,
             'locale' => $request->locale,
         ]);
 
         $user->syncRoles([$request->role]);
 
-        return redirect()->route('users.index')->with('success', 'Utilisateur mis à jour.');
+        return redirect()->route('users.index')->with('success', __('messages.user.updated'));
     }
 
     public function destroy(User $user)
     {
         $user->delete();
-        return redirect()->route('users.index')->with('success', 'Utilisateur supprimé.');
+        return redirect()->route('users.index')->with('success', __('messages.user.deleted'));
     }
 }

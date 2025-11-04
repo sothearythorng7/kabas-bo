@@ -35,7 +35,7 @@ class HeroSlideController extends Controller
         ]);
 
         $this->publishJson();
-        return redirect()->route('hero-slides.index')->with('success','Slide créé');
+        return redirect()->route('hero-slides.index')->with('success', __('messages.hero_slide.created'));
     }
 
     public function edit(HeroSlide $heroSlide) {
@@ -65,7 +65,7 @@ class HeroSlideController extends Controller
         $heroSlide->save();
 
         $this->publishJson();
-        return redirect()->route('hero-slides.index')->with('success','Slide mis à jour');
+        return redirect()->route('hero-slides.index')->with('success', __('messages.hero_slide.updated'));
     }
 
     public function destroy(HeroSlide $heroSlide) {
@@ -74,7 +74,7 @@ class HeroSlideController extends Controller
         }
         $heroSlide->delete();
         $this->publishJson();
-        return back()->with('success','Slide supprimé');
+        return back()->with('success', __('messages.hero_slide.deleted'));
     }
 
     private function publishJson(): void {

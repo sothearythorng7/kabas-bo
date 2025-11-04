@@ -14,9 +14,11 @@ class GeneralInvoice extends Model
     protected $fillable = [
         'store_id',
         'account_id',
+        'category_id',
         'label',
         'amount',
         'due_date',
+        'payment_date',
         'status',
         'attachment',
         'note',
@@ -25,6 +27,7 @@ class GeneralInvoice extends Model
 
     protected $casts = [
         'due_date' => 'date',
+        'payment_date' => 'date',
         'amount' => 'decimal:2',
     ];
 
@@ -50,6 +53,14 @@ class GeneralInvoice extends Model
     public function transaction()
     {
         return $this->belongsTo(FinancialTransaction::class);
+    }
+
+    /**
+     * La facture appartient à une catégorie.
+     */
+    public function category()
+    {
+        return $this->belongsTo(InvoiceCategory::class);
     }
 
     /**

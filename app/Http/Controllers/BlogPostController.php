@@ -101,7 +101,7 @@ class BlogPostController extends Controller
         }
 
         return redirect()->route('blog.posts.index')
-                        ->with('success', 'Article créé avec succès');
+                        ->with('success', __('messages.blog_post.created'));
     }
 
     public function edit(BlogPost $post)
@@ -169,7 +169,7 @@ class BlogPostController extends Controller
         }
 
         return redirect()->route('blog.posts.index')
-                        ->with('success', 'Article mis à jour avec succès');
+                        ->with('success', __('messages.blog_post.updated'));
     }
 
     public function destroy(BlogPost $post)
@@ -182,7 +182,7 @@ class BlogPostController extends Controller
         $post->delete();
 
         return redirect()->route('blog.posts.index')
-                        ->with('success', 'Article supprimé avec succès');
+                        ->with('success', __('messages.blog_post.deleted'));
     }
 
     public function deleteImage(BlogPost $post)
@@ -193,6 +193,6 @@ class BlogPostController extends Controller
             $post->save();
         }
 
-        return back()->with('success', 'Image supprimée avec succès');
+        return back()->with('success', __('messages.blog_post.image_deleted'));
     }
 }

@@ -29,7 +29,7 @@ class AccountController extends Controller
 
         $site->accounts()->create($data);
 
-        return redirect()->route('stores.accounts.index', $site)->with('success', 'Compte créé');
+        return redirect()->route('stores.accounts.index', $site)->with('success', __('messages.account.created'));
     }
 
     public function edit(Site $site, Account $account)
@@ -47,12 +47,12 @@ class AccountController extends Controller
 
         $account->update($data);
 
-        return redirect()->route('stores.accounts.index', $site)->with('success', 'Compte mis à jour');
+        return redirect()->route('stores.accounts.index', $site)->with('success', __('messages.account.updated'));
     }
 
     public function destroy(Site $site, Account $account)
     {
         $account->delete();
-        return redirect()->route('stores.accounts.index', $site)->with('success', 'Compte supprimé');
+        return redirect()->route('stores.accounts.index', $site)->with('success', __('messages.account.deleted'));
     }
 }

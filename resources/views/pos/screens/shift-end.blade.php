@@ -61,7 +61,7 @@ function initShiftEnd() {
         }
 
         try {
-            const res = await fetch(`http://kabas.dev-back.fr/api/pos/shifts/end`, {
+            const res = await fetch(`{{ config('app.url') }}/api/pos/shifts/end`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",

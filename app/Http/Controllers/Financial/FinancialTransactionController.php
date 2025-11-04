@@ -151,7 +151,7 @@ class FinancialTransactionController extends Controller
         ]);
 
         return redirect()->route('financial.transactions.index', $store->id)
-            ->with('success', 'Transaction ajoutée avec journal et log.');
+            ->with('success', __('messages.financial_transaction.added'));
     }
 
     public function show(Store $store, FinancialTransaction $transaction)
@@ -254,7 +254,7 @@ class FinancialTransactionController extends Controller
         }
 
         return redirect()->route('financial.transactions.index', $store->id)
-            ->with('success', 'Transaction mise à jour avec gestion des pièces jointes et logs.');
+            ->with('success', __('messages.financial_transaction.updated'));
     }
 
     public function destroy(Store $store, FinancialTransaction $transaction)
@@ -262,6 +262,6 @@ class FinancialTransactionController extends Controller
         $transaction->delete();
 
         return redirect()->route('financial.transactions.index', $store->id)
-            ->with('success', 'Transaction supprimée');
+            ->with('success', __('messages.financial_transaction.deleted'));
     }
 }

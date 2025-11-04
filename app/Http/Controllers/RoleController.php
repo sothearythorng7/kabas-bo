@@ -38,7 +38,7 @@ class RoleController extends Controller
             $role->syncPermissions($request->permissions);
         }
 
-        return redirect()->route('roles.index')->with('success', 'Rôle créé avec succès.');
+        return redirect()->route('roles.index')->with('success', __('messages.role.created'));
     }
 
     public function edit(Role $role)
@@ -58,12 +58,12 @@ class RoleController extends Controller
 
         $role->syncPermissions($request->permissions ?? []);
 
-        return redirect()->route('roles.index')->with('success', 'Rôle mis à jour.');
+        return redirect()->route('roles.index')->with('success', __('messages.role.updated'));
     }
 
     public function destroy(Role $role)
     {
         $role->delete();
-        return redirect()->route('roles.index')->with('success', 'Rôle supprimé.');
+        return redirect()->route('roles.index')->with('success', __('messages.role.deleted'));
     }
 }

@@ -116,9 +116,9 @@
                         -
                     @endif
                 </td>
-                <td style="text-center">{{ $p->is_active ? 'Yes' : 'No' }}</td>
-                <td style="text-center">{{ $p->is_best_seller ? 'Yes' : 'No' }}</td>
-                <td style="text-center">{{ $p->is_resalable ? 'Yes' : 'No' }}</td>
+                <td style="text-center">{{ $p->is_active ? __('messages.Yes') : __('messages.No') }}</td>
+                <td style="text-center">{{ $p->is_best_seller ? __('messages.Yes') : __('messages.No') }}</td>
+                <td style="text-center">{{ $p->is_resalable ? __('messages.Yes') : __('messages.No') }}</td>
                 <td class="text-center">
                     @if($p->images_count > 0)
                         <span class="badge bg-success">{{ $p->images_count }}</span>

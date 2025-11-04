@@ -39,7 +39,7 @@ class ContactMessageController extends Controller
     {
         $contactMessage->markAsRead();
 
-        return back()->with('success', 'Message marqué comme lu');
+        return back()->with('success', __('messages.contact_message.marked_read'));
     }
 
     public function destroy(ContactMessage $contactMessage)
@@ -47,6 +47,6 @@ class ContactMessageController extends Controller
         $contactMessage->delete();
 
         return redirect()->route('contact-messages.index')
-                        ->with('success', 'Message supprimé avec succès');
+                        ->with('success', __('messages.contact_message.deleted'));
     }
 }

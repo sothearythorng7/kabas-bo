@@ -593,7 +593,7 @@ function renderCatalog() {
           ? product.photos
           : (product.images && product.images.length ? product.images : []);
         const imgObj = pics.length ? (pics.find(i => i.is_primary) || pics[0]) : null;
-        const imgUrl = (imgObj && imgObj.url) ? imgObj.url : 'http://kabas.dev-back.fr/images/no_picture.jpg';
+        const imgUrl = (imgObj && imgObj.url) ? imgObj.url : '{{ config('app.url') }}/images/no_picture.jpg';
 
         const title = (product.name && product.name.en) ? product.name.en : (product.name || product.title || 'Produit');
         $row.append(`

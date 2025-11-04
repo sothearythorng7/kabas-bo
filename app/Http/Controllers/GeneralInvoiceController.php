@@ -109,6 +109,18 @@
                 ->with('success', 'Invoice deleted successfully.');
         }
 
+        public function markAsPaid($storeId, GeneralInvoice $generalInvoice)
+        {
+            $this->authorizeInvoice($generalInvoice, $storeId);
+
+            $generalInvoice->update([
+                'status' => 'paid',
+            ]);
+
+            return redirect()->route('financial.general-invoices.index', $storeId)
+                ->with('success', __('messages.invoice_marked_paid'));
+        }
+
         protected function authorizeInvoice(GeneralInvoice $invoice, $storeId)
         {
             if ($invoice->store_id != $storeId) {

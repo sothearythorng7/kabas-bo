@@ -22,7 +22,8 @@ class InventoryController extends Controller
     public function index()
     {
         $stores = Store::orderBy('name')->get();
-        return view('inventory.index', compact('stores'));
+        $brands = Brand::orderBy('name')->get();
+        return view('inventory.index', compact('stores', 'brands'));
     }
 
     /**
@@ -32,29 +33,68 @@ class InventoryController extends Controller
     {
         $request->validate([
             'store_id' => 'required|exists:stores,id',
+            'brand_id' => 'nullable|string',
         ]);
 
         $store = Store::findOrFail($request->store_id);
 
-        // Get all products with their current stock for this store
-        $products = Product::with(['brand'])
-            ->orderBy('name->fr')
-            ->get();
+        // Get products filtered by brand if specified
+        $query = Product::with(['brand']);
+
+        if ($request->filled('brand_id')) {
+            if ($request->brand_id === 'none') {
+                $query->whereNull('brand_id');
+            } elseif ($request->brand_id !== 'all') {
+                $query->where('brand_id', $request->brand_id);
+            }
+        }
+
+        $products = $query->get();
+
+        // Sort products: if multiple brands, sort by brand name then product name
+        // If single brand or no brand filter, sort by product name only
+        $locale = app()->getLocale();
+
+        if (!$request->filled('brand_id') || $request->brand_id === 'all') {
+            // Multiple brands: sort by brand name then product name
+            $products = $products->sort(function ($a, $b) use ($locale) {
+                $brandA = $a->brand?->name ?? '';
+                $brandB = $b->brand?->name ?? '';
+
+                // First compare brands
+                $brandComparison = strcasecmp($brandA, $brandB);
+                if ($brandComparison !== 0) {
+                    return $brandComparison;
+                }
+
+                // If same brand, compare product names
+                $nameA = $a->name[$locale] ?? $a->name['fr'] ?? $a->name['en'] ?? '';
+                $nameB = $b->name[$locale] ?? $b->name['fr'] ?? $b->name['en'] ?? '';
+                return strcasecmp($nameA, $nameB);
+            });
+        } else {
+            // Single brand: sort by product name only
+            $products = $products->sort(function ($a, $b) use ($locale) {
+                $nameA = $a->name[$locale] ?? $a->name['fr'] ?? $a->name['en'] ?? '';
+                $nameB = $b->name[$locale] ?? $b->name['fr'] ?? $b->name['en'] ?? '';
+                return strcasecmp($nameA, $nameB);
+            });
+        }
 
         // Create spreadsheet
         $spreadsheet = new Spreadsheet();
         $sheet = $spreadsheet->getActiveSheet();
         $sheet->setTitle('Inventaire');
 
-        // Set headers
+        // Set headers (translated)
         $headers = [
-            'A1' => 'ID Produit',
-            'B1' => 'Nom',
-            'C1' => 'Marque',
-            'D1' => 'EAN',
-            'E1' => 'Stock Théorique',
-            'F1' => 'Stock Réel (à compléter)',
-            'G1' => 'Différence',
+            'A1' => __('messages.inventory.excel_col_product_id'),
+            'B1' => __('messages.inventory.excel_col_name'),
+            'C1' => __('messages.inventory.excel_col_brand'),
+            'D1' => __('messages.inventory.excel_col_ean'),
+            'E1' => __('messages.inventory.excel_col_theoretical'),
+            'F1' => __('messages.inventory.excel_col_real'),
+            'G1' => __('messages.inventory.excel_col_difference'),
         ];
 
         foreach ($headers as $cell => $value) {
@@ -81,7 +121,9 @@ class InventoryController extends Controller
                 ->whereNull('reseller_id')
                 ->sum('quantity');
 
-            $productName = $product->name['fr'] ?? $product->name['en'] ?? 'N/A';
+            // Get translated product name based on current locale
+            $locale = app()->getLocale();
+            $productName = $product->name[$locale] ?? $product->name['fr'] ?? $product->name['en'] ?? 'N/A';
 
             $sheet->setCellValue("A{$row}", $product->id);
             $sheet->setCellValue("B{$row}", $productName);
@@ -122,6 +164,7 @@ class InventoryController extends Controller
         $request->validate([
             'store_id' => 'required|exists:stores,id',
             'inventory_file' => 'required|file|mimes:xlsx,xls',
+            'brand_id' => 'nullable|string',
         ]);
 
         $store = Store::findOrFail($request->store_id);
@@ -135,6 +178,18 @@ class InventoryController extends Controller
             $updates = [];
             $errors = [];
 
+            // Build list of allowed product IDs based on brand filter
+            $allowedProductIds = null;
+            if ($request->filled('brand_id') && $request->brand_id !== 'all') {
+                $query = Product::query();
+                if ($request->brand_id === 'none') {
+                    $query->whereNull('brand_id');
+                } else {
+                    $query->where('brand_id', $request->brand_id);
+                }
+                $allowedProductIds = $query->pluck('id')->toArray();
+            }
+
             // Start from row 2 (skip header)
             for ($row = 2; $row <= $highestRow; $row++) {
                 $productId = $sheet->getCell("A{$row}")->getValue();
@@ -146,6 +201,11 @@ class InventoryController extends Controller
                     continue;
                 }
 
+                // Skip if product doesn't match brand filter
+                if ($allowedProductIds !== null && !in_array($productId, $allowedProductIds)) {
+                    continue;
+                }
+
                 $realStock = (int)$realStock;
                 $theoreticalStock = (int)$theoreticalStock;
                 $difference = $realStock - $theoreticalStock;
@@ -153,9 +213,13 @@ class InventoryController extends Controller
                 if ($difference != 0) {
                     $product = Product::find($productId);
                     if ($product) {
+                        // Get translated product name based on current locale
+                        $locale = app()->getLocale();
+                        $productName = $product->name[$locale] ?? $product->name['fr'] ?? $product->name['en'] ?? 'N/A';
+
                         $updates[] = [
                             'product_id' => $productId,
-                            'product_name' => $product->name['fr'] ?? $product->name['en'] ?? 'N/A',
+                            'product_name' => $productName,
                             'theoretical' => $theoreticalStock,
                             'real' => $realStock,
                             'difference' => $difference,
@@ -166,7 +230,7 @@ class InventoryController extends Controller
 
             if (empty($updates)) {
                 return redirect()->route('inventory.index')
-                    ->with('info', 'Aucune différence détectée dans l\'inventaire.');
+                    ->with('info', __('messages.inventory.no_difference'));
             }
 
             // Store data in session for confirmation
@@ -176,7 +240,7 @@ class InventoryController extends Controller
 
         } catch (\Exception $e) {
             return redirect()->route('inventory.index')
-                ->with('error', 'Erreur lors de la lecture du fichier: ' . $e->getMessage());
+                ->with('error', __('messages.inventory.file_read_error', ['error' => $e->getMessage()]));
         }
     }
 
@@ -190,7 +254,7 @@ class InventoryController extends Controller
 
         if (!$updates || !$storeId) {
             return redirect()->route('inventory.index')
-                ->with('error', 'Aucune donnée d\'inventaire à confirmer.');
+                ->with('error', __('messages.inventory.no_data_to_confirm'));
         }
 
         $store = Store::findOrFail($storeId);
@@ -208,7 +272,7 @@ class InventoryController extends Controller
 
         if (!$updates || !$storeId) {
             return redirect()->route('inventory.index')
-                ->with('error', 'Aucune donnée d\'inventaire à appliquer.');
+                ->with('error', __('messages.inventory.no_data_to_apply'));
         }
 
         $store = Store::findOrFail($storeId);
@@ -265,12 +329,12 @@ class InventoryController extends Controller
             session()->forget(['inventory_updates', 'inventory_store_id']);
 
             return redirect()->route('inventory.index')
-                ->with('success', 'Inventaire mis à jour avec succès. ' . count($updates) . ' produit(s) ajusté(s).');
+                ->with('success', __('messages.inventory.updated', ['count' => count($updates)]));
 
         } catch (\Exception $e) {
             DB::rollBack();
             return redirect()->route('inventory.index')
-                ->with('error', 'Erreur lors de la mise à jour de l\'inventaire: ' . $e->getMessage());
+                ->with('error', __('messages.inventory.update_error', ['error' => $e->getMessage()]));
         }
     }
 
@@ -281,6 +345,6 @@ class InventoryController extends Controller
     {
         session()->forget(['inventory_updates', 'inventory_store_id']);
         return redirect()->route('inventory.index')
-            ->with('info', 'Import d\'inventaire annulé.');
+            ->with('info', __('messages.inventory.import_cancelled'));
     }
 }

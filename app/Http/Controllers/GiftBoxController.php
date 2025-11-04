@@ -94,7 +94,7 @@ class GiftBoxController extends Controller
         });
 
         return redirect()->route('gift-boxes.edit', $giftBox)
-                         ->with('success', 'Coffret cadeau créé avec succès');
+                         ->with('success', __('messages.gift_box.created'));
     }
 
     public function edit(GiftBox $giftBox)
@@ -153,7 +153,7 @@ class GiftBoxController extends Controller
         });
 
         return redirect()->route('gift-boxes.edit', $giftBox)
-                         ->with('success', 'Coffret cadeau mis à jour avec succès');
+                         ->with('success', __('messages.gift_box.updated'));
     }
 
     public function destroy(GiftBox $giftBox)
@@ -161,7 +161,7 @@ class GiftBoxController extends Controller
         $giftBox->delete();
 
         return redirect()->route('gift-boxes.index')
-                         ->with('success', 'Coffret cadeau supprimé avec succès');
+                         ->with('success', __('messages.gift_box.deleted'));
     }
 
     // Upload d'image
@@ -256,14 +256,14 @@ class GiftBoxController extends Controller
             $giftBox->categories()->attach($data['category_id']);
         }
 
-        return redirect()->back()->with('success', 'Catégorie ajoutée avec succès');
+        return redirect()->back()->with('success', __('messages.gift_box.category_added'));
     }
 
     // Détacher une catégorie
     public function detachCategory(GiftBox $giftBox, $categoryId)
     {
         $giftBox->categories()->detach($categoryId);
-        return redirect()->back()->with('success', 'Catégorie retirée avec succès');
+        return redirect()->back()->with('success', __('messages.gift_box.category_removed'));
     }
 
     // Attacher un produit
@@ -278,14 +278,14 @@ class GiftBoxController extends Controller
             $giftBox->products()->attach($data['product_id'], ['quantity' => $data['quantity']]);
         }
 
-        return redirect()->back()->with('success', 'Produit ajouté avec succès');
+        return redirect()->back()->with('success', __('messages.gift_box.product_added'));
     }
 
     // Détacher un produit
     public function detachProduct(GiftBox $giftBox, $productId)
     {
         $giftBox->products()->detach($productId);
-        return redirect()->back()->with('success', 'Produit retiré avec succès');
+        return redirect()->back()->with('success', __('messages.gift_box.product_removed'));
     }
 
     // Mettre à jour la quantité d'un produit
@@ -297,6 +297,6 @@ class GiftBoxController extends Controller
 
         $giftBox->products()->updateExistingPivot($productId, ['quantity' => $data['quantity']]);
 
-        return redirect()->back()->with('success', 'Quantité mise à jour avec succès');
+        return redirect()->back()->with('success', __('messages.gift_box.quantity_updated'));
     }
 }

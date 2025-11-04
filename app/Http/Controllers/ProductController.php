@@ -208,6 +208,7 @@ public function update(Request $request, Product $product)
 
         $product->save();
 
+        /*
         // Catégories, suppliers et stores
         $product->categories()->sync($data['categories'] ?? []);
 
@@ -229,9 +230,10 @@ public function update(Request $request, Product $product)
             }
         }
         $product->stores()->sync($syncStores);
+        */
     });
 
-    return redirect()->route('products.index')->with('success', __('messages.common.updated'));
+    return redirect()->back()->with('success', __('messages.common.updated'));
 }
 
     public function uploadPhotos(Request $request, Product $product)
@@ -443,27 +445,85 @@ public function update(Request $request, Product $product)
 public function variationsStore(Request $request, Product $product)
 {
     $data = $request->validate([
-        'variation_type_id' => 'required|exists:variation_types,id',
+        'variation_type_id'  => 'required|exists:variation_types,id',
         'variation_value_id' => 'required|exists:variation_values,id',
-        'linked_product_id' => 'required|exists:products,id|not_in:'.$product->id,
+        'linked_product_id'  => 'required|exists:products,id|not_in:'.$product->id,
     ]);
 
-    // Crée le lien
-    $variation = $product->variations()->firstOrCreate([
-        'variation_type_id' => $data['variation_type_id'],
-        'variation_value_id' => $data['variation_value_id'],
-        'linked_product_id' => $data['linked_product_id'],
+    DB::transaction(function () use ($data, $product) {
+        // Côté produit principal
+        \App\Models\ProductVariation::updateOrCreate(
+            [
+                'product_id'         => $product->id,
+                'variation_type_id'  => $data['variation_type_id'],
+                'variation_value_id' => $data['variation_value_id'],
+            ],
+            [
+                'linked_product_id'  => $data['linked_product_id'],
+            ]
+        );
+
+        // Côté produit lié (lien réciproque)
+        \App\Models\ProductVariation::updateOrCreate(
+            [
+                'product_id'         => $data['linked_product_id'],
+                'variation_type_id'  => $data['variation_type_id'],
+                'variation_value_id' => $data['variation_value_id'],
+            ],
+            [
+                'linked_product_id'  => $product->id,
+            ]
+        );
+    });
+
+    return back()->with('success', 'Variation ajoutée.')->withFragment('tab-variations');
+}
+
+public function variationsUpdate(Request $request, Product $product, $variationId)
+{
+    $variation = $product->variations()->findOrFail($variationId);
+
+    $data = $request->validate([
+        'variation_type_id'  => 'required|exists:variation_types,id',
+        'variation_value_id' => 'required|exists:variation_values,id',
+        'linked_product_id'  => 'required|exists:products,id|not_in:'.$product->id,
     ]);
 
-    // Crée le lien réciproque
-    $linkedProduct = Product::find($data['linked_product_id']);
-    $linkedProduct->variations()->firstOrCreate([
-        'variation_type_id' => $data['variation_type_id'],
-        'variation_value_id' => $data['variation_value_id'],
-        'linked_product_id' => $product->id,
-    ]);
+    $oldLinkedProductId = $variation->linked_product_id;
+    $oldTypeId = $variation->variation_type_id;
+    $oldValueId = $variation->variation_value_id;
 
-    return back()->with('success', 'Variation added.')->withFragment('tab-variations');
+    DB::transaction(function () use ($data, $product, $variation, $oldLinkedProductId, $oldTypeId, $oldValueId) {
+        // Supprimer l'ancien lien réciproque
+        if ($oldLinkedProductId) {
+            Product::find($oldLinkedProductId)?->variations()
+                ->where('linked_product_id', $product->id)
+                ->where('variation_type_id', $oldTypeId)
+                ->where('variation_value_id', $oldValueId)
+                ->delete();
+        }
+
+        // Mettre à jour la variation actuelle
+        $variation->update([
+            'variation_type_id'  => $data['variation_type_id'],
+            'variation_value_id' => $data['variation_value_id'],
+            'linked_product_id'  => $data['linked_product_id'],
+        ]);
+
+        // Créer le nouveau lien réciproque
+        ProductVariation::updateOrCreate(
+            [
+                'product_id'         => $data['linked_product_id'],
+                'variation_type_id'  => $data['variation_type_id'],
+                'variation_value_id' => $data['variation_value_id'],
+            ],
+            [
+                'linked_product_id'  => $product->id,
+            ]
+        );
+    });
+
+    return back()->with('success', 'Variation mise à jour.')->withFragment('tab-variations');
 }
 
 public function variationsDestroy(Product $product, $variationId)

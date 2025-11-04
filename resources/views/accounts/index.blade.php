@@ -21,7 +21,7 @@
             <tr>
                 <td>{{ $account->name }}</td>
                 <td>{{ ucfirst($account->type) }}</td>
-                <td>{{ number_format($account->balance, 2, ',', ' ') }} €</td>
+                <td>{{ number_format($account->balance, 2, ',', ' ') }} $</td>
                 <td class="text-start">
                     <div class="dropdown">
                         <button class="btn btn-primary btn-sm dropdown-toggle" type="button" id="accountDropdown{{ $account->id }}" data-bs-toggle="dropdown" aria-expanded="false">

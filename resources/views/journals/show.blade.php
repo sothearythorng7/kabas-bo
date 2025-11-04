@@ -8,7 +8,7 @@
         <li class="list-group-item"><strong>@t("date"):</strong> {{ $journal->date->format('d/m/Y') }}</li>
         <li class="list-group-item"><strong>@t("Compte"):</strong> {{ $journal->account->name }}</li>
         <li class="list-group-item"><strong>@t("type"):</strong> {{ ucfirst($journal->type) }}</li>
-        <li class="list-group-item"><strong>@t("Montant"):</strong> {{ number_format($journal->amount, 2, ',', ' ') }} €</li>
+        <li class="list-group-item"><strong>@t("Montant"):</strong> {{ number_format($journal->amount, 2, ',', ' ') }} $</li>
         <li class="list-group-item"><strong>@t("description"):</strong> {{ $journal->description }}</li>
     </ul>
 

@@ -30,7 +30,7 @@
             <div class="card text-white bg-success">
                 <div class="card-body">
                     <h5 class="card-title">@t("Chiffre d'affaires ce mois")</h5>
-                    <p class="card-text fs-3">{{ number_format($revenue, 2) }} €</p>
+                    <p class="card-text fs-3">{{ number_format($revenue, 2) }} $</p>
                 </div>
             </div>
         </div>
@@ -38,7 +38,7 @@
             <div class="card text-white bg-danger">
                 <div class="card-body">
                     <h5 class="card-title">@t("Dépenses totales ce mois")</h5>
-                    <p class="card-text fs-3">{{ number_format($totalExpenses, 2) }} €</p>
+                    <p class="card-text fs-3">{{ number_format($totalExpenses, 2) }} $</p>
                 </div>
             </div>
         </div>
@@ -46,7 +46,7 @@
             <div class="card text-white bg-primary">
                 <div class="card-body">
                     <h5 class="card-title">@t("Solde net")</h5>
-                    <p class="card-text fs-3">{{ number_format($net, 2) }} €</p>
+                    <p class="card-text fs-3">{{ number_format($net, 2) }} $</p>
                 </div>
             </div>
         </div>

@@ -10,8 +10,33 @@ return [
     [
         'label' => 'messages.menu.catalog',
         'icon'  => 'bi-list-check',
-        'route' => 'products.index',
-        'active_pattern' => 'products*',
+        'active_pattern' => 'products*|gift-boxes*|gift-cards*|inventory*',
+        'submenu' => [
+            [
+                'label' => 'messages.menu.physical_products',
+                'icon'  => 'bi-box-seam',
+                'route' => 'products.index',
+                'active_pattern' => 'products*',
+            ],
+            [
+                'label' => 'messages.menu.gift_boxes',
+                'icon'  => 'bi-gift',
+                'route' => 'gift-boxes.index',
+                'active_pattern' => 'gift-boxes*',
+            ],
+            [
+                'label' => 'messages.menu.gift_cards',
+                'icon'  => 'bi-credit-card',
+                'route' => 'gift-cards.index',
+                'active_pattern' => 'gift-cards*',
+            ],
+            [
+                'label' => 'messages.menu.inventory',
+                'icon'  => 'bi-clipboard-check',
+                'route' => 'inventory.index',
+                'active_pattern' => 'inventory*',
+            ],
+        ]
     ],
     [
         'label' => 'messages.menu.stocks',
@@ -81,9 +106,65 @@ return [
         }
     ],
     [
+        'label' => 'Website',
+        'icon'  => 'bi-globe',
+        'active_pattern' => 'blog*|contact-messages*|pages*|hero-slides*|home-content*',
+        'submenu' => [
+            [
+                'label' => 'Contenu Homepage',
+                'icon'  => 'bi-house-heart',
+                'route' => 'home-content.edit',
+                'active_pattern' => 'home-content*',
+            ],
+            [
+                'label' => 'Blog',
+                'icon'  => 'bi-newspaper',
+                'active_pattern' => 'blog*',
+                'submenu' => [
+                    [
+                        'label' => 'Articles',
+                        'icon'  => 'bi-file-text',
+                        'route' => 'blog.posts.index',
+                        'active_pattern' => 'blog/posts*',
+                    ],
+                    [
+                        'label' => 'Catégories',
+                        'icon'  => 'bi-folder',
+                        'route' => 'blog.categories.index',
+                        'active_pattern' => 'blog/categories*',
+                    ],
+                    [
+                        'label' => 'Tags',
+                        'icon'  => 'bi-tags',
+                        'route' => 'blog.tags.index',
+                        'active_pattern' => 'blog/tags*',
+                    ],
+                ]
+            ],
+            [
+                'label' => 'Messages',
+                'icon'  => 'bi-envelope',
+                'route' => 'contact-messages.index',
+                'active_pattern' => 'contact-messages*',
+            ],
+            [
+                'label' => 'messages.menu.static_pages',
+                'icon'  => 'bi-file-earmark-text',
+                'route' => 'admin.pages.index',
+                'active_pattern' => 'pages*',
+            ],
+            [
+                'label' => 'messages.menu.banners',
+                'icon'  => 'bi-image',
+                'route' => 'hero-slides.index',
+                'active_pattern' => 'hero-slides*',
+            ],
+        ]
+    ],
+    [
         'label' => 'messages.menu.settings',
         'icon'  => 'bi-gear',
-        'active_pattern' => 'roles*|users*|stores*|categories*|brands*', // parent actif si une sous-page est active
+        'active_pattern' => 'roles*|users*|stores*|categories*|brands*|variation*', // parent actif si une sous-page est active
         'submenu' => [
             [
                 'label' => 'messages.menu.roles',
@@ -116,12 +197,6 @@ return [
                 'active_pattern' => 'brands*',
             ],
             [
-                'label' => 'messages.menu.static_pages',
-                'icon'  => 'bi-award',
-                'route' => 'admin.pages.index',
-                'active_pattern' => 'pages*',
-            ],
-            [
                 'label' => 'messages.menu.variations',
                 'icon'  => 'bi-bezier2',
                 'active_pattern' => 'variation*',
@@ -130,12 +205,13 @@ return [
                         'label' => 'messages.menu.variations_types',
                         'icon'  => 'bi-eye',
                         'route' => 'variation-types.index',
-                        'active_pattern' => 'supplier-orders*',
+                        'active_pattern' => 'variation-types*',
                     ],
                     [
                         'label' => 'messages.menu.variations_values',
                         'icon'  => 'bi-list',
                         'route' => 'variation-values.index',
+                        'active_pattern' => 'variation-values*',
                     ],
                 ]
             ],

@@ -28,17 +28,17 @@
                 <tr>
                     <td>{{ $product->name[app()->getLocale()] ?? reset($product->name) }}</td>
                     <td>{{ $product->pivot->quantity }}</td>
-                    <td>{{ number_format($product->pivot->unit_price, 2) }} €</td>
-                    <td>{{ number_format($product->pivot->quantity * $product->pivot->unit_price, 2) }} €</td>
+                    <td>{{ number_format($product->pivot->unit_price, 2) }} $</td>
+                    <td>{{ number_format($product->pivot->quantity * $product->pivot->unit_price, 2) }} $</td>
                 </tr>
             @endforeach
             <tr>
                 <td colspan="3" align="right"><strong>Shipping</strong></td>
-                <td>{{ number_format($delivery->shipping_cost, 2) }} €</td>
+                <td>{{ number_format($delivery->shipping_cost, 2) }} $</td>
             </tr>
             <tr>
                 <td colspan="3" align="right"><strong>Total</strong></td>
-                <td><strong>{{ number_format($invoice->total_amount, 2) }} €</strong></td>
+                <td><strong>{{ number_format($invoice->total_amount, 2) }} $</strong></td>
             </tr>
         </tbody>
     </table>

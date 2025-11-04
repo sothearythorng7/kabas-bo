@@ -31,15 +31,15 @@
                 <tr>
                     <td>{{ $item->product->name[app()->getLocale()] ?? reset($item->product->name) }}</td>
                     <td>{{ $item->quantity_sold }}</td>
-                    <td class="text-right">{{ number_format($item->unit_price, 2, ',', ' ') }} €</td>
-                    <td class="text-right">{{ number_format($item->quantity_sold * $item->unit_price, 2, ',', ' ') }} €</td>
+                    <td class="text-right">{{ number_format($item->unit_price, 2, ',', ' ') }} $</td>
+                    <td class="text-right">{{ number_format($item->quantity_sold * $item->unit_price, 2, ',', ' ') }} $</td>
                 </tr>
             @endforeach
         </tbody>
         <tfoot>
             <tr>
                 <td colspan="3" class="total text-right">Total</td>
-                <td class="total text-right">{{ number_format($totalValue, 2, ',', ' ') }} €</td>
+                <td class="total text-right">{{ number_format($totalValue, 2, ',', ' ') }} $</td>
             </tr>
         </tfoot>
     </table>

@@ -41,7 +41,7 @@
                 <td>{{ $journal->date->format('d/m/Y') }}</td>
                 <td>{{ $journal->account->name }}</td>
                 <td>{{ ucfirst($journal->type) }}</td>
-                <td>{{ number_format($journal->amount, 2, ',', ' ') }} €</td>
+                <td>{{ number_format($journal->amount, 2, ',', ' ') }} $</td>
                 <td>{{ $journal->description }}</td>
                 <td class="text-end">
                     <a href="{{ route('stores.journals.show', [$site, $journal]) }}" class="btn btn-info btn-sm">

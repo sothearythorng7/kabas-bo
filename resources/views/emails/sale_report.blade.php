@@ -12,7 +12,7 @@
        - <strong>{{ $saleReport->period_end->format('d/m/Y') }}</strong>.</p>
 
     <p>Magasin concerné : <strong>{{ $saleReport->store->name }}</strong></p>
-    <p>Montant théorique total : <strong>{{ number_format($saleReport->total_amount_theoretical, 2) }} €</strong></p>
+    <p>Montant théorique total : <strong>{{ number_format($saleReport->total_amount_theoretical, 2) }} $</strong></p>
 
     <p>Bien cordialement,</p>
     <p>L’équipe {{ config('app.name') }}</p>

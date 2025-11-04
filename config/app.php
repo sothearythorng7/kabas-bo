@@ -56,6 +56,18 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Site Public URL
+    |--------------------------------------------------------------------------
+    |
+    | URL du site public (front-end) utilisé pour générer les liens
+    | dans les fichiers statiques comme le menu.
+    |
+    */
+
+    'site_public_url' => env('SITE_PUBLIC_URL', 'http://localhost'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Application Timezone
     |--------------------------------------------------------------------------
     |

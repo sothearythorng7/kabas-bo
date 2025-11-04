@@ -7,12 +7,12 @@
     {{-- Totaux --}}
     <div class="alert alert-info">
         <strong>@t("Total theoretical amount"):</strong>
-        €{{ number_format($totalTheoretical, 2) }}
+        ${{ number_format($totalTheoretical, 2) }}
     </div>
 
     <div class="alert alert-warning">
         <strong>@t("Total unpaid invoiced reports"):</strong>
-        €{{ number_format($totalUnpaidInvoiced, 2) }}
+        ${{ number_format($totalUnpaidInvoiced, 2) }}
     </div>
 
     {{-- Onglets par statut --}}
@@ -116,10 +116,10 @@
                                 <td>{{ $report->supplier->name }}</td>
                                 <td>{{ $report->store->name }}</td>
                                 <td>{{ $report->period_start->format('d/m/Y') }} - {{ $report->period_end->format('d/m/Y') }}</td>
-                                <td>€{{ number_format($report->total_amount_theoretical, 2) }}</td>
+                                <td>${{ number_format($report->total_amount_theoretical, 2) }}</td>
 
                                 @if(str_contains($key, 'invoiced'))
-                                    <td>€{{ number_format($report->total_amount_invoiced, 2) }}</td>
+                                    <td>${{ number_format($report->total_amount_invoiced, 2) }}</td>
                                     <td>
                                         @if($report->is_paid)
                                             <span class="badge bg-success">@t("Yes")</span>

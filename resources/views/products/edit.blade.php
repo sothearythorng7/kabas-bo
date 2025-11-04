@@ -355,7 +355,15 @@
                             </a>
                         </td>
                         <td>
-                            <form method="POST" action="{{ route('products.variations.destroy', [$product, $var->id]) }}" onsubmit="return confirm('Confirm?')">
+                            @php
+                                $linkedProductName = $var->linkedProduct->name['fr'] ?? reset($var->linkedProduct->name);
+                                $linkedProductDisplay = $var->linkedProduct->ean . ' - ' . $linkedProductName;
+                            @endphp
+                            <button type="button" class="btn btn-sm btn-primary me-2"
+                                onclick='openEditVariationModal({{ $var->id }}, {{ $var->variation_type_id }}, {{ $var->variation_value_id }}, {{ $var->linked_product_id }}, {{ json_encode($linkedProductDisplay) }})'>
+                                <i class="bi bi-pencil"></i> {{ __('messages.btn.edit') }}
+                            </button>
+                            <form method="POST" action="{{ route('products.variations.destroy', [$product, $var->id]) }}" onsubmit="return confirm('Confirm?')" style="display: inline-block;">
                                 @csrf
                                 @method('DELETE')
                                 <button class="btn btn-sm btn-danger">{{ __('messages.btn.delete') }}</button>
@@ -409,10 +417,54 @@
                 </div>
             </div>
 
+            <div class="modal fade" id="editVariationModal" tabindex="-1" aria-labelledby="editVariationModalLabel" aria-hidden="true">
+                <div class="modal-dialog modal-lg">
+                    <div class="modal-content">
+                        <form id="editVariationForm" method="POST" onsubmit="return validateEditForm()">
+                            @csrf
+                            @method('PUT')
+                            <div class="modal-header">
+                                <h5 class="modal-title" id="editVariationModalLabel">{{ __('messages.btn.edit_variation') ?? 'Modifier la variation' }}</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body">
+                                <div class="row g-2 align-items-end">
+                                    <div class="col-md-4">
+                                        <label>{{ __('messages.variation.type') }}</label>
+                                        <select class="form-select" name="variation_type_id" id="edit_variation_type" required>
+                                            <option value="">--</option>
+                                            @foreach($types as $type)
+                                                <option value="{{ $type->id }}">{{ $type->name }}</option>
+                                            @endforeach
+                                        </select>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label>{{ __('messages.variation.value') }}</label>
+                                        <select class="form-select" name="variation_value_id" id="edit_variation_value" required>
+                                            <option value="">--</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label>{{ __('messages.variation.linked_product') }}</label>
+                                        <input type="text" class="form-control" id="edit_linked_product_search" placeholder="EAN / name" required>
+                                        <input type="hidden" name="linked_product_id" id="edit_linked_product_id" required>
+                                        <div id="edit_linked_product_results" class="list-group position-absolute zindex-1" style="max-height:200px; overflow-y:auto;"></div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ __('messages.btn.cancel') }}</button>
+                                <button type="submit" class="btn btn-primary">{{ __('messages.btn.save') }}</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
         </div>
 
         <script>
-            // Ajax pour récupérer les valeurs selon le type
+            // Ajax pour récupérer les valeurs selon le type (Modal Ajout)
             document.getElementById('variation_type').addEventListener('change', function() {
                 let typeId = this.value;
                 let valueSelect = document.getElementById('variation_value');
@@ -431,7 +483,25 @@
                     });
             });
 
-            // Recherche produit via Ajax
+            // Ajax pour récupérer les valeurs selon le type (Modal Édition)
+            document.getElementById('edit_variation_type').addEventListener('change', function() {
+                let typeId = this.value;
+                let valueSelect = document.getElementById('edit_variation_value');
+                valueSelect.innerHTML = '<option>Loading...</option>';
+                fetch('/variation-types/'+typeId+'/values')
+                    .then(res => res.json())
+                    .then(data => {
+                        valueSelect.innerHTML = '<option value="">--</option>';
+                        data.forEach(v => {
+                            let opt = document.createElement('option');
+                            opt.value = v.id;
+                            opt.text = v.value;
+                            valueSelect.appendChild(opt);
+                        });
+                    });
+            });
+
+            // Recherche produit via Ajax (Modal Ajout)
             let searchInput = document.getElementById('linked_product_search');
             let resultsDiv = document.getElementById('linked_product_results');
             let hiddenInput = document.getElementById('linked_product_id');
@@ -463,6 +533,96 @@
                     });
                 }, 300);
             });
+
+            // Recherche produit via Ajax (Modal Édition)
+            let editSearchInput = document.getElementById('edit_linked_product_search');
+            let editResultsDiv = document.getElementById('edit_linked_product_results');
+            let editHiddenInput = document.getElementById('edit_linked_product_id');
+
+            let editTimeout = null;
+            editSearchInput.addEventListener('input', function() {
+                clearTimeout(editTimeout);
+                let q = this.value;
+                if(q.length < 2) { editResultsDiv.innerHTML=''; return; }
+                editTimeout = setTimeout(() => {
+                    fetch('/products/search?q='+encodeURIComponent(q))
+                    .then(res => res.json())
+                    .then(data => {
+                        editResultsDiv.innerHTML = '';
+                        data.forEach(p => {
+                            let a = document.createElement('a');
+                            a.href = '#';
+                            a.className = 'list-group-item list-group-item-action';
+                            a.textContent = p.ean+' - '+(p.name.fr||Object.values(p.name)[0]);
+                            a.dataset.id = p.id;
+                            a.addEventListener('click', function(e){
+                                e.preventDefault();
+                                editHiddenInput.value = this.dataset.id;
+                                editSearchInput.value = this.textContent;
+                                editResultsDiv.innerHTML = '';
+                            });
+                            editResultsDiv.appendChild(a);
+                        });
+                    });
+                }, 300);
+            });
+
+            // Fonction pour ouvrir le modal d'édition avec les données pré-remplies
+            function openEditVariationModal(variationId, typeId, valueId, linkedProductId, linkedProductText) {
+                // Définir l'URL du formulaire
+                const form = document.getElementById('editVariationForm');
+                form.action = '{{ route("products.variations.update", [$product, ":id"]) }}'.replace(':id', variationId);
+
+                // Pré-remplir le type
+                document.getElementById('edit_variation_type').value = typeId;
+
+                // Charger les valeurs du type et pré-sélectionner
+                fetch('/variation-types/' + typeId + '/values')
+                    .then(res => res.json())
+                    .then(data => {
+                        let valueSelect = document.getElementById('edit_variation_value');
+                        valueSelect.innerHTML = '<option value="">--</option>';
+                        data.forEach(v => {
+                            let opt = document.createElement('option');
+                            opt.value = v.id;
+                            opt.text = v.value;
+                            if (v.id == valueId) {
+                                opt.selected = true;
+                            }
+                            valueSelect.appendChild(opt);
+                        });
+                    });
+
+                // Pré-remplir le produit lié
+                document.getElementById('edit_linked_product_id').value = linkedProductId;
+                document.getElementById('edit_linked_product_search').value = linkedProductText;
+
+                // Ouvrir le modal
+                const modal = new bootstrap.Modal(document.getElementById('editVariationModal'));
+                modal.show();
+            }
+
+            // Fonction de validation avant soumission
+            function validateEditForm() {
+                const linkedProductId = document.getElementById('edit_linked_product_id').value;
+                const typeId = document.getElementById('edit_variation_type').value;
+                const valueId = document.getElementById('edit_variation_value').value;
+
+                if (!linkedProductId) {
+                    alert('Veuillez sélectionner un produit lié');
+                    return false;
+                }
+                if (!typeId) {
+                    alert('Veuillez sélectionner un type de variation');
+                    return false;
+                }
+                if (!valueId) {
+                    alert('Veuillez sélectionner une valeur de variation');
+                    return false;
+                }
+
+                return true;
+            }
         </script>
     </div>
 </div>

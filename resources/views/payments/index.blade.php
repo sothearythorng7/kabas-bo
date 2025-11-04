@@ -63,7 +63,7 @@
                 </td>
                 <td>{{ $payment->supplier_name }}</td>
                 <td>{{ $payment->reference }}</td>
-                <td class="text-center">{{ number_format($payment->amount, 2, ',', ' ') }} €</td>
+                <td class="text-center">{{ number_format($payment->amount, 2, ',', ' ') }} $</td>
                 <td>{{ $payment->due_date?->format('d/m/Y') ?? '-' }}</td>
                 <td>
                     @if($payment->document)

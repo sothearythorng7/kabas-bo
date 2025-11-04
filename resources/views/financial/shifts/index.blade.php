@@ -24,7 +24,7 @@
                 <div class="card text-white bg-success mb-3">
                     <div class="card-body">
                         <h5 class="card-title">Montant total des ventes</h5>
-                        <p class="card-text fs-3">{{ number_format($shiftStats['total_sales'], 2) }} €</p>
+                        <p class="card-text fs-3">{{ number_format($shiftStats['total_sales'], 2) }} $</p>
                     </div>
                 </div>
             </div>
@@ -40,7 +40,7 @@
                 <div class="card text-white bg-danger mb-3">
                     <div class="card-body">
                         <h5 class="card-title">Total des discounts</h5>
-                        <p class="card-text fs-3">{{ number_format($shiftStats['total_discounts'], 2) }} €</p>
+                        <p class="card-text fs-3">{{ number_format($shiftStats['total_discounts'], 2) }} $</p>
                     </div>
                 </div>
             </div>
@@ -86,10 +86,10 @@
                             {{ $sale->items->sum('quantity') }}
                         </a>
                     </td>
-                    <td>{{ number_format($sale->total, 2) }} €</td>
+                    <td>{{ number_format($sale->total, 2) }} $</td>
                     <td>
                         <a href="#" data-bs-toggle="modal" data-bs-target="#discountModal{{ $sale->id }}">
-                            {{ number_format($totalDiscounts, 2) }} €
+                            {{ number_format($totalDiscounts, 2) }} $
                         </a>
                     </td>
                 </tr>
@@ -125,11 +125,11 @@
                                 <ul>
                                     @foreach($sale->items as $item)
                                         @foreach($item->discounts ?? [] as $d)
-                                            <li>{{ $item->product->name[app()->getLocale()] ?? reset($item->product->name) }} : {{ $d['amount'] ?? 0 }} €</li>
+                                            <li>{{ $item->product->name[app()->getLocale()] ?? reset($item->product->name) }} : {{ $d['amount'] ?? 0 }} $</li>
                                         @endforeach
                                     @endforeach
                                     @foreach($sale->discounts ?? [] as $d)
-                                        <li>Global : {{ $d['amount'] ?? 0 }} €</li>
+                                        <li>Global : {{ $d['amount'] ?? 0 }} $</li>
                                     @endforeach
                                 </ul>
                             </div>

@@ -41,7 +41,7 @@
                 <td>{{ $expense->category->name }}</td>
                 <td>{{ $expense->name }}</td>
                 <td>{{ $expense->description }}</td>
-                <td>{{ number_format($expense->amount, 2, ',', ' ') }} €</td>
+                <td>{{ number_format($expense->amount, 2, ',', ' ') }} $</td>
                 <td>
                     @if($expense->document)
                         <a href="{{ Storage::url($expense->document) }}" target="_blank">@t("Voir")</a>

@@ -323,7 +323,7 @@
                             <td class="text-center">{{ $delivery->id }}</td>
                             <td>{{ ucfirst($delivery->status) }}</td>
                             <td class="text-center">{{ $totalItems }}</td>
-                            <td class="text-center">{{ $invoice ? number_format($invoice->total_amount, 2, ',', ' ') . ' €' : '-' }}</td>
+                            <td class="text-center">{{ $invoice ? number_format($invoice->total_amount, 2, ',', ' ') . ' $' : '-' }}</td>
                             @if($resellerType === 'buyer')
                             <td>
                                 @if($invoice)

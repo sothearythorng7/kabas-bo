@@ -28,7 +28,7 @@
                         @if($product->brand) ({{ $product->brand->name }}) @endif
                     </td>
                     <td>{{ $product->pivot->quantity_received ?? $product->pivot->quantity_ordered }}</td>
-                    <td>{{ number_format($product->pivot->purchase_price, 2) }} €</td>
+                    <td>{{ number_format($product->pivot->purchase_price, 2) }} $</td>
                     <td>
                         <input type="number" step="0.01"
                                name="products[{{ $product->id }}][price_invoiced]"
@@ -59,7 +59,7 @@
         <div class="d-flex justify-content-end my-3">
             <h5>
                 <span class="fw-bold">Total facturé :</span>
-                <span id="total-invoiced">0,00 €</span>
+                <span id="total-invoiced">0,00 $</span>
             </h5>
         </div>
 
@@ -85,7 +85,7 @@
             total += qty * price;
         });
         document.getElementById('total-invoiced').innerText =
-            total.toFixed(2).replace('.', ',') + ' €';
+            total.toFixed(2).replace('.', ',') + ' $';
     }
 
     document.querySelectorAll('.price-input').forEach(input => {

@@ -11,6 +11,7 @@ use App\Observers\ResellerSalesReportObserver;
 use App\Models\Store;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\Facades\Blade;
+use Illuminate\Support\Facades\Schema;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -30,8 +31,10 @@ class AppServiceProvider extends ServiceProvider
         Paginator::useBootstrapFive();
         ResellerStockDelivery::observe(ResellerStockDeliveryObserver::class);
 
-        // Partage des stores avec toutes les vues
-        View::share('stores', Store::all());
+        // Partage des stores avec toutes les vues (sauf pendant migrations)
+        if (Schema::hasTable('stores')) {
+            View::share('stores', Store::all());
+        }
 
         // Active menu pour toutes les vues
         View::composer('*', function ($view) {

@@ -42,6 +42,13 @@ use App\Http\Controllers\POS\ShiftController;
 use App\Http\Controllers\VariationTypeController;
 use App\Http\Controllers\VariationValueController;
 use App\Http\Controllers\PageController;
+use App\Http\Controllers\BlogPostController;
+use App\Http\Controllers\BlogCategoryController;
+use App\Http\Controllers\BlogTagController;
+use App\Http\Controllers\ContactMessageController;
+use App\Http\Controllers\GiftBoxController;
+use App\Http\Controllers\GiftCardController;
+use App\Http\Controllers\InventoryController;
 
 Route::get('/', function () {
     return auth()->check() ? redirect()->route('dashboard') : redirect()->route('login');
@@ -106,7 +113,33 @@ Route::middleware(['auth', SetUserLocale::class])->group(function () {
         Route::post('products/{product}/photos/{photo}/set-primary', [ProductController::class, 'setPrimaryPhoto'])->name('products.photos.setPrimary');
         Route::get('products/{product}/variations', [ProductController::class, 'variationsIndex'])->name('products.variations.index');
         Route::post('products/{product}/variations', [ProductController::class, 'variationsStore'])->name('products.variations.store');
+        Route::put('products/{product}/variations/{variation}', [ProductController::class, 'variationsUpdate'])->name('products.variations.update');
         Route::delete('products/{product}/variations/{variation}', [ProductController::class, 'variationsDestroy'])->name('products.variations.destroy');
+
+        // Gift Boxes
+        Route::resource('gift-boxes', GiftBoxController::class);
+        Route::post('gift-boxes/{giftBox}/images', [GiftBoxController::class, 'uploadImage'])->name('gift-boxes.images.upload');
+        Route::delete('gift-boxes/{giftBox}/images/{image}', [GiftBoxController::class, 'deleteImage'])->name('gift-boxes.images.delete');
+        Route::post('gift-boxes/{giftBox}/images/{image}/set-primary', [GiftBoxController::class, 'setPrimaryImage'])->name('gift-boxes.images.setPrimary');
+        Route::post('gift-boxes/{giftBox}/images/reorder', [GiftBoxController::class, 'reorderImages'])->name('gift-boxes.images.reorder');
+        Route::post('gift-boxes/{giftBox}/categories/attach', [GiftBoxController::class, 'attachCategory'])->name('gift-boxes.categories.attach');
+        Route::delete('gift-boxes/{giftBox}/categories/{category}', [GiftBoxController::class, 'detachCategory'])->name('gift-boxes.categories.detach');
+        Route::post('gift-boxes/{giftBox}/products/attach', [GiftBoxController::class, 'attachProduct'])->name('gift-boxes.products.attach');
+        Route::delete('gift-boxes/{giftBox}/products/{product}', [GiftBoxController::class, 'detachProduct'])->name('gift-boxes.products.detach');
+        Route::put('gift-boxes/{giftBox}/products/{product}/quantity', [GiftBoxController::class, 'updateProductQuantity'])->name('gift-boxes.products.updateQuantity');
+
+        // Gift Cards
+        Route::resource('gift-cards', GiftCardController::class);
+        Route::post('gift-cards/{giftCard}/categories/attach', [GiftCardController::class, 'attachCategory'])->name('gift-cards.categories.attach');
+        Route::delete('gift-cards/{giftCard}/categories/{category}', [GiftCardController::class, 'detachCategory'])->name('gift-cards.categories.detach');
+
+        // Inventory Management
+        Route::get('inventory', [InventoryController::class, 'index'])->name('inventory.index');
+        Route::post('inventory/export', [InventoryController::class, 'export'])->name('inventory.export');
+        Route::post('inventory/import', [InventoryController::class, 'import'])->name('inventory.import');
+        Route::get('inventory/confirm', [InventoryController::class, 'confirm'])->name('inventory.confirm');
+        Route::post('inventory/apply', [InventoryController::class, 'apply'])->name('inventory.apply');
+        Route::post('inventory/cancel', [InventoryController::class, 'cancel'])->name('inventory.cancel');
 
         Route::get('variation-types/{type}/values', [VariationTypeController::class, 'values'])->name('variation-types.values'); // Ajax
 
@@ -115,10 +148,19 @@ Route::middleware(['auth', SetUserLocale::class])->group(function () {
         Route::delete('products/{product}/categories/{category}', [ProductController::class, 'detachCategory'])->name('products.categories.detach');
 
         // Gestion des suppliers
-        Route::post('products/{product}/suppliers/attach', [ProductController::class, 'attachSupplier'])->name('products.suppliers.attach');
-        Route::delete('products/{product}/suppliers/{supplier}', [ProductController::class, 'detachSupplier'])->name('products.suppliers.detach');
-        Route::put('products/{product}/ price', [ProductController::class, 'updateSupplierPrice'])->name('products.suppliers.updatePrice');
-        Route::put('/suppliers/{supplier}/products/{product}/purchase-price', [SupplierController::class, 'updatePurchasePrice'])->name('suppliers.updatePurchasePrice');
+        Route::post('products/{product}/suppliers/attach', [ProductController::class, 'attachSupplier'])
+            ->name('products.suppliers.attach');
+
+        Route::delete('products/{product}/suppliers/{supplier}', [ProductController::class, 'detachSupplier'])
+            ->name('products.suppliers.detach');
+
+        // 🔧 FIX: ajouter {supplier} et supprimer l’espace avant price
+        Route::put('products/{product}/suppliers/{supplier}/price', [ProductController::class, 'updateSupplierPrice'])
+            ->name('products.suppliers.updatePrice');
+
+        // (tu peux garder aussi cette route côté SupplierController si tu l’utilises ailleurs)
+        Route::put('/suppliers/{supplier}/products/{product}/purchase-price', [SupplierController::class, 'updatePurchasePrice'])
+            ->name('suppliers.updatePurchasePrice');
         Route::get('/supplier-orders/overview', [SupplierOrderController::class, 'overview'])->name('supplier-orders.overview');
         Route::get('suppliers/{supplier}/sale-reports/create', [SaleReportController::class, 'create'])->name('sale-reports.create');
         Route::prefix('suppliers/{supplier}')->group(function () {
@@ -152,7 +194,7 @@ Route::middleware(['auth', SetUserLocale::class])->group(function () {
                 ->name('sale-reports.markAsPaid');
         });
 
-
+        Route::resource('hero-slides', \App\Http\Controllers\HeroSlideController::class)->except('show')->names('hero-slides');
         
         // Stock Value
         Route::get('stock-value', [App\Http\Controllers\StockValueController::class, 'index'])->name('stock-value');
@@ -367,6 +409,33 @@ Route::prefix('api/pos')->middleware('api')->group(function () {
     Route::post('shifts/end', [ShiftController::class, 'end']);
 
     Route::post('sales/sync', [SyncController::class, 'sales']);
+});
+
+// Blog Routes
+Route::middleware(['auth'])->prefix('blog')->name('blog.')->group(function () {
+    // Blog Posts
+    Route::resource('posts', BlogPostController::class);
+    Route::delete('posts/{post}/image', [BlogPostController::class, 'deleteImage'])->name('posts.deleteImage');
+
+    // Blog Categories
+    Route::resource('categories', BlogCategoryController::class)->except(['show']);
+
+    // Blog Tags
+    Route::resource('tags', BlogTagController::class)->except(['show']);
+});
+
+// Contact Messages Routes
+Route::middleware(['auth'])->group(function () {
+    Route::get('contact-messages', [ContactMessageController::class, 'index'])->name('contact-messages.index');
+    Route::get('contact-messages/{contactMessage}', [ContactMessageController::class, 'show'])->name('contact-messages.show');
+    Route::post('contact-messages/{contactMessage}/mark-as-read', [ContactMessageController::class, 'markAsRead'])->name('contact-messages.mark-as-read');
+    Route::delete('contact-messages/{contactMessage}', [ContactMessageController::class, 'destroy'])->name('contact-messages.destroy');
+});
+
+// Home Content Routes
+Route::middleware(['auth'])->group(function () {
+    Route::get('home-content', [App\Http\Controllers\HomeContentController::class, 'edit'])->name('home-content.edit');
+    Route::put('home-content', [App\Http\Controllers\HomeContentController::class, 'update'])->name('home-content.update');
 });
 
 

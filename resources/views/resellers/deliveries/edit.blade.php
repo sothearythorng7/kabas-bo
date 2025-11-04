@@ -142,7 +142,7 @@
                             <th>{{ __('messages.product.brand') }}</th>
                             <th>{{ __('messages.resellers.quantity') }}</th>
                             <th>{{ __('messages.product.price_btob') }}</th>
-                            <th>{{ __('messages.resellers.total_value') ?? 'Total (€)' }}</th>
+                            <th>{{ __('messages.resellers.total_value') ?? 'Total ($)' }}</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -172,7 +172,7 @@
                                     <p class="mb-1"><strong>{{ __('messages.product.brand') }}:</strong> {{ $product->brand?->name ?? '-' }}</p>
                                     <p class="mb-1"><strong>{{ __('messages.resellers.quantity') }}:</strong> {{ $product->pivot->quantity }}</p>
                                     <p class="mb-1"><strong>{{ __('messages.product.price_btob') }}:</strong> {{ number_format($product->pivot->unit_price, 2) }}</p>
-                                    <p class="mb-0"><strong>{{ __('messages.resellers.total_value') ?? 'Total (€)' }}:</strong> {{ number_format($product->pivot->quantity * $product->pivot->unit_price, 2) }}</p>
+                                    <p class="mb-0"><strong>{{ __('messages.resellers.total_value') ?? 'Total ($)' }}:</strong> {{ number_format($product->pivot->quantity * $product->pivot->unit_price, 2) }}</p>
                                 </div>
                             </div>
                         </div>

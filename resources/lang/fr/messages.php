@@ -4,7 +4,11 @@ return [
     'menu' => [
         'dashboard' => 'Tableau de bord',
         'catalog' => 'Catalogue',
-        'stock_overview' => 'Vue d’ensemble des stocks',
+        'physical_products' => 'Produits physiques',
+        'gift_boxes' => 'Coffrets cadeaux',
+        'gift_cards' => 'Cartes cadeaux',
+        'inventory' => 'Inventaire',
+        'stock_overview' => "Vue d'ensemble des stocks",
         'stock_movements' => 'Mouvements de stock',
         'suppliers' => 'Fournisseurs',
         'settings' => 'Paramètres',
@@ -29,7 +33,7 @@ return [
     'searchBy' => 'Rechercher par nom ou description',
 
     'stocks' => [
-        'title' => 'Vue d’ensemble des stocks',
+        'title' => "Vue d'ensemble des stocks",
     ],
 
     'user_edit' => [
@@ -43,7 +47,7 @@ return [
         'role' => 'Rôle',
         'language' => 'Langue',
         'confirm_delete' => 'Supprimer cet utilisateur ?',
-        'new_password' => 'Nouveau mot de passe (laisser vide pour conserver l’actuel)',
+        'new_password' => "Nouveau mot de passe (laisser vide pour conserver l'actuel)",
     ],
 
     'roles' => [
@@ -95,7 +99,7 @@ return [
         'no_category' => 'Aucune catégorie disponible.',
         'created' => 'Produit créé avec succès.',
         'products' => 'Produits',
-        'purchase_price' => 'Prix d’achat',
+        'purchase_price' => "Prix d'achat",
         'view_public' => 'Voir sur le site',
     ],
 
@@ -133,7 +137,7 @@ return [
         'general_info' => 'Informations générales',
         'edit_contact' => 'Modifier un contact',
         'first_contact' => 'Premier contact',
-        'purchase_price' => 'Prix d’achat',
+        'purchase_price' => "Prix d'achat",
         'created' => 'Fournisseur créé avec succès.',
         'status' => 'Statut',
         'created_at' => 'Créé le',
@@ -199,7 +203,7 @@ return [
         'select_destination_store' => 'Sélectionner le magasin de destination',
         'select_products' => 'Sélectionner les produits',
         'search_products' => 'Rechercher des produits par nom ou EAN',
-        'confirm_message' => 'Êtes-vous sûr de vouloir supprimer ce mouvement de stock ? Cette action est irréversible. Le stock sera restauré dans le magasin source.',
+        'confirm_message' => "Êtes-vous sûr de vouloir supprimer ce mouvement de stock ? Cette action est irréversible. Le stock sera restauré dans le magasin source.",
         'status' => [
             'draft' => 'Brouillon',
             'validated' => 'Validé',

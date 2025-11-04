@@ -30,7 +30,7 @@
             <div class="card text-white bg-secondary h-100">
                 <div class="card-body text-center">
                     <h6 class="card-title">@t("Amount before discount")</h6>
-                    <p class="card-text fs-5 fw-bold" id="detail-total-before-discount">0.00 €</p>
+                    <p class="card-text fs-5 fw-bold" id="detail-total-before-discount">0.00 $</p>
                 </div>
             </div>
         </div>
@@ -38,7 +38,7 @@
             <div class="card text-white bg-warning h-100">
                 <div class="card-body text-center">
                     <h6 class="card-title">@t("Total discount")</h6>
-                    <p class="card-text fs-5 fw-bold" id="detail-discounts-total">0.00 €</p>
+                    <p class="card-text fs-5 fw-bold" id="detail-discounts-total">0.00 $</p>
                 </div>
             </div>
         </div>
@@ -46,7 +46,7 @@
             <div class="card text-white bg-success h-100">
                 <div class="card-body text-center">
                     <h6 class="card-title">@t("Total paid")</h6>
-                    <p class="card-text fs-5 fw-bold" id="detail-final-total">0.00 €</p>
+                    <p class="card-text fs-5 fw-bold" id="detail-final-total">0.00 $</p>
                 </div>
             </div>
         </div>

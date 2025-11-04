@@ -92,7 +92,7 @@
                 <tr>
                     <th colspan="4" class="text-end">@t("Total Report Value:")</th>
                     <th>
-                        {{ number_format($report->items->sum(fn($i) => $i->quantity_sold * $i->unit_price), 2, ',', ' ') }} €
+                        {{ number_format($report->items->sum(fn($i) => $i->quantity_sold * $i->unit_price), 2, ',', ' ') }} $
                     </th>
                 </tr>
             </tfoot>

@@ -36,7 +36,7 @@
         </tbody>
     </table>
 
-    <p><strong>Frais de livraison :</strong> {{ number_format($delivery->shipping_cost ?? 0, 2) }} €</p>
-    <p><strong>Total :</strong> {{ number_format($invoice->total_amount, 2) }} €</p>
+    <p><strong>Frais de livraison :</strong> {{ number_format($delivery->shipping_cost ?? 0, 2) }} $</p>
+    <p><strong>Total :</strong> {{ number_format($invoice->total_amount, 2) }} $</p>
 </body>
 </html>

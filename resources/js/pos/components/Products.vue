@@ -2,7 +2,7 @@
   <div>
     <h2>Produits</h2>
     <ul>
-      <li v-for="p in products" :key="p.id">{{ p.name }} - {{ p.price }}€</li>
+      <li v-for="p in products" :key="p.id">{{ p.name }} - {{ p.price }}$</li>
     </ul>
   </div>
 </template>

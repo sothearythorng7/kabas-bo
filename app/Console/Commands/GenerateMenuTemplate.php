@@ -75,7 +75,8 @@ class GenerateMenuTemplate extends Command
         $ul[] = '    <ul class="nav-menu">';
 
         // Lien HOME (adaptable)
-        $homeUrl = url('/');
+        $siteUrl = rtrim(config('app.site_public_url', 'http://localhost'), '/');
+        $homeUrl = $siteUrl . '/';
         $ul[] = '      <li><a href="'.$this->e($homeUrl).'">HOME</a></li>';
 
         foreach ($roots as $root) {
@@ -175,9 +176,16 @@ class GenerateMenuTemplate extends Command
 
     protected function categoryUrl(string $locale, string $fullSlug): string
     {
-        // Adapte cette URL si ta route diffère
-        // ex: route('categories.show', ['locale'=>$locale,'slug'=>$fullSlug])
-        return url($this->e($locale) . '/c/' . $this->e($fullSlug));
+        // Le full_slug en base contient la locale (ex: fr/delices-cambodgiens)
+        // Mais la route attend: {locale}/c/{slug}
+        // Donc on retire le préfixe locale du fullSlug si présent
+        $slug = $fullSlug;
+        if (str_starts_with($slug, $locale . '/')) {
+            $slug = substr($slug, strlen($locale) + 1);
+        }
+
+        $siteUrl = rtrim(config('app.site_public_url', 'http://localhost'), '/');
+        return $siteUrl . '/' . $this->e($locale) . '/c/' . $this->e($slug);
     }
 
     protected function e(string $value): string

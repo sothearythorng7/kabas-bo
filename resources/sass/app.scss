@@ -1,4 +1,4 @@
-// Tout d’abord les @use
+// Tout d'abord les @use
 @use 'bootstrap' as *;
 @use './variables';
 @use './_menu';
@@ -6,6 +6,7 @@
 
 // Ensuite les imports CSS externes
 @import url('https://fonts.bunny.net/css?family=Nunito');
+@import 'notyf/notyf.min.css';
 
 
 /* Espacement horizontal déjà géré avec .mx-2, mais on peut augmenter */

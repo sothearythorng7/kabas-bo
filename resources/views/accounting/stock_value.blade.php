@@ -12,7 +12,7 @@
         </div>
     </form>
 
-    <p><strong>{{ __('messages.stock_value.total_stock') }}</strong> {{ number_format($totalValue, 2) }} €</p>
+    <p><strong>{{ __('messages.stock_value.total_stock') }}</strong> {{ number_format($totalValue, 2) }} $</p>
 
     <!-- Table version desktop -->
     <div class="d-none d-md-block">
@@ -38,7 +38,7 @@
                     <td>{{ $product->ean }}</td>
                     <td>{{ $product->name[app()->getLocale()] ?? reset($product->name) }}</td>
                     <td>{{ $totalQty }}</td>
-                    <td>{{ number_format($totalVal, 2) }} €</td>
+                    <td>{{ number_format($totalVal, 2) }} $</td>
                     <td>
                         <button class="btn btn-sm btn-info btn-lots" data-id="{{ $product->id }}">{{ __('messages.stock_value.details') }}</button>
                     </td>
@@ -64,7 +64,7 @@
                 <p class="card-text">
                     <strong>{{ __('messages.stock_value.ean') }}:</strong> {{ $product->ean }}<br>
                     <strong>{{ __('messages.stock_value.remaining_stock') }}:</strong> {{ $totalQty }}<br>
-                    <strong>{{ __('messages.stock_value.estimated_value') }}:</strong> {{ number_format($totalVal, 2) }} €
+                    <strong>{{ __('messages.stock_value.estimated_value') }}:</strong> {{ number_format($totalVal, 2) }} $
                 </p>
                 <button class="btn btn-info btn-sm btn-lots" data-id="{{ $product->id }}">{{ __('messages.stock_value.details') }}</button>
             </div>

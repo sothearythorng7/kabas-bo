@@ -10,7 +10,7 @@
         <div>
             <strong>@t("Unpaid invoices") :</strong> {{ $unpaidInvoicesCount }}
             <br>
-            <strong>@t("total_value") :</strong> {{ number_format($unpaidInvoicesTotal, 2) }} €
+            <strong>@t("total_value") :</strong> {{ number_format($unpaidInvoicesTotal, 2) }} $
         </div>
     </div>
     @endif
@@ -20,7 +20,7 @@
             <div class="card text-white bg-success mb-3">
                 <div class="card-body">
                     <h5 class="card-title">@t("Solde actuel")</h5>
-                    <p class="card-text display-6">{{ number_format($currentBalance, 2) }} €</p>
+                    <p class="card-text display-6">{{ number_format($currentBalance, 2) }} $</p>
                 </div>
             </div>
         </div>
@@ -28,7 +28,7 @@
             <div class="card text-white bg-info mb-3">
                 <div class="card-body">
                     <h5 class="card-title">@t("Entrées ce mois")</h5>
-                    <p class="card-text display-6">{{ number_format($monthCredits, 2) }} €</p>
+                    <p class="card-text display-6">{{ number_format($monthCredits, 2) }} $</p>
                 </div>
             </div>
         </div>
@@ -36,7 +36,7 @@
             <div class="card text-white bg-danger mb-3">
                 <div class="card-body">
                     <h5 class="card-title">@t("Sorties ce mois")</h5>
-                    <p class="card-text display-6">{{ number_format($monthDebits, 2) }} €</p>
+                    <p class="card-text display-6">{{ number_format($monthDebits, 2) }} $</p>
                 </div>
             </div>
         </div>
@@ -69,7 +69,7 @@
                         @foreach($topAccounts as $acc)
                             <li class="list-group-item d-flex justify-content-between align-items-center">
                                 {{ $acc->name }}
-                                <span>{{ number_format($acc->total, 2) }} €</span>
+                                <span>{{ number_format($acc->total, 2) }} $</span>
                             </li>
                         @endforeach
                     </ul>
@@ -85,7 +85,7 @@
                         @foreach($paymentDistribution as $method => $amount)
                             <li class="list-group-item d-flex justify-content-between align-items-center">
                                 {{ $method }}
-                                <span>{{ number_format($amount, 2) }} €</span>
+                                <span>{{ number_format($amount, 2) }} $</span>
                             </li>
                         @endforeach
                     </ul>
@@ -147,8 +147,8 @@ document.addEventListener('DOMContentLoaded', function() {
             interaction: { mode: 'index', intersect: false },
             stacked: false,
             scales: {
-                y: { type: 'linear', position: 'left', title: { display: true, text: 'Montants (€)' } },
-                y1: { type: 'linear', position: 'right', title: { display: true, text: 'Solde (€)' }, grid: { drawOnChartArea: false } }
+                y: { type: 'linear', position: 'left', title: { display: true, text: 'Montants ($)' } },
+                y1: { type: 'linear', position: 'right', title: { display: true, text: 'Solde ($)' }, grid: { drawOnChartArea: false } }
             }
         }
     });

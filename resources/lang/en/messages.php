@@ -6,6 +6,10 @@ return [
     'menu' => [
         'dashboard' => 'Dashboard',
         'catalog' => 'Catalog',
+        'physical_products' => 'Physical products',
+        'gift_boxes' => 'Gift boxes',
+        'gift_cards' => 'Gift cards',
+        'inventory' => 'Inventory',
         'stock_overview' => 'Stock overview',
         'stock_movements' => 'Stock movements',
         'suppliers' => 'Suppliers',
@@ -35,6 +39,7 @@ return [
         'variations_types' => 'Variation Types',
         'variations_values' => 'Variation Values',
         'static_pages' => 'Static Pages',
+        'banners' => 'banners',
     ],
     'dashboard' => 'Dashboard',
     'shops' => 'Shops',

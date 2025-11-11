@@ -1326,4 +1326,21 @@ return [
     'Meta description' => 'Meta description',
     'Retour à la liste' => 'Retour à la liste',
     'Voir sur le site' => 'Voir sur le site',
+
+    // Transactions financières
+    'Nouvelle transaction' => 'Nouvelle transaction',
+    'date' => 'Date',
+    'Libellé' => 'Libellé',
+    'description' => 'Description',
+    'Compte' => 'Compte',
+    'Choisir' => 'Choisir',
+    'type' => 'Type',
+    'Débit' => 'Débit',
+    'Crédit' => 'Crédit',
+    'Montant' => 'Montant',
+    'Devise' => 'Devise',
+    'Méthode de paiement' => 'Méthode de paiement',
+    'Pièces jointes' => 'Pièces jointes',
+    'Enregistrer' => 'Enregistrer',
+    'Annuler' => 'Annuler',
 ];

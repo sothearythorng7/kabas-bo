@@ -63,6 +63,19 @@
     #sales-contents .sale-table { font-size: 0.9rem; }
     #sales-contents .sale-footer { background: #f8f9fa; border-top: 1px solid #dee2e6; padding: 0.5rem; }
 
+    /* Sticky header for sale items table */
+    .sale-items-container .sticky-header {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        background-color: #f8f9fa;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .sale-items-container .sticky-header th {
+        background-color: #f8f9fa;
+        border-bottom: 2px solid #dee2e6;
+    }
+
     .product-card { cursor: pointer; text-align: center; margin-bottom: 15px; height: 180px; display: flex; flex-direction: column; justify-content: flex-start; align-items: center; overflow: hidden; }
     .product-card img { width: 100%; height: 120px; object-fit: cover; border-radius: 4px; margin-bottom: 4px; }
     .product-card:hover { transform: scale(1.05); transition: transform 0.1s ease-in-out; }
@@ -435,9 +448,9 @@ function renderSalesTabs() {
                    </div>
                 </div>
 
-                <div class="overflow-auto" style="padding-bottom: 50px;">
+                <div class="overflow-auto sale-items-container" style="padding-bottom: 80px;">
                     <table class="table sale-table mb-0" style="table-layout: fixed;">
-                        <thead>
+                        <thead class="sticky-header">
                             <tr>
                                 <th style="width: 35%;">Product</th>
                                 <th style="width: 10%;" class="text-center">Qty</th>

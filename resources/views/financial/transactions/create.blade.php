@@ -8,7 +8,7 @@
         @csrf
 
         <div class="mb-3">
-            <label class="form-label">@t("date")</label>
+            <label class="form-label">@t("Date")</label>
             <input type="date" name="transaction_date" class="form-control" required>
         </div>
 
@@ -18,7 +18,7 @@
         </div>
 
         <div class="mb-3">
-            <label class="form-label">@t("description")</label>
+            <label class="form-label">@t("Description")</label>
             <textarea name="description" class="form-control"></textarea>
         </div>
 
@@ -33,7 +33,7 @@
         </div>
 
         <div class="mb-3">
-            <label class="form-label">@t("type")</label><br>
+            <label class="form-label">@t("Type")</label><br>
             <div class="form-check form-check-inline">
                 <input class="form-check-input" type="radio" name="direction" value="debit" required>
                 <label class="form-check-label">@t("Débit")</label>

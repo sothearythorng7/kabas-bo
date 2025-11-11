@@ -1329,12 +1329,12 @@ return [
 
     // Transactions financières
     'Nouvelle transaction' => 'Nouvelle transaction',
-    'date' => 'Date',
+    'Date' => 'Date',
     'Libellé' => 'Libellé',
-    'description' => 'Description',
+    'Description' => 'Description',
     'Compte' => 'Compte',
     'Choisir' => 'Choisir',
-    'type' => 'Type',
+    'Type' => 'Type',
     'Débit' => 'Débit',
     'Crédit' => 'Crédit',
     'Montant' => 'Montant',

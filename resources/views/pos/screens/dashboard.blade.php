@@ -435,7 +435,7 @@ function renderSalesTabs() {
                    </div>
                 </div>
 
-                <div class="overflow-auto" style="padding-bottom: 20px;">
+                <div class="overflow-auto" style="padding-bottom: 50px;">
                     <table class="table sale-table mb-0" style="table-layout: fixed;">
                         <thead>
                             <tr>

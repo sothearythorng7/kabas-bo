@@ -32,6 +32,11 @@ class User extends Authenticatable
         return $this->belongsTo(Store::class);
     }
 
+    public function shifts()
+    {
+        return $this->hasMany(Shift::class);
+    }
+
     /**
      * The attributes that should be hidden for serialization.
      *

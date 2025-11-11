@@ -28,9 +28,3 @@
         href="{{ route('financial.payment-methods.index', $store->id) }}">@t("Méthodes de paiement")</a>
     </li>
 </ul>
-
-<div class="mb-3">
-    <a href="{{ route('invoice-categories.index', ['store_id' => $store->id]) }}" class="btn btn-outline-secondary btn-sm">
-        <i class="bi bi-tag"></i> @t("Gérer les catégories de factures")
-    </a>
-</div>

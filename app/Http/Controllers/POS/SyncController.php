@@ -38,11 +38,16 @@ class SyncController extends Controller
             'sales.*.payment_type' => 'required|string',
             'sales.*.total' => 'required|numeric',
             'sales.*.discounts' => 'nullable|array',
+            'sales.*.split_payments' => 'nullable|array',
+            'sales.*.split_payments.*.payment_type' => 'required|string',
+            'sales.*.split_payments.*.amount' => 'required|numeric|min:0',
             'sales.*.items' => 'required|array|min:1',
-            'sales.*.items.*.product_id' => 'required|exists:products,id',
+            'sales.*.items.*.product_id' => 'nullable|exists:products,id',
             'sales.*.items.*.quantity' => 'required|integer|min:1',
             'sales.*.items.*.price' => 'required|numeric',
             'sales.*.items.*.discounts' => 'nullable|array',
+            'sales.*.items.*.is_delivery' => 'nullable|boolean',
+            'sales.*.items.*.delivery_address' => 'nullable|string',
         ]);
 
         $shift   = Shift::findOrFail($data['shift_id']);
@@ -78,18 +83,29 @@ class SyncController extends Controller
                     'payment_type' => $saleData['payment_type'],
                     'total'        => $saleData['total'],
                     'discounts'    => $saleData['discounts'] ?? [],
+                    'split_payments' => $saleData['split_payments'] ?? null,
                     'synced_at'    => now(),
                 ]);
 
                 // 2) Items + décrément FIFO + transaction stock
                 foreach ($saleData['items'] as $itemData) {
+                    // Check if this is a delivery service item
+                    $isDelivery = $itemData['is_delivery'] ?? false;
+
                     SaleItem::create([
                         'sale_id'   => $sale->id,
                         'product_id'=> $itemData['product_id'],
                         'quantity'  => $itemData['quantity'],
                         'price'     => $itemData['price'],
                         'discounts' => $itemData['discounts'] ?? [],
+                        'is_delivery' => $isDelivery,
+                        'delivery_address' => $isDelivery ? ($itemData['delivery_address'] ?? null) : null,
                     ]);
+
+                    // Skip stock management for delivery service items
+                    if ($isDelivery) {
+                        continue;
+                    }
 
                     // Décrémentation FIFO et mouvements de stock
                     $remainingQty = $itemData['quantity'];
@@ -134,34 +150,79 @@ class SyncController extends Controller
                     }
                 }
 
-                // 3) Transaction financière (une par vente)
-                $balanceBefore = $runningBalance;
-                $runningBalance += $saleData['total'];
-                $balanceAfter   = $runningBalance;
+                // 3) Transaction(s) financière(s) - handle split payments
+                $splitPayments = $saleData['split_payments'] ?? null;
 
-                $code = strtoupper($saleData['payment_type']);
-                $paymentMethodId = $paymentMethods[$code]->id ?? ($paymentMethods['CASH']->id ?? 1);
+                if ($splitPayments && count($splitPayments) > 0) {
+                    // Multiple payment methods - create one transaction per payment
+                    $firstTransactionId = null;
 
-                $financialTransaction = FinancialTransaction::create([
-                    'store_id'         => $storeId,
-                    'account_id'       => $financialAccount->id,
-                    'amount'           => $saleData['total'],
-                    'currency'         => 'EUR',
-                    'direction'        => 'credit',
-                    'balance_before'   => $balanceBefore,
-                    'balance_after'    => $balanceAfter,
-                    'label'            => "Vente POS #{$sale->id}",
-                    'description'      => "Vente POS n°{$sale->id} au magasin {$store->name}, shift_id {$shift->id}, user_id {$userId}, paiement {$saleData['payment_type']}",
-                    'status'           => 'validated',
-                    'transaction_date' => now(),
-                    'payment_method_id'=> $paymentMethodId,
-                    'user_id'          => $userId,
-                    'external_reference'=> $sale->id,
-                ]);
+                    foreach ($splitPayments as $payment) {
+                        $balanceBefore = $runningBalance;
+                        $runningBalance += $payment['amount'];
+                        $balanceAfter = $runningBalance;
 
-                // 4) Lien vente ↔ transaction financière
-                $sale->financial_transaction_id = $financialTransaction->id;
-                $sale->save();
+                        $code = strtoupper($payment['payment_type']);
+                        $paymentMethodId = $paymentMethods[$code]->id ?? ($paymentMethods['CASH']->id ?? 1);
+
+                        $paymentMethodName = $paymentMethods[$code]->name ?? $payment['payment_type'];
+
+                        $financialTransaction = FinancialTransaction::create([
+                            'store_id'         => $storeId,
+                            'account_id'       => $financialAccount->id,
+                            'amount'           => $payment['amount'],
+                            'currency'         => 'EUR',
+                            'direction'        => 'credit',
+                            'balance_before'   => $balanceBefore,
+                            'balance_after'    => $balanceAfter,
+                            'label'            => "POS Sale #{$sale->id} - {$paymentMethodName}",
+                            'description'      => "POS Sale #{$sale->id} at store {$store->name}, shift_id {$shift->id}, user_id {$userId}, split payment {$paymentMethodName}: {$payment['amount']} EUR",
+                            'status'           => 'validated',
+                            'transaction_date' => now(),
+                            'payment_method_id'=> $paymentMethodId,
+                            'user_id'          => $userId,
+                            'external_reference'=> $sale->id,
+                        ]);
+
+                        if (!$firstTransactionId) {
+                            $firstTransactionId = $financialTransaction->id;
+                        }
+                    }
+
+                    // Link the first transaction to the sale
+                    $sale->financial_transaction_id = $firstTransactionId;
+                    $sale->save();
+
+                } else {
+                    // Single payment method - original behavior
+                    $balanceBefore = $runningBalance;
+                    $runningBalance += $saleData['total'];
+                    $balanceAfter = $runningBalance;
+
+                    $code = strtoupper($saleData['payment_type']);
+                    $paymentMethodId = $paymentMethods[$code]->id ?? ($paymentMethods['CASH']->id ?? 1);
+
+                    $financialTransaction = FinancialTransaction::create([
+                        'store_id'         => $storeId,
+                        'account_id'       => $financialAccount->id,
+                        'amount'           => $saleData['total'],
+                        'currency'         => 'EUR',
+                        'direction'        => 'credit',
+                        'balance_before'   => $balanceBefore,
+                        'balance_after'    => $balanceAfter,
+                        'label'            => "POS Sale #{$sale->id}",
+                        'description'      => "POS Sale #{$sale->id} at store {$store->name}, shift_id {$shift->id}, user_id {$userId}, payment {$saleData['payment_type']}",
+                        'status'           => 'validated',
+                        'transaction_date' => now(),
+                        'payment_method_id'=> $paymentMethodId,
+                        'user_id'          => $userId,
+                        'external_reference'=> $sale->id,
+                    ]);
+
+                    // Link transaction to sale
+                    $sale->financial_transaction_id = $financialTransaction->id;
+                    $sale->save();
+                }
 
                 $syncedSales[] = $saleData['id'];
             }
@@ -275,8 +336,8 @@ class SyncController extends Controller
     }
 
     /**
-     * Génère l'arborescence complète des catégories en 1 seule requête + construction en mémoire.
-     * Structure de sortie IDENTIQUE à buildCategoryTree().
+     * Generates the complete category tree in 1 single query + in-memory construction.
+     * Output structure IDENTICAL to buildCategoryTree().
      */
     protected function categoryTreeFast(): array
     {
@@ -315,7 +376,7 @@ class SyncController extends Controller
     }
 
     /**
-     * Version d’origine (non utilisée) — conservée à titre de référence.
+     * Original version (not used) — kept for reference.
      */
     protected function buildCategoryTree($parentId = null)
     {
@@ -350,7 +411,7 @@ class SyncController extends Controller
         }
 
         if ($remaining > 0) {
-            Log::warning("Stock insuffisant pour décrémenter", [
+            Log::warning("Insufficient stock to decrement", [
                 'store_id'   => $storeId,
                 'product_id' => $productId,
                 'missing'    => $remaining,

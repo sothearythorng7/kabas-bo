@@ -27,12 +27,13 @@
 
         <div class="mb-3">
             <label>{{ __('messages.user_edit.new_password') }}</label>
-            <input type="password" name="password" class="form-control">
+            <input type="password" name="password" class="form-control" autocomplete="new-password" placeholder="{{ __('messages.user_edit.leave_blank_to_keep') }}">
+            <small class="form-text text-muted">{{ __('messages.user_edit.leave_blank_if_no_change') }}</small>
         </div>
 
         <div class="mb-3">
             <label>{{ __('messages.user_edit.password_confirmation') }}</label>
-            <input type="password" name="password_confirmation" class="form-control">
+            <input type="password" name="password_confirmation" class="form-control" autocomplete="new-password">
         </div>
 
         <div class="mb-3">

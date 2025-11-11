@@ -71,6 +71,10 @@
                     <input class="form-check-input" type="checkbox" name="is_best_seller" id="is_best_seller" value="1" {{ old('is_best_seller', false) ? 'checked' : '' }}>
                     <label class="form-check-label" for="is_best_seller">@t("Best seller")</label>
                 </div>
+                <div class="form-check form-switch mb-2">
+                    <input class="form-check-input" type="checkbox" name="allow_overselling" id="allow_overselling" value="1" {{ old('allow_overselling', false) ? 'checked' : '' }}>
+                    <label class="form-check-label" for="allow_overselling">@t("product.allow_overselling")</label>
+                </div>
             </div>
         </div>
 

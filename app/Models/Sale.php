@@ -11,11 +11,13 @@ class Sale extends Model
     use HasFactory;
 
     protected $fillable = [
-        'shift_id', 'store_id', 'payment_type', 'total', 'discounts', 'synced_at', 'financial_transaction_id'
+        'shift_id', 'store_id', 'payment_type', 'total', 'discounts', 'split_payments',
+        'synced_at', 'financial_transaction_id'
     ];
 
     protected $casts = [
         'discounts' => 'array',
+        'split_payments' => 'array',
         'synced_at' => 'datetime',
     ];
 

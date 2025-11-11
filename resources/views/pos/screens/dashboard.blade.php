@@ -12,7 +12,7 @@
 
                 <!-- Barre d'actions -->
                 <div class="d-flex p-2 border-bottom action-bar align-items-center gap-1">
-                    <button class="btn btn-sm btn-outline-primary" title="Nouvelle vente" id="btn-new-sale">
+                    <button class="btn btn-sm btn-outline-primary" title="New Sale" id="btn-new-sale">
                         <i class="bi bi-plus-circle"></i>
                     </button>
                     <button class="btn btn-sm btn-outline-secondary" id="btn-open-menu" title="Menu">
@@ -21,7 +21,7 @@
 
                     <!-- Champ de recherche (déplacé ici) -->
                     <div class="input-group input-group-sm ms-2 flex-grow-1" style="min-width: 120px;">
-                        <input type="text" id="sale-search" class="form-control form-control-sm" placeholder='@t("Search product by name or EAN")'>
+                        <input type="text" id="sale-search" class="form-control form-control-sm" placeholder='Search product by name or EAN'>
                         <button class="btn btn-outline-secondary" id="btn-reset-search" type="button">&times;</button>
                     </div>
                 </div>
@@ -102,8 +102,8 @@
     #resizer { background-color: #dee2e6; width: 20px; cursor: col-resize; z-index: 1000; }
     #resizer:hover { background-color: #0d6efd; }
 
-    #left-panel { flex: 0 0 40%;  min-width: 200px; }
-    #right-panel { flex: 0 0 60%; min-width: 200px; }
+    #left-panel { flex: 0 0 50%;  min-width: 200px; }
+    #right-panel { flex: 0 0 50%; min-width: 200px; }
 
     #sales-contents { flex-grow: 1; overflow-y: auto; display: flex; flex-direction: column; }
     #sales-contents .tab-pane { display: flex; flex-direction: column; min-height: 0; }
@@ -167,7 +167,7 @@ $(document).ready(function() {
 // ================== SYNC FORCÉE (menu) ==================
 async function handleForceSync() {
   if (!currentUser) {
-    alert("@t('No user logged in')");
+    alert("No user logged in");
     return;
   }
   const storeId = currentUser.store_id;
@@ -188,7 +188,7 @@ async function handleForceSync() {
     //alert("@t('Catalog synced successfully')");
   } catch (err) {
     console.error(err);
-    alert("@t('Catalog sync failed')");
+    alert("Catalog sync failed");
   } finally {
     syncModal.hide();
   }
@@ -198,7 +198,7 @@ async function handleForceSync() {
 // ================== SYNC FORCÉE (menu) ==================
 async function handleForceSync() {
   if (!currentUser) {
-    alert("@t('No user logged in')");
+    alert("No user logged in");
     return;
   }
   const storeId = currentUser.store_id;
@@ -219,7 +219,7 @@ async function handleForceSync() {
     //alert("@t('Catalog synced successfully')");
   } catch (err) {
     console.error(err);
-    alert("@t('Catalog sync failed')");
+    alert("Catalog sync failed");
   } finally {
     syncModal.hide();
   }
@@ -334,20 +334,30 @@ function renderSalesTabs() {
                 discountMenuHtml = item.discounts.map((d, di) => `
                     <li>
                         <a class="dropdown-item remove-line-discount" href="#" data-sale="${sale.id}" data-idx="${i}" data-disc="${di}">
-                            <i class="bi bi-x-circle text-danger"></i> Supprimer remise
+                            <i class="bi bi-x-circle text-danger"></i> Remove Discount
                         </a>
                     </li>
                 `).join('');
             }
 
+            // Check if this is a delivery service item
+            const isDelivery = item.is_delivery || false;
+            const itemIcon = isDelivery ? '<i class="bi bi-truck text-success"></i>' : '';
+            const discountOption = isDelivery ? '' : `
+                                <li>
+                                    <a class="dropdown-item line-discount" href="#" data-sale="${sale.id}" data-idx="${i}">
+                                        <i class="bi bi-percent text-warning"></i> Add Discount
+                                    </a>
+                                </li>
+                                ${discountMenuHtml}`;
+
             return `
                 <tr>
-                    <td colspan="4" class="align-middle bg-light text-primary">${item.name.en}</td>
-                    <tr>
-                    <td class="text-center">${item.quantity}</td>
-                    <td class="text-center">${unitPriceCalc}</td>
-                    <td class="text-center">${lineTotalCalc}</td>
-                    <td>
+                    <td class="align-middle" style="word-wrap: break-word; white-space: normal;">${itemIcon} ${item.name.en}</td>
+                    <td class="text-center align-middle">${item.quantity}</td>
+                    <td class="text-center align-middle">${unitPriceCalc}</td>
+                    <td class="text-center align-middle">${lineTotalCalc}</td>
+                    <td class="text-center align-middle">
                         <div class="btn-group dropstart">
                             <button class="btn btn-sm btn-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
                                 <i class="bi bi-list"></i>
@@ -355,15 +365,10 @@ function renderSalesTabs() {
                             <ul class="dropdown-menu">
                                 <li>
                                     <a class="dropdown-item remove-item" href="#" data-sale="${sale.id}" data-idx="${i}">
-                                        <i class="bi bi-x-circle text-danger"></i> Supprimer produit
+                                        <i class="bi bi-x-circle text-danger"></i> ${isDelivery ? 'Remove Delivery' : 'Remove Product'}
                                     </a>
                                 </li>
-                                <li>
-                                    <a class="dropdown-item line-discount" href="#" data-sale="${sale.id}" data-idx="${i}">
-                                        <i class="bi bi-percent text-warning"></i> Ajouter remise
-                                    </a>
-                                </li>
-                                ${discountMenuHtml}
+                                ${discountOption}
                             </ul>
                         </div>
                     </td>
@@ -381,52 +386,64 @@ function renderSalesTabs() {
                                 <i class="bi bi-list"></i>
                             </button>
                             <ul class="dropdown-menu dropdown-menu-end">
+                                <li>
+                                    <a class="dropdown-item add-delivery-service" href="#" data-sale="${sale.id}">
+                                        <i class="bi bi-truck text-success"></i> Add Delivery Service
+                                    </a>
+                                </li>
                                 ${!sale.discounts || sale.discounts.length === 0 ? `
                                     <li>
                                         <a class="dropdown-item add-global-discount" href="#" data-sale="${sale.id}">
-                                            <i class="bi bi-percent text-warning"></i> Ajouter remise globale
+                                            <i class="bi bi-percent text-warning"></i> Add Global Discount
                                         </a>
                                     </li>` : `
                                     <li>
                                         <a class="dropdown-item remove-global-discount" href="#" data-sale="${sale.id}">
-                                            <i class="bi bi-x-circle text-danger"></i> Supprimer remise globale
+                                            <i class="bi bi-x-circle text-danger"></i> Remove Global Discount
                                         </a>
                                     </li>`}
                             </ul>
                         </div>
 
                         <div class="totals-hidden" style="display:none; font-weight:normal;">
-                            Total avant remise : $${totalAvantRemise.toFixed(2)} <br>
-                            Total remises : $${totalRemises.toFixed(2)}
+                            Total before discount: $${totalAvantRemise.toFixed(2)} <br>
+                            Total discounts: $${totalRemises.toFixed(2)}
                             <hr />
                         </div>
 
                         <div>
                             ${sale.discounts && sale.discounts.length > 0 ? `
-                                <small>Calcul remise globale : ${sale.discounts.map(d => 
+                                <small>Global discount calculation: ${sale.discounts.map(d => 
                                     d.type === 'amount' ? `- $${d.value.toFixed(2)}` : `- ${d.value}%`
                                 ).join(' + ')}</small><br>` : ''}
-                            Total final : <strong>$${total.toFixed(2)}</strong>
+                            Final Total: <strong>$${total.toFixed(2)}</strong>
                         </div>
                     </div>
                     <div class="d-flex gap-1">
-                        <button class="btn btn-secondary flex-fill cancel-sale" data-sale="${sale.id}">Annuler</button>
-                        <button class="btn btn-success flex-fill validate-sale" data-sale="${sale.id}">Valider</button>
-                        <button class="btn btn-primary flex-fill print-sale" data-sale="${sale.id}">Imprimer</button>
-                     </div>
-                     <div class="d-flex gap-1 mt-2 text-center">
-                         <button id="open-cash-drawer" class="btn btn-warning">Ouvrir le tiroir-caisse</button>
+                        <button class="btn btn-success flex-fill validate-sale" data-sale="${sale.id}" title="Validate Sale">
+                            <i class="bi bi-check-circle"></i>
+                        </button>
+                        <button class="btn btn-primary flex-fill print-sale" data-sale="${sale.id}" title="Print Receipt">
+                            <i class="bi bi-printer"></i>
+                        </button>
+                        <button id="open-cash-drawer" class="btn btn-warning flex-fill" title="Open Cash Drawer">
+                            <i class="bi bi-cash-stack"></i>
+                        </button>
+                        <button class="btn btn-danger flex-fill cancel-sale" data-sale="${sale.id}" title="Cancel Sale">
+                            <i class="bi bi-x-circle"></i>
+                        </button>
                    </div>
                 </div>
 
                 <div class="overflow-auto">
-                    <table class="table sale-table mb-0">
+                    <table class="table sale-table mb-0" style="table-layout: fixed;">
                         <thead>
                             <tr>
-                                <th class="text-center">Qté</th>
-                                <th class="text-center">Prix unitaire</th>
-                                <th class="text-center">Total ligne</th>
-                                <th></th>
+                                <th style="width: 35%;">Product</th>
+                                <th style="width: 10%;" class="text-center">Qty</th>
+                                <th style="width: 20%;" class="text-center">Unit Price</th>
+                                <th style="width: 20%;" class="text-center">Line Total</th>
+                                <th style="width: 15%;" class="text-center">Action</th>
                             </tr>
                         </thead>
                         <tbody>${itemsHtml}</tbody>
@@ -501,6 +518,15 @@ function renderSalesTabs() {
 
     $(".cancel-sale").off("click").on("click", function () {
         const saleId = $(this).data("sale");
+        const sale = sales.find(s => s.id === saleId);
+
+        if (!sale) return;
+
+        // Confirmation message
+        if (!confirm(`Are you sure you want to cancel this sale? All items will be lost.`)) {
+            return;
+        }
+
         sales = sales.filter(s => s.id !== saleId);
         if (sales.length === 0) addNewSale(); else activeSaleId = sales[0].id;
         renderSalesTabs(); saveSalesToLocal();
@@ -515,7 +541,7 @@ function renderSalesTabs() {
         const saleId = $(this).data("sale");
         const sale = sales.find(s => s.id === saleId);
         if (!sale) return;
-        const d = await showDiscountModal("Remise globale", false);
+        const d = await showDiscountModal("Global Discount", false);
         if (!d) return;
         sale.discounts = sale.discounts || [];
         sale.discounts.push(d);
@@ -528,7 +554,7 @@ function renderSalesTabs() {
         if (!sale) return;
         const item = sale.items[idx];
         if (!item) return;
-        const d = await showDiscountModal("Remise ligne", true, item);
+        const d = await showDiscountModal("Line Discount", true, item);
         if (!d) return;
         item.discounts = item.discounts || [];
         item.discounts.push(d);
@@ -540,7 +566,7 @@ function renderSalesTabs() {
         const saleId = $(this).data("sale");
         const sale = sales.find(s => s.id === saleId);
         if (!sale) return;
-        const d = await showDiscountModal("Remise globale", false);
+        const d = await showDiscountModal("Global Discount", false);
         if (!d) return;
         sale.discounts = sale.discounts || [];
         sale.discounts.push(d);
@@ -553,6 +579,37 @@ function renderSalesTabs() {
         const sale = sales.find(s => s.id === saleId);
         if (!sale || !sale.discounts) return;
         sale.discounts = [];
+        renderSalesTabs(); saveSalesToLocal();
+    });
+
+    $(".add-delivery-service").off("click").on("click", async function(e) {
+        e.preventDefault();
+        const saleId = $(this).data("sale");
+        const sale = sales.find(s => s.id === saleId);
+        if (!sale) return;
+
+        // Check if delivery already exists
+        const hasDelivery = sale.items.some(item => item.is_delivery);
+        if (hasDelivery) {
+            alert("Delivery service already added to this sale");
+            return;
+        }
+
+        const deliveryData = await showDeliveryModal();
+        if (!deliveryData) return;
+
+        // Add delivery as a special item
+        sale.items.push({
+            product_id: null,
+            ean: 'DELIVERY',
+            name: { en: 'Delivery Service' },
+            price: parseFloat(deliveryData.fee),
+            quantity: 1,
+            discounts: [],
+            is_delivery: true,
+            delivery_address: deliveryData.address
+        });
+
         renderSalesTabs(); saveSalesToLocal();
     });
 }
@@ -586,7 +643,7 @@ function renderCatalog() {
     }
 
     const $results = $("#search-results"); $results.empty();
-    if (filtered.length === 0) { $results.html(`<div class="alert alert-warning">Aucun produit trouvé</div>`); return; }
+    if (filtered.length === 0) { $results.html(`<div class="alert alert-warning">No products found</div>`); return; }
     const $row = $('<div class="row"></div>');
     filtered.forEach(product => {
         const pics = (product.photos && product.photos.length)
@@ -595,7 +652,7 @@ function renderCatalog() {
         const imgObj = pics.length ? (pics.find(i => i.is_primary) || pics[0]) : null;
         const imgUrl = (imgObj && imgObj.url) ? imgObj.url : '{{ config('app.url') }}/images/no_picture.jpg';
 
-        const title = (product.name && product.name.en) ? product.name.en : (product.name || product.title || 'Produit');
+        const title = (product.name && product.name.en) ? product.name.en : (product.name || product.title || 'Product');
         $row.append(`
             <div class="col-3">
                 <div class="product-card" data-ean="${product.ean}" data-id="${product.id}">
@@ -614,20 +671,20 @@ function performSearch() {
 }
 
 // ========= MODAL DE REMISES (GLOBAL & LIGNE) =========
-function showDiscountModal(title = "Remise", isLineDiscount = false) {
+function showDiscountModal(title = "Discount", isLineDiscount = false) {
   return new Promise((resolve) => {
     // Nettoyage éventuel
     $("#discountModal").remove();
 
     const scopeControls = isLineDiscount ? `
       <div class="mb-2">
-        <label class="form-label">@t("Scope")</label>
+        <label class="form-label">Scope</label>
         <div class="btn-group w-100" role="group" aria-label="discount-scope">
           <input type="radio" class="btn-check" name="disc-scope" id="disc-scope-unit" value="unit" checked>
-          <label class="btn btn-outline-secondary" for="disc-scope-unit">@t("Unit")</label>
+          <label class="btn btn-outline-secondary" for="disc-scope-unit">Unit</label>
 
           <input type="radio" class="btn-check" name="disc-scope" id="disc-scope-line" value="line">
-          <label class="btn btn-outline-secondary" for="disc-scope-line">@t("Line")</label>
+          <label class="btn btn-outline-secondary" for="disc-scope-line">Line</label>
         </div>
       </div>
     ` : ``;
@@ -639,27 +696,27 @@ function showDiscountModal(title = "Remise", isLineDiscount = false) {
             <h5 class="mb-3">${title}</h5>
 
             <div class="mb-2">
-              <label class="form-label">@t("Discount type")</label>
+              <label class="form-label">Discount Type</label>
               <div class="btn-group w-100" role="group" aria-label="discount-type">
                 <input type="radio" class="btn-check" name="disc-type" id="disc-type-amount" value="amount" checked>
-                <label class="btn btn-outline-secondary" for="disc-type-amount">@t("Amount")</label>
+                <label class="btn btn-outline-secondary" for="disc-type-amount">Amount</label>
 
                 <input type="radio" class="btn-check" name="disc-type" id="disc-type-percent" value="percent">
-                <label class="btn btn-outline-secondary" for="disc-type-percent">@t("Percent")</label>
+                <label class="btn btn-outline-secondary" for="disc-type-percent">Percent</label>
               </div>
             </div>
 
             ${scopeControls}
 
             <div class="mb-3">
-              <label for="disc-value" class="form-label">@t("Value")</label>
-              <input id="disc-value" type="number" step="0.01" min="0" class="form-control" placeholder="@t('Enter value')">
-              <div class="form-text" id="disc-help">@t("Enter amount in store currency")</div>
+              <label for="disc-value" class="form-label">Value</label>
+              <input id="disc-value" type="number" step="0.01" min="0" class="form-control" placeholder="Enter value">
+              <div class="form-text" id="disc-help">Enter amount in store currency</div>
             </div>
 
             <div class="text-end">
-              <button type="button" class="btn btn-secondary me-1" id="disc-cancel">@t("btn.cancel")</button>
-              <button type="button" class="btn btn-success" id="disc-apply">@t("btn.validate")</button>
+              <button type="button" class="btn btn-secondary me-1" id="disc-cancel">Cancel</button>
+              <button type="button" class="btn btn-success" id="disc-apply">Apply</button>
             </div>
           </div>
         </div>
@@ -671,16 +728,16 @@ function showDiscountModal(title = "Remise", isLineDiscount = false) {
     const modal = new bootstrap.Modal(modalEl, { backdrop: "static", keyboard: false });
     modal.show();
 
-    // Aide dynamique selon le type
+    // Dynamic help based on type
     function updateHelp() {
       const type = $('input[name="disc-type"]:checked').val();
       const $help = $("#disc-help");
       const $input = $("#disc-value");
       if (type === "percent") {
-        $help.text("@t('Enter a percentage between 0 and 100')");
+        $help.text("Enter a percentage between 0 and 100");
         $input.attr({ min: 0, max: 100, step: "0.01", placeholder: "0 – 100" });
       } else {
-        $help.text("@t('Enter amount in store currency')");
+        $help.text("Enter amount in store currency");
         $input.attr({ min: 0, max: null, step: "0.01", placeholder: "ex: 2.50" });
       }
     }
@@ -697,11 +754,11 @@ function showDiscountModal(title = "Remise", isLineDiscount = false) {
       const value = Number(raw);
 
       if (!Number.isFinite(value) || value <= 0) {
-        alert("@t('Please enter a valid discount value')");
+        alert("Please enter a valid discount value");
         return;
       }
       if (type === "percent" && (value < 0 || value > 100)) {
-        alert("@t('Percent must be between 0 and 100')");
+        alert("Percent must be between 0 and 100");
         return;
       }
 
@@ -710,13 +767,82 @@ function showDiscountModal(title = "Remise", isLineDiscount = false) {
       if (isLineDiscount) {
         payload.scope = $('input[name="disc-scope"]:checked').val();      // "unit" | "line"
       } else {
-        payload.label = title || "@t('Global discount')";
+        payload.label = title || "Global discount";
       }
 
       modal.hide(); modalEl.remove();
       resolve(payload);
     });
   });
+}
+
+// ========= MODAL DE LIVRAISON =========
+function showDeliveryModal() {
+    return new Promise((resolve) => {
+        $("#deliveryModal").remove();
+
+        const modalHtml = `
+            <div class="modal fade" id="deliveryModal" tabindex="-1">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Add Delivery Service</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="mb-3">
+                                <label for="delivery-fee-input" class="form-label">Delivery Fee</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">$</span>
+                                    <input type="number" class="form-control" id="delivery-fee-input"
+                                           step="0.01" min="0" placeholder="0.00" required>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label for="delivery-address-input" class="form-label">Delivery Address</label>
+                                <textarea class="form-control" id="delivery-address-input" rows="3"
+                                          placeholder="Enter delivery address..." required></textarea>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" id="delivery-cancel">Cancel</button>
+                            <button type="button" class="btn btn-success" id="delivery-add">Add Delivery</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        $("body").append(modalHtml);
+        const modalEl = document.getElementById("deliveryModal");
+        const modal = new bootstrap.Modal(modalEl, { backdrop: "static", keyboard: false });
+        modal.show();
+
+        $("#delivery-cancel").on("click", () => {
+            modal.hide();
+            modalEl.remove();
+            resolve(null);
+        });
+
+        $("#delivery-add").on("click", () => {
+            const fee = parseFloat($("#delivery-fee-input").val());
+            const address = $("#delivery-address-input").val().trim();
+
+            if (!fee || fee <= 0) {
+                alert("Please enter a valid delivery fee");
+                return;
+            }
+
+            if (!address) {
+                alert("Please enter a delivery address");
+                return;
+            }
+
+            modal.hide();
+            modalEl.remove();
+            resolve({ fee, address });
+        });
+    });
 }
 
 // ================== Catégories (multi-niveaux) ==================
@@ -844,7 +970,7 @@ function initDashboard() {
     });
 }
 
-// ================== Validation / impression (inchangé) ==================
+// ================== Validation / impression (split payment support) ==================
 function showSaleValidationModal(sale) {
     return new Promise(resolve => {
         $("#saleValidateModal").remove();
@@ -870,28 +996,138 @@ function showSaleValidationModal(sale) {
             else if(d.type==='percent') total*=(1-d.value/100);
         });
 
+        // Split payments state
+        let splitPayments = [];
+        let remainingAmount = total;
+
+        function updateRemainingAmount() {
+            const paid = splitPayments.reduce((sum, p) => sum + p.amount, 0);
+            remainingAmount = total - paid;
+            $("#remaining-amount").text(remainingAmount.toFixed(2));
+            $("#total-paid").text(paid.toFixed(2));
+
+            if (remainingAmount <= 0) {
+                $("#sale-confirm").prop("disabled", false);
+                $("#btn-add-payment").prop("disabled", true);
+            } else {
+                $("#sale-confirm").prop("disabled", true);
+                $("#btn-add-payment").prop("disabled", false);
+            }
+        }
+
+        function renderPaymentsList() {
+            const $list = $("#payments-list");
+            $list.empty();
+
+            if (splitPayments.length === 0) {
+                $list.html('<tr><td colspan="3" class="text-center text-muted">No payments added yet</td></tr>');
+                return;
+            }
+
+            splitPayments.forEach((p, idx) => {
+                const paymentMethod = payments.find(pm => pm.code === p.payment_type);
+                $list.append(`
+                    <tr>
+                        <td>${paymentMethod ? paymentMethod.name : p.payment_type}</td>
+                        <td class="text-end">$${p.amount.toFixed(2)}</td>
+                        <td class="text-end">
+                            <button class="btn btn-sm btn-danger remove-payment" data-idx="${idx}">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `);
+            });
+
+            $(".remove-payment").off("click").on("click", function() {
+                const idx = $(this).data("idx");
+                splitPayments.splice(idx, 1);
+                renderPaymentsList();
+                updateRemainingAmount();
+            });
+        }
+
         const modalHtml = `
             <div class="modal fade" id="saleValidateModal" tabindex="-1">
-                <div class="modal-dialog">
+                <div class="modal-dialog modal-lg">
                     <div class="modal-content p-3">
-                        <h5>@t("Sale validation") ${sale.label}</h5>
-                        <div class="mb-2">
-                            <label>@t("Payment methode")</label>
-                            <select class="form-select" id="sale-payment">
-                                ${payments.map(p=>`<option value="${p.code}">${p.name}</option>`).join('')}
-                            </select>
+                        <h5>Sale Validation ${sale.label}</h5>
+
+                        <div class="row mb-3">
+                            <div class="col-6">
+                                <div class="alert alert-info mb-0">
+                                    <strong>Total Amount:</strong> $${total.toFixed(2)}
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="alert alert-warning mb-0">
+                                    <strong>Remaining:</strong> $<span id="remaining-amount">${total.toFixed(2)}</span>
+                                </div>
+                            </div>
                         </div>
-                        <div class="mb-2"><strong>@t("total_value") : ${total.toFixed(2)}</strong></div>
+
                         ${discountSummary.length?`
-                            <table class="table table-sm table-bordered mb-2">
-                                <thead><tr><th>@t("Discount")</th><th>@t("Value")</th></tr></thead>
-                                <tbody>
-                                    ${discountSummary.map(d=>`<tr><td>${d.label}</td><td>${d.type==='percent'?d.value+'%':d.value.toFixed(2)}</td></tr>`).join('')}
+                            <div class="mb-3">
+                                <h6>Discounts Applied:</h6>
+                                <table class="table table-sm table-bordered">
+                                    <thead><tr><th>Discount</th><th>Value</th></tr></thead>
+                                    <tbody>
+                                        ${discountSummary.map(d=>`<tr><td>${d.label}</td><td>${d.type==='percent'?d.value+'%':d.value.toFixed(2)}</td></tr>`).join('')}
+                                    </tbody>
+                                </table>
+                            </div>`:''}
+
+                        <div class="mb-3">
+                            <h6>Payments:</h6>
+                            <table class="table table-sm table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>Payment Method</th>
+                                        <th class="text-end">Amount</th>
+                                        <th class="text-end">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="payments-list">
+                                    <tr><td colspan="3" class="text-center text-muted">No payments added yet</td></tr>
                                 </tbody>
-                            </table>`:''}
+                                <tfoot>
+                                    <tr class="table-light">
+                                        <th>Total Paid:</th>
+                                        <th class="text-end">$<span id="total-paid">0.00</span></th>
+                                        <th></th>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+
+                        <div class="border p-3 mb-3 bg-light">
+                            <h6>Add Payment:</h6>
+                            <div class="row g-2">
+                                <div class="col-6">
+                                    <label class="form-label">Payment Method</label>
+                                    <select class="form-select" id="payment-method-select">
+                                        ${payments.map(p=>`<option value="${p.code}">${p.name}</option>`).join('')}
+                                    </select>
+                                </div>
+                                <div class="col-6">
+                                    <label class="form-label">Amount</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text">$</span>
+                                        <input type="number" class="form-control" id="payment-amount-input"
+                                               step="0.01" min="0" max="${total}" value="${total.toFixed(2)}">
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="mt-2 text-end">
+                                <button class="btn btn-primary btn-sm" id="btn-add-payment">
+                                    <i class="bi bi-plus-circle"></i> Add Payment
+                                </button>
+                            </div>
+                        </div>
+
                         <div class="text-end">
-                            <button class="btn btn-secondary me-1" id="sale-cancel">@t("btn.cancel")</button>
-                            <button class="btn btn-success" id="sale-confirm">@t("btn.validate")</button>
+                            <button class="btn btn-secondary me-1" id="sale-cancel">Cancel</button>
+                            <button class="btn btn-success" id="sale-confirm" disabled>Validate Sale</button>
                         </div>
                     </div>
                 </div>
@@ -902,14 +1138,62 @@ function showSaleValidationModal(sale) {
         const modal = new bootstrap.Modal(modalEl, {backdrop:'static',keyboard:false});
         modal.show();
 
-        $("#sale-cancel").off("click").on("click",()=>{ modal.hide(); modalEl.remove(); resolve(false); });
+        // Add payment button
+        $("#btn-add-payment").on("click", function() {
+            const paymentType = $("#payment-method-select").val();
+            const amount = parseFloat($("#payment-amount-input").val());
+
+            if (!paymentType || !amount || amount <= 0) {
+                alert("Please enter a valid payment method and amount");
+                return;
+            }
+
+            if (amount > remainingAmount) {
+                alert(`Amount cannot exceed remaining balance of $${remainingAmount.toFixed(2)}`);
+                return;
+            }
+
+            splitPayments.push({ payment_type: paymentType, amount: amount });
+
+            renderPaymentsList();
+            updateRemainingAmount();
+
+            // Update input for next payment
+            $("#payment-amount-input").val(remainingAmount.toFixed(2));
+        });
+
+        // Cancel button
+        $("#sale-cancel").off("click").on("click",()=>{
+            modal.hide();
+            modalEl.remove();
+            resolve(false);
+        });
+
+        // Validate button
         $("#sale-confirm").off("click").on("click",()=>{
-            const payment = $("#sale-payment").val();
-            sale.payment_type = payment;
+            if (splitPayments.length === 0) {
+                alert("Please add at least one payment");
+                return;
+            }
+
+            const totalPaid = splitPayments.reduce((sum, p) => sum + p.amount, 0);
+            if (Math.abs(totalPaid - total) > 0.01) {
+                alert("Total paid must equal the sale total");
+                return;
+            }
+
+            // Store split payments in sale
+            sale.split_payments = splitPayments;
+            // Keep payment_type for backward compatibility (use first payment type)
+            sale.payment_type = splitPayments[0].payment_type;
             sale.synced = false;
-            modal.hide(); modalEl.remove();
+
+            modal.hide();
+            modalEl.remove();
             resolve(true);
         });
+
+        updateRemainingAmount();
     });
 }
 
@@ -940,7 +1224,7 @@ function handleSaleValidation(saleId) {
             openCashDrawer();
         }
 
-        alert(`Vente ${sale.label} validée et enregistrée !`);
+        alert(`Sale ${sale.label} validated and saved!`);
     });
 }
 
@@ -989,8 +1273,8 @@ function openCashDrawer() {
     $.ajax({
         url: "http://kabas.local:5000/open-drawer",
         method: "POST",
-        success: function() { console.log("Tiroir-caisse ouvert automatiquement"); },
-        error: function(err) { console.error("Erreur ouverture tiroir :", err); }
+        success: function() { console.log("Cash drawer opened automatically"); },
+        error: function(err) { console.error("Cash drawer opening error:", err); }
     });
 }
 
@@ -1000,7 +1284,7 @@ function saveValidatedSaleToLocal(sale) {
     let validatedSales = JSON.parse(localStorage.getItem(key)) || [];
     validatedSales.push(sale);
     localStorage.setItem(key, JSON.stringify(validatedSales));
-    console.log("Vente validée sauvegardée :", sale);
+    console.log("Validated sale saved:", sale);
 }
 </script>
 @endpush

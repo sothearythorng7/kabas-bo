@@ -1,21 +1,21 @@
 <div id="screen-sales" class="pos-screen d-none d-flex flex-column vh-100">
-    <h2 class="text-center py-2">Nouvelle vente</h2>
+    <h2 class="text-center py-2">New Sale</h2>
 
     <div class="mb-3 px-3">
         <div class="input-group">
-            <input type="text" id="sale-search" class="form-control" placeholder="Rechercher un produit par EAN ou nom" autofocus>
-            <button class="btn btn-outline-primary" id="sale-search-btn">Rechercher</button>
+            <input type="text" id="sale-search" class="form-control" placeholder="Search product by EAN or name" autofocus>
+            <button class="btn btn-outline-primary" id="sale-search-btn">Search</button>
         </div>
     </div>
 
-    <!-- Conteneur scrollable pour la liste des produits -->
+    <!-- Scrollable container for product list -->
     <div class="flex-grow-1 overflow-auto px-3 mb-3">
         <table class="table table-bordered" id="sale-table">
             <thead>
                 <tr>
-                    <th>Produit</th>
-                    <th>Quantité</th>
-                    <th>Prix unitaire</th>
+                    <th>Product</th>
+                    <th>Quantity</th>
+                    <th>Unit Price</th>
                     <th>Total</th>
                     <th>Actions</th>
                 </tr>
@@ -24,9 +24,9 @@
         </table>
     </div>
 
-    <!-- Footer sticky pour le total -->
+    <!-- Sticky footer for total -->
     <div class="bg-light border-top p-3 fixed-bottom">
-        <h4>Total vente : <span id="sale-total">0.00</span></h4>
+        <h4>Sale Total: <span id="sale-total">0.00</span></h4>
     </div>
 </div>
 
@@ -35,7 +35,7 @@
     display: flex;
     flex-direction: column;
     height: 100vh;
-}   
+}
 #screen-sales .flex-grow-1 {
     overflow-y: auto;
 }
@@ -122,7 +122,7 @@ function initSales() {
                     <td>${item.quantity}</td>
                     <td>${item.price}</td>
                     <td>${lineTotal.toFixed(2)}</td>
-                    <td><button class="btn btn-sm btn-danger remove-item" data-idx="${idx}">Supprimer</button></td>
+                    <td><button class="btn btn-sm btn-danger remove-item" data-idx="${idx}">Remove</button></td>
                 </tr>
             `);
         });
@@ -148,7 +148,7 @@ function initSales() {
         );
 
         if (results.length === 0) {
-            alert("Aucun produit trouvé");
+            alert("No products found");
             return;
         }
 
@@ -158,7 +158,7 @@ function initSales() {
             <div class="modal fade" id="productSelectModal" tabindex="-1">
                 <div class="modal-dialog">
                     <div class="modal-content p-3">
-                        <h5>Sélectionnez le produit</h5>
+                        <h5>Select the product</h5>
                         <ul class="list-group mb-3">
                             ${results.map((p, i) =>
                                 `<li class="list-group-item list-group-item-action product-item" data-idx="${i}">${p.name.en} - ${p.price}</li>`
@@ -181,7 +181,7 @@ function initSales() {
             modal.hide();
             modalEl.remove();
 
-            const quantity = await showNumericModal(`Quantité pour ${product.name.en}`);
+            const quantity = await showNumericModal(`Quantity for ${product.name.en}`);
             if (quantity > 0) {
                 currentSale.push({
                     id: product.id,

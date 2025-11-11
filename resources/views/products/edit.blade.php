@@ -68,7 +68,7 @@
                 @csrf @method('PUT')
                 <div class="row">
                     <div class="col-md-3 mb-3">
-                        <label class="form-label">@t("ean")</label>
+                        <label class="form-label">{{ __('messages.product.ean') }}</label>
                         <input type="text" name="ean" class="form-control @error('ean') is-invalid @enderror" value="{{ old('ean', $product->ean) }}" required>
                         @error('ean') <div class="invalid-feedback">{{ $message }}</div> @enderror
                     </div>
@@ -129,6 +129,11 @@
                     <input class="form-check-input" type="checkbox" name="is_resalable" id="is_resalable" value="1"
                         {{ old('is_resalable', $product->is_resalable) ? 'checked' : '' }}>
                     <label class="form-check-label" for="is_resalable">{{ __('messages.product.is_resalable') }}</label>
+                </div>
+                <div class="form-check form-switch mb-2">
+                    <input class="form-check-input" type="checkbox" name="allow_overselling" id="allow_overselling" value="1"
+                        {{ old('allow_overselling', $product->allow_overselling) ? 'checked' : '' }}>
+                    <label class="form-check-label" for="allow_overselling">@t('product.allow_overselling')</label>
                 </div>
                 <div class="mt-3">
                     <button class="btn btn-success">{{ __('messages.btn.save') }}</button>

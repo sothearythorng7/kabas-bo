@@ -6,8 +6,8 @@
     @include('financial.layouts.nav')
 
     <div class="d-flex justify-content-between mb-3 align-items-center">
-        <div class="btn-toolbar" role="toolbar" aria-label="Barre d'actions">
-            <div class="btn-group me-2" role="group" aria-label="Actions principales">
+        <div class="btn-toolbar" role="toolbar" aria-label="@t('Barre d\'actions')">
+            <div class="btn-group me-2" role="group" aria-label="@t('Actions principales')">
                 <a href="{{ route('financial.transactions.create', $store->id) }}" class="btn btn-primary">
                     <i class="bi bi-plus-lg"></i> @t("Nouvelle transaction")
                 </a>
@@ -30,7 +30,7 @@
                 <form method="GET" action="{{ route('financial.transactions.index', $store->id) }}">
                     <div class="modal-header">
                         <h5 class="modal-title" id="filterModalLabel">@t("Filtres des transactions")</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="@t('Fermer')"></button>
                     </div>
                     <div class="modal-body">
                         <div class="row g-3">
@@ -41,13 +41,13 @@
                                 <input type="date" id="date_from" name="date_from" class="form-control" value="{{ request('date_from') }}">
                             </div>
                             <div class="col-md-6">
-                                <label for="date_to" class="form-label">Date jusqu'à</label>
+                                <label for="date_to" class="form-label">@t("Date jusqu'à")</label>
                                 <input type="date" id="date_to" name="date_to" class="form-control" value="{{ request('date_to') }}">
                             </div>
 
                             <!-- Filtre par comptes -->
                             <div class="col-md-6">
-                                <label for="account_ids" class="form-label">Compte(s)</label>
+                                <label for="account_ids" class="form-label">@t("Compte(s)")</label>
                                 <select id="account_ids" name="account_ids[]" class="form-select" multiple>
                                     @foreach($accounts as $account)
                                         <option value="{{ $account->id }}" @if(collect(request('account_ids'))->contains($account->id)) selected @endif>
@@ -114,12 +114,12 @@
                             <i class="bi bi-three-dots-vertical"></i>
                         </button>
                         <ul class="dropdown-menu">
-                            <li><a class="dropdown-item" href="{{ route('financial.transactions.show', [$store->id, $t->id]) }}">Voir</a></li>
-                            <li><a class="dropdown-item" href="{{ route('financial.transactions.edit', [$store->id, $t->id]) }}">Modifier</a></li>
+                            <li><a class="dropdown-item" href="{{ route('financial.transactions.show', [$store->id, $t->id]) }}">@t('Voir')</a></li>
+                            <li><a class="dropdown-item" href="{{ route('financial.transactions.edit', [$store->id, $t->id]) }}">@t('Modifier')</a></li>
                             <li>
                                 <form method="POST" action="{{ route('financial.transactions.destroy', [$store->id, $t->id]) }}" class="m-0 p-0">
                                     @csrf @method('DELETE')
-                                    <button class="dropdown-item" onclick="return confirm('Supprimer ?')">Supprimer</button>
+                                    <button class="dropdown-item" onclick="return confirm('@t('Supprimer cette transaction ?')')">@t('Supprimer')</button>
                                 </form>
                             </li>
                         </ul>

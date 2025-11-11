@@ -2,7 +2,7 @@
 
 @section('content')
 <div class="container mt-4">
-    <h1 class="crud_title">Créer une Catégorie</h1>
+    <h1 class="crud_title">@t('blog_category.title_create')</h1>
 
     <form action="{{ route('blog.categories.store') }}" method="POST">
         @csrf
@@ -27,14 +27,14 @@
                 <div class="tab-pane fade @if($index===0) show active @endif" id="{{ $locale }}" role="tabpanel">
                     {{-- Nom --}}
                     <div class="mb-3">
-                        <label class="form-label">Nom ({{ strtoupper($locale) }}) <span class="text-danger">*</span></label>
+                        <label class="form-label">@t('blog_category.name') ({{ strtoupper($locale) }}) <span class="text-danger">*</span></label>
                         <input type="text" name="name[{{ $locale }}]" class="form-control @error('name.'.$locale) is-invalid @enderror" value="{{ old('name.'.$locale) }}" required>
                         @error('name.'.$locale) <div class="invalid-feedback">{{ $message }}</div> @enderror
                     </div>
 
                     {{-- Description --}}
                     <div class="mb-3">
-                        <label class="form-label">Description ({{ strtoupper($locale) }})</label>
+                        <label class="form-label">@t('blog_category.description') ({{ strtoupper($locale) }})</label>
                         <textarea name="description[{{ $locale }}]" class="form-control @error('description.'.$locale) is-invalid @enderror" rows="3">{{ old('description.'.$locale) }}</textarea>
                         @error('description.'.$locale) <div class="invalid-feedback">{{ $message }}</div> @enderror
                     </div>
@@ -44,7 +44,7 @@
 
         {{-- Ordre --}}
         <div class="mb-3">
-            <label class="form-label">Ordre d'affichage</label>
+            <label class="form-label">@t('blog_category.sort_order_label')</label>
             <input type="number" name="sort_order" class="form-control @error('sort_order') is-invalid @enderror" value="{{ old('sort_order', 0) }}" min="0">
             @error('sort_order') <div class="invalid-feedback">{{ $message }}</div> @enderror
         </div>
@@ -54,15 +54,17 @@
             <div class="form-check">
                 <input type="checkbox" name="is_active" class="form-check-input" id="is_active" value="1" {{ old('is_active', true) ? 'checked' : '' }}>
                 <label class="form-check-label" for="is_active">
-                    Catégorie active
+                    @t('blog_category.is_active')
                 </label>
             </div>
         </div>
 
         <button type="submit" class="btn btn-success">
-            <i class="bi bi-check-circle"></i> Enregistrer
+            <i class="bi bi-save"></i> @t('blog_category.save')
         </button>
-        <a href="{{ route('blog.categories.index') }}" class="btn btn-secondary">Annuler</a>
+        <a href="{{ route('blog.categories.index') }}" class="btn btn-secondary">
+            <i class="bi bi-x-circle"></i> @t('blog_category.cancel')
+        </a>
     </form>
 </div>
 @endsection

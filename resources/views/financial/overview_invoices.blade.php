@@ -8,7 +8,7 @@
     <ul class="nav nav-tabs" id="invoiceTabs" role="tablist">
         <li class="nav-item" role="presentation">
             <button class="nav-link active" id="unpaid-invoices-tab" data-bs-toggle="tab" data-bs-target="#unpaid-invoices" type="button" role="tab" aria-controls="unpaid-invoices" aria-selected="true">
-                Supplier Invoices to Pay
+                @t('Factures fournisseurs à payer')
                 <span class="badge bg-warning">{{ $orders->total() }}</span>
             </button>
         </li>
@@ -50,7 +50,7 @@
                                         <ul class="dropdown-menu">
                                             <li>
                                                 <a class="dropdown-item" href="{{ route('supplier-orders.show', [$order->supplier, $order]) }}">
-                                                    View
+                                                    @t('Voir')
                                                 </a>
                                             </li>
                                         </ul>

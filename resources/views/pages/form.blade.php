@@ -4,9 +4,9 @@
 @php($locales = $locales ?? config('app.website_locales', ['en']))
 
 <div class="container py-4">
-    <h1 class="h3">{{ $page->exists ? 'Modifier la page' : 'Créer une page' }}</h1>
+    <h1 class="h3 crud_title">{{ $page->exists ? t('page.title_edit') : t('page.title_create') }}</h1>
 
-    <form method="POST" 
+    <form method="POST"
           action="{{ $page->exists ? route('admin.pages.update',$page) : route('admin.pages.store') }}">
         @csrf
         @if($page->exists) @method('PUT') @endif
@@ -31,41 +31,41 @@
                  id="tab-{{ $loc }}" role="tabpanel">
 
                 <div class="mb-3">
-                    <label class="form-label">Titre ({{ strtoupper($loc) }})</label>
-                    <input type="text" 
-                           name="title[{{ $loc }}]" 
+                    <label class="form-label">@t('page.title_label') ({{ strtoupper($loc) }})</label>
+                    <input type="text"
+                           name="title[{{ $loc }}]"
                            class="form-control"
-                           value="{{ old("title.$loc", $page->title[$loc] ?? '') }}" 
+                           value="{{ old("title.$loc", $page->title[$loc] ?? '') }}"
                            required>
                 </div>
 
                 <div class="mb-3">
-                    <label class="form-label">Slug ({{ strtoupper($loc) }})</label>
-                    <input type="text" 
-                           name="slugs[{{ $loc }}]" 
+                    <label class="form-label">@t('page.slug') ({{ strtoupper($loc) }})</label>
+                    <input type="text"
+                           name="slugs[{{ $loc }}]"
                            class="form-control"
                            value="{{ old("slugs.$loc", $page->slugs[$loc] ?? '') }}"
-                           placeholder="laisser vide pour générer automatiquement">
+                           placeholder="@t('page.slug_placeholder')">
                 </div>
 
                 <div class="mb-3">
-                    <label class="form-label">Contenu ({{ strtoupper($loc) }})</label>
-                    <textarea name="content[{{ $loc }}]" 
-                              class="form-control tinymce-text" 
+                    <label class="form-label">@t('page.content') ({{ strtoupper($loc) }})</label>
+                    <textarea name="content[{{ $loc }}]"
+                              class="form-control tinymce-text"
                               rows="12">{{ old("content.$loc", $page->content[$loc] ?? '') }}</textarea>
                 </div>
 
                 <div class="mb-3">
-                    <label class="form-label">Meta title ({{ strtoupper($loc) }})</label>
-                    <input type="text" 
-                           name="meta_title[{{ $loc }}]" 
+                    <label class="form-label">@t('page.meta_title') ({{ strtoupper($loc) }})</label>
+                    <input type="text"
+                           name="meta_title[{{ $loc }}]"
                            class="form-control"
                            value="{{ old("meta_title.$loc", $page->meta_title[$loc] ?? '') }}">
                 </div>
 
                 <div class="mb-3">
-                    <label class="form-label">Meta description ({{ strtoupper($loc) }})</label>
-                    <textarea name="meta_description[{{ $loc }}]" 
+                    <label class="form-label">@t('page.meta_description') ({{ strtoupper($loc) }})</label>
+                    <textarea name="meta_description[{{ $loc }}]"
                               class="form-control" rows="2">{{ old("meta_description.$loc", $page->meta_description[$loc] ?? '') }}</textarea>
                 </div>
             </div>
@@ -73,18 +73,22 @@
         </div>
 
         <div class="form-check form-switch mb-3">
-            <input class="form-check-input" 
-                   type="checkbox" 
-                   name="is_published" 
+            <input class="form-check-input"
+                   type="checkbox"
+                   name="is_published"
                    id="is_published"
-                   value="1" 
+                   value="1"
                    @checked(old('is_published', $page->is_published))>
-            <label class="form-check-label" for="is_published">Publié</label>
+            <label class="form-check-label" for="is_published">@t('page.is_published')</label>
         </div>
 
         <div class="d-flex gap-2">
-            <button class="btn btn-primary">Enregistrer</button>
-            <a href="{{ route('admin.pages.index') }}" class="btn btn-secondary">Annuler</a>
+            <button type="submit" class="btn btn-primary">
+                <i class="bi bi-save"></i> @t('page.save')
+            </button>
+            <a href="{{ route('admin.pages.index') }}" class="btn btn-secondary">
+                <i class="bi bi-x-circle"></i> @t('page.cancel')
+            </a>
         </div>
     </form>
 </div>

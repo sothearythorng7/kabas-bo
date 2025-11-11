@@ -1,21 +1,50 @@
 <div id="screen-sales-history" class="pos-screen d-none p-3" style="height: 100vh; overflow-y: auto; overflow-x: hidden;">
-    <div class="d-flex justify-content-start align-items-center mb-3 gap-2">
-        <button id="btn-open-menu" class="btn btn-outline-secondary" title="@t('Menu')">
-            <i class="bi bi-list"></i>
-        </button>
-        <h3 class="mb-0">@t("Shift details")</h3>
+    <div class="d-flex justify-content-between align-items-center mb-3 gap-2">
+        <div class="d-flex align-items-center gap-2">
+            <button id="btn-open-menu" class="btn btn-outline-secondary" title="Menu">
+                <i class="bi bi-list"></i>
+            </button>
+            <h3 class="mb-0">Shift Details</h3>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+            <label class="mb-0 fw-bold">Search Date:</label>
+            <select id="journal-day" class="form-select form-select-lg" style="width: 80px;">
+                <option value="">Day</option>
+            </select>
+            <select id="journal-month" class="form-select form-select-lg" style="width: 120px;">
+                <option value="">Month</option>
+                <option value="01">January</option>
+                <option value="02">February</option>
+                <option value="03">March</option>
+                <option value="04">April</option>
+                <option value="05">May</option>
+                <option value="06">June</option>
+                <option value="07">July</option>
+                <option value="08">August</option>
+                <option value="09">September</option>
+                <option value="10">October</option>
+                <option value="11">November</option>
+                <option value="12">December</option>
+            </select>
+            <select id="journal-year" class="form-select form-select-lg" style="width: 100px;">
+                <option value="">Year</option>
+            </select>
+            <button id="btn-search-date" class="btn btn-lg btn-primary">
+                <i class="bi bi-search"></i> Search
+            </button>
+        </div>
     </div>
 
-    <!-- Résumé du shift -->
+    <!-- Shift summary -->
     <div id="shift-summary" class="mb-3 p-2 border rounded bg-light">
         <table class="table table-sm mb-0">
             <thead>
                 <tr>
-                    <th>@t("Shift ID")</th>
-                    <th>@t("Start at")</th>
-                    <th>@t("End at")</th>
-                    <th>@t("Duration")</th>
-                    <th>@t("Staff")</th>
+                    <th>Shift ID</th>
+                    <th>Start At</th>
+                    <th>End At</th>
+                    <th>Duration</th>
+                    <th>Staff</th>
                 </tr>
             </thead>
             <tbody>
@@ -30,12 +59,12 @@
         </table>
     </div>
 
-    <!-- Cartes résumé -->
+    <!-- Summary cards -->
     <div class="row mb-3">
         <div class="col-md-3 col-sm-6 col-12 mb-2">
             <div class="card text-white bg-primary h-100">
                 <div class="card-body">
-                    <h6 class="card-title">@t("Total payed")</h6>
+                    <h6 class="card-title">Total Paid</h6>
                     <p class="card-text fs-3" id="summary-total-amount">0.00</p>
                 </div>
             </div>
@@ -43,7 +72,7 @@
         <div class="col-md-3 col-sm-6 col-12 mb-2">
             <div class="card text-white bg-success h-100">
                 <div class="card-body">
-                    <h6 class="card-title">@t("Sales count")</h6>
+                    <h6 class="card-title">Sales Count</h6>
                     <p class="card-text fs-3" id="summary-sales-count">0</p>
                 </div>
             </div>
@@ -51,7 +80,7 @@
         <div class="col-md-3 col-sm-6 col-12 mb-2">
             <div class="card text-white bg-warning h-100">
                 <div class="card-body">
-                    <h6 class="card-title">@t("Items sold")</h6>
+                    <h6 class="card-title">Items Sold</h6>
                     <p class="card-text fs-3" id="summary-items-count">0</p>
                 </div>
             </div>
@@ -59,7 +88,7 @@
         <div class="col-md-3 col-sm-6 col-12 mb-2">
             <div class="card text-white bg-danger h-100">
                 <div class="card-body">
-                    <h6 class="card-title">@t("Total discount")</h6>
+                    <h6 class="card-title">Total Discount</h6>
                     <p class="card-text fs-3" id="summary-discounts-total">0.00</p>
                 </div>
             </div>
@@ -72,7 +101,7 @@
             <thead>
                 <tr>
                     <th>Cash I/O</th>
-                    <th class="text-end">@t("total_value")</th>
+                    <th class="text-end">Total Value</th>
                 </tr>
             </thead>
             <tbody>
@@ -92,29 +121,30 @@
         </table>
     </div>
 
-    <!-- Détail par moyen de paiement -->
+    <!-- Payment method breakdown -->
     <div class="mb-3">
         <table class="table table-sm table-striped" id="summary-payment-table">
             <thead>
                 <tr>
-                    <th>@t("Méthode de paiement")</th>
-                    <th>@t("total_value")</th>
+                    <th>Payment Method</th>
+                    <th>Total Value</th>
                 </tr>
             </thead>
             <tbody></tbody>
         </table>
     </div>
 
-    <!-- Tableau des ventes -->
+    <!-- Sales table -->
     <table class="table table-striped mb-3" id="sales-history-table">
         <thead>
             <tr>
-                <th>@t("Date/Time")</th>
-                <th class="text-center">@t("product.products")</th>
-                <th class="text-center">@t("Amount before discount")</th>
-                <th class="text-center">@t("Paid amount")</th>
-                <th class="text-center">@t("Payment type")</th>
-                <th class="text-center">@t("Synchronized")</th>
+                <th>Date/Time</th>
+                <th class="text-center">Products</th>
+                <th class="text-center">Amount Before Discount</th>
+                <th class="text-center">Paid Amount</th>
+                <th class="text-center">Payment Type</th>
+                <th class="text-center">Delivery</th>
+                <th class="text-center">Synchronized</th>
                 <th class="text-center"></th>
             </tr>
         </thead>
@@ -145,7 +175,7 @@
         $("#cash-net-total").text(net.toFixed(2));
     }
 
-    // Rafraîchir automatiquement à l’affichage du journal
+    // Automatically refresh when journal is displayed
     const $screen = $("#screen-sales-history");
     function refreshIfVisible() {
         if ($screen.length && !$screen.hasClass("d-none")) {
@@ -153,7 +183,7 @@
         }
     }
 
-    // Surveiller le changement d’écran
+    // Monitor screen changes
     const target = document.getElementById("pos-container");
     if (target) {
         const obs = new MutationObserver(refreshIfVisible);

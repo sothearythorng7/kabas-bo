@@ -22,7 +22,7 @@
                 <td>{{ $j->user?->name }}</td>
                 <td>{{ ucfirst($j->action) }}</td>
                 <td class="text-end">
-                    <a href="{{ route('financial.journals.show', [$store->id, $j->id]) }}" class="btn btn-sm btn-info">Voir</a>
+                    <a href="{{ route('financial.journals.show', [$store->id, $j->id]) }}" class="btn btn-sm btn-info">@t('Voir')</a>
                 </td>
             </tr>
         @empty

@@ -32,7 +32,7 @@
                             <li>
                                 <form method="POST" action="{{ route('financial.payment-methods.destroy', [$store->id, $m->id]) }}">
                                     @csrf @method('DELETE')
-                                    <button class="dropdown-item" onclick="return confirm('Supprimer ?')">
+                                    <button class="dropdown-item" onclick="return confirm('@t('Supprimer cette méthode de paiement ?')')">
                                         <i class="bi bi-trash-fill"></i> @t("Supprimer")
                                     </button>
                                 </form>

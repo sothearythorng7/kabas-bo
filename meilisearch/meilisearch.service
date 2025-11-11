@@ -1,0 +1,19 @@
+[Unit]
+Description=Meilisearch Search Engine
+After=network.target
+
+[Service]
+Type=simple
+User=siwei
+WorkingDirectory=/var/www/kabas/meilisearch
+Environment="MEILI_HTTP_ADDR=127.0.0.1:7700"
+Environment="MEILI_DB_PATH=/var/www/kabas/meilisearch/data"
+Environment="MEILI_ENV=production"
+Environment="MEILI_MASTER_KEY=kabasSecureMasterKey2025ChangeThis"
+Environment="MEILI_NO_ANALYTICS=true"
+ExecStart=/var/www/kabas/meilisearch/meilisearch
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

@@ -71,7 +71,8 @@ class BlogPost extends Model
     {
         $locale = $locale ?? app()->getLocale();
         $slug = $this->slug[$locale] ?? '';
-        return url("/{$locale}/blog/{$slug}");
+        $publicSiteUrl = config('app.site_public_url', url('/'));
+        return rtrim($publicSiteUrl, '/') . "/{$locale}/blog/{$slug}";
     }
 
     // Scopes

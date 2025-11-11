@@ -1,14 +1,14 @@
 <div id="screen-shiftstart" class="pos-screen d-none text-center">
 
-    <!-- En-tête : bouton menu + titre alignés à gauche -->
+    <!-- Header: menu button + title aligned left -->
     <div class="d-flex justify-content-start align-items-center mb-3 gap-2">
         <button id="btn-open-menu" class="btn btn-outline-secondary" title="@t('Menu')">
             <i class="bi bi-list"></i>
         </button>
-        <h2 class="mb-0">Démarrer votre shift</h2>
+        <h2 class="mb-0">Start Your Shift</h2>
     </div>
 
-    <p>Entrez le montant initial dans la caisse</p>
+    <p>Enter the initial cash amount in the register</p>
 
     <input type="text" id="shift-start-input" class="form-control mb-3 text-center fs-3" readonly>
 
@@ -28,7 +28,7 @@
             <button class="btn btn-outline-dark btn-lg w-100 shift-num-btn">0</button>
         </div>
         <div class="col-4">
-            <button class="btn btn-outline-success btn-lg w-100" id="shift-start-ok">Démarrer</button>
+            <button class="btn btn-outline-success btn-lg w-100" id="shift-start-ok">Start</button>
         </div>
     </div>
 </div>
@@ -52,7 +52,7 @@ function initShiftstart() {
     $("#shift-start-ok").off("click").on("click", async function() {
         const amount = parseFloat(buffer);
         if (isNaN(amount) || amount <= 0) {
-            alert("Veuillez saisir un montant valide !");
+            alert("Please enter a valid amount!");
             return;
         }
 
@@ -63,9 +63,9 @@ function initShiftstart() {
                 headers: { "Content-Type": "application/json",  "X-CSRF-TOKEN": csrfToken },
                 body: JSON.stringify({ user_id: currentUser.id, start_amount: amount })
             });
-            if (!res.ok) throw new Error("Impossible de démarrer le shift");
+            if (!res.ok) throw new Error("Unable to start shift");
             currentShift = await res.json();
-            console.log("Shift démarré :", currentShift);
+            console.log("Shift started:", currentShift);
             showScreen("dashboard");
         } catch(err) {
             alert(err.message);

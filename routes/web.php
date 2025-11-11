@@ -93,6 +93,7 @@ Route::post('/track-url', function (\Illuminate\Http\Request $request) {
 
 Route::middleware(['auth', SetUserLocale::class])->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+    Route::get('/dashboard/products-issues', [DashboardController::class, 'productsWithIssues'])->name('dashboard.products-issues');
 
     Route::get('/scanner', function () {
         return view('scanner');
@@ -417,6 +418,7 @@ Route::prefix('api/pos')->middleware('api')->group(function () {
     Route::get('shifts/current/{userId}', [ShiftController::class, 'currentShift']);
     Route::post('shifts/start', [ShiftController::class, 'start']);
     Route::post('shifts/end', [ShiftController::class, 'end']);
+    Route::post('shifts/sales-by-date', [ShiftController::class, 'salesByDate']);
 
     Route::post('sales/sync', [SyncController::class, 'sales']);
 });

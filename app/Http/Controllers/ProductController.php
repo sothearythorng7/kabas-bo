@@ -23,27 +23,39 @@ class ProductController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Product::with('brand', 'stores')->withCount('images');
-
+        // Si recherche textuelle, utiliser Meilisearch via Scout
         if ($request->filled('q')) {
-            $q = $request->q;
-            $query->where(function ($sub) use ($q) {
-                $sub->where('ean', 'like', "%{$q}%")
-                    ->orWhere('name->fr', 'like', "%{$q}%")
-                    ->orWhere('name->en', 'like', "%{$q}%");
-            });
-        }
+            $searchQuery = Product::search($request->q)
+                ->query(function ($builder) use ($request) {
+                    $builder->with('brand', 'stores')->withCount('images');
+                });
 
-        if ($request->filled('brand_id')) {
-            if ($request->brand_id === 'none') {
-                $query->whereNull('brand_id');
-            } else {
-                $query->where('brand_id', $request->brand_id);
+            // Filtre par marque si nécessaire
+            if ($request->filled('brand_id')) {
+                if ($request->brand_id === 'none') {
+                    $searchQuery->where('brand_id', null);
+                } else {
+                    $searchQuery->where('brand_id', $request->brand_id);
+                }
             }
+
+            $products = $searchQuery->paginate(100)->withQueryString();
+        } else {
+            // Pas de recherche : requête SQL classique
+            $query = Product::with('brand', 'stores')->withCount('images');
+
+            if ($request->filled('brand_id')) {
+                if ($request->brand_id === 'none') {
+                    $query->whereNull('brand_id');
+                } else {
+                    $query->where('brand_id', $request->brand_id);
+                }
+            }
+
+            $products = $query->orderBy('id', 'desc')->paginate(100)->withQueryString();
         }
 
-        $products = $query->orderBy('id', 'desc')->paginate(100)->withQueryString();
-         $brands = Brand::orderBy('name')->get();
+        $brands = Brand::orderBy('name')->get();
 
         return view('products.index', compact('products', 'brands'));
     }
@@ -96,6 +108,7 @@ public function store(Request $request)
             'is_active' => $data['is_active'] ?? false,
             'is_best_seller' => $data['is_best_seller'] ?? false,
             'is_resalable' => false,
+            'allow_overselling' => $data['allow_overselling'] ?? false,
         ]);
 
         foreach ($locales as $locale) {
@@ -170,6 +183,7 @@ public function update(Request $request, Product $product)
         'is_active' => 'boolean',
         'is_best_seller' => 'boolean',
         'is_resalable' => 'sometimes|boolean',
+        'allow_overselling' => 'sometimes|boolean',
         'categories' => 'nullable|array',
         'categories.*' => 'exists:categories,id',
         'suppliers' => 'nullable|array',
@@ -190,6 +204,7 @@ public function update(Request $request, Product $product)
             'is_active' => $data['is_active'] ?? false,
             'is_resalable' => $data['is_resalable'] ?? false,
             'is_best_seller' => $data['is_best_seller'] ?? false,
+            'allow_overselling' => $data['allow_overselling'] ?? false,
         ]);
 
         foreach ($locales as $locale) {
@@ -561,11 +576,20 @@ public function values(VariationType $type)
 public function search(Request $request)
 {
     $q = $request->q;
-    $products = Product::where('ean', 'like', "%$q%")
-        ->orWhere('name->fr', 'like', "%$q%")
-        ->orWhere('name->en', 'like', "%$q%")
-        ->limit(20)
-        ->get(['id','ean','name']);
+
+    // Utiliser Meilisearch si disponible et si une requête existe
+    if ($q && config('scout.driver') === 'meilisearch') {
+        $products = Product::search($q)
+            ->take(20)
+            ->get(['id', 'ean', 'name']);
+    } else {
+        // Fallback vers recherche SQL classique
+        $products = Product::where('ean', 'like', "%$q%")
+            ->orWhere('name->fr', 'like', "%$q%")
+            ->orWhere('name->en', 'like', "%$q%")
+            ->limit(20)
+            ->get(['id','ean','name']);
+    }
 
     return response()->json($products);
 }

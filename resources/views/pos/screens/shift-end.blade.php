@@ -1,14 +1,14 @@
 <div id="screen-shiftend" class="pos-screen d-none text-center">
 
-    <!-- En-tête avec bouton menu + titre alignés à gauche -->
+    <!-- Header with menu button + title aligned left -->
     <div class="d-flex justify-content-start align-items-center mb-3 gap-2">
         <button id="btn-open-menu" class="btn btn-outline-secondary" title="@t('Menu')">
             <i class="bi bi-list"></i>
         </button>
-        <h2 class="mb-0">Terminer votre shift</h2>
+        <h2 class="mb-0">End Your Shift</h2>
     </div>
 
-    <p>Entrez le montant final dans la caisse</p>
+    <p>Enter the final cash amount in the register</p>
 
     <input type="text" id="shift-end-input" class="form-control mb-3 text-center fs-3" readonly>
 
@@ -28,7 +28,7 @@
             <button class="btn btn-outline-dark btn-lg w-100 shift-end-num-btn">0</button>
         </div>
         <div class="col-4">
-            <button class="btn btn-outline-success btn-lg w-100" id="shift-end-ok">Terminer</button>
+            <button class="btn btn-outline-success btn-lg w-100" id="shift-end-ok">End Shift</button>
         </div>
     </div>
 </div>
@@ -40,23 +40,23 @@ function initShiftEnd() {
     const $input = $("#shift-end-input");
     $input.val("");
 
-    // Gestion du pavé numérique
+    // Numeric keypad handling
     $(".shift-end-num-btn").off("click").on("click", function() {
         buffer += $(this).text();
         $input.val(buffer);
     });
 
-    // Bouton Clear
+    // Clear button
     $("#shift-end-clear").off("click").on("click", function() {
         buffer = "";
         $input.val("");
     });
 
-    // Bouton Terminer
+    // End button
     $("#shift-end-ok").off("click").on("click", async function() {
         const amount = parseFloat(buffer);
         if (isNaN(amount)) {
-            alert("Veuillez saisir un montant valide !");
+            alert("Please enter a valid amount!");
             return;
         }
 
@@ -70,13 +70,13 @@ function initShiftEnd() {
                 body: JSON.stringify({ user_id: currentUser.id, end_amount: amount })
             });
 
-            if (!res.ok) throw new Error("Impossible de terminer le shift");
+            if (!res.ok) throw new Error("Unable to end shift");
 
             currentShift = null;
             $("#btn-end-shift").addClass("d-none");
             const shift = await res.json();
-            console.log("Shift terminé :", shift);
-            alert("Shift terminé !");
+            console.log("Shift ended:", shift);
+            alert("Shift ended!");
             logout();
         } catch(err) {
             alert(err.message);

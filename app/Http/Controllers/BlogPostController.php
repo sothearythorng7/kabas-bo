@@ -104,6 +104,12 @@ class BlogPostController extends Controller
                         ->with('success', __('messages.blog_post.created'));
     }
 
+    public function show(BlogPost $post)
+    {
+        $locales = config('app.website_locales', ['fr', 'en']);
+        return view('blog.posts.show', compact('post', 'locales'));
+    }
+
     public function edit(BlogPost $post)
     {
         $categories = BlogCategory::active()->get();

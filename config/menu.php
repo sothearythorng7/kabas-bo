@@ -49,12 +49,12 @@ return [
                 'route' => 'stocks.index',
                 'active_pattern' => 'stocks*',
             ],
-            [
-                'label' => 'messages.menu.stock_movements',
-                'icon'  => 'bi-arrow-left-right',
-                'route' => 'stock-movements.index',
-                'active_pattern' => 'stock-movements*',
-            ],
+            // [
+            //     'label' => 'messages.menu.stock_movements',
+            //     'icon'  => 'bi-arrow-left-right',
+            //     'route' => 'stock-movements.index',
+            //     'active_pattern' => 'stock-movements*',
+            // ],
         ]
     ],
     [
@@ -111,7 +111,7 @@ return [
         'active_pattern' => 'blog*|contact-messages*|pages*|hero-slides*|home-content*|promotion-bar*',
         'submenu' => [
             [
-                'label' => 'Contenu Homepage',
+                'label' => 'messages.menu.home_content',
                 'icon'  => 'bi-house-heart',
                 'route' => 'home-content.edit',
                 'active_pattern' => 'home-content*',
@@ -123,24 +123,24 @@ return [
                 'active_pattern' => 'promotion-bar*',
             ],
             [
-                'label' => 'Blog',
+                'label' => 'messages.menu.blog',
                 'icon'  => 'bi-newspaper',
                 'active_pattern' => 'blog*',
                 'submenu' => [
                     [
-                        'label' => 'Articles',
+                        'label' => 'messages.menu.blog_posts',
                         'icon'  => 'bi-file-text',
                         'route' => 'blog.posts.index',
                         'active_pattern' => 'blog/posts*',
                     ],
                     [
-                        'label' => 'Catégories',
+                        'label' => 'messages.menu.blog_categories',
                         'icon'  => 'bi-folder',
                         'route' => 'blog.categories.index',
                         'active_pattern' => 'blog/categories*',
                     ],
                     [
-                        'label' => 'Tags',
+                        'label' => 'messages.menu.blog_tags',
                         'icon'  => 'bi-tags',
                         'route' => 'blog.tags.index',
                         'active_pattern' => 'blog/tags*',
@@ -148,7 +148,7 @@ return [
                 ]
             ],
             [
-                'label' => 'Messages',
+                'label' => 'messages.menu.contact_messages',
                 'icon'  => 'bi-envelope',
                 'route' => 'contact-messages.index',
                 'active_pattern' => 'contact-messages*',

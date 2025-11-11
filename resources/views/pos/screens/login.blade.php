@@ -1,6 +1,6 @@
 <div id="screen-login" class="pos-screen d-none text-center">
-    <h2>Authentification</h2>
-    <p>Entrez votre code PIN</p>
+    <h2>Authentication</h2>
+    <p>Enter your PIN code</p>
 
     <div id="pin-display" class="mb-3 fs-3 fw-bold">••••••</div>
 
@@ -79,17 +79,17 @@ function initLogin() {
         const match = users.findExact({ pin_code: pinBuffer });
 
         if (match.length === 0) {
-            alert("PIN incorrect !");
+            alert("Incorrect PIN!");
             pinBuffer = "";
             updatePinDisplay();
             return;
         }
 
         currentUser = match[0];
-        console.log("Utilisateur connecté :", currentUser);
+        console.log("User logged in:", currentUser);
 
         try {
-            // 1) Vérifier le shift courant
+            // 1) Check current shift
             const res = await fetch(`{{ config('app.url') }}/api/pos/shifts/current/${currentUser.id}`);
             const shift = await res.json();
 
@@ -105,8 +105,8 @@ function initLogin() {
                 showScreen("shiftstart");
             }
         } catch (e) {
-            console.error("Erreur lors de la vérification du shift :", e);
-            // pas d’alert
+            console.error("Error checking shift:", e);
+            // no alert
         }
     });
 }

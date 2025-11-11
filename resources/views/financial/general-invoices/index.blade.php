@@ -5,14 +5,20 @@
     <h1 class="crud_title">@t("General invoices") – {{ $store->name }}</h1>
     @include('financial.layouts.nav')
 
+    <div class="mb-3">
+        <a href="{{ route('invoice-categories.index', ['store_id' => $store->id]) }}" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-tag"></i> @t("Gérer les catégories de factures")
+        </a>
+    </div>
+
     <div class="d-flex justify-content-between mb-3 align-items-center">
-        <div class="btn-toolbar" role="toolbar" aria-label="Barre d'actions">
-            <div class="btn-group me-2" role="group" aria-label="Actions principales">
+        <div class="btn-toolbar" role="toolbar" aria-label="@t('Barre d\'actions')">
+            <div class="btn-group me-2" role="group" aria-label="@t('Actions principales')">
                 <a href="{{ route('financial.general-invoices.create', $store->id) }}" class="btn btn-primary">
                     <i class="bi bi-plus-lg"></i> @t("Add Invoice")
                 </a>
             </div>
-            <div class="btn-group" role="group" aria-label="Export">
+            <div class="btn-group" role="group" aria-label="@t('Export')">
                 <a href="{{ route('financial.general-invoices.export', array_merge(['store' => $store->id], request()->all())) }}" class="btn btn-success">
                     <i class="bi bi-file-earmark-excel"></i> @t("Exporter Excel")
                 </a>

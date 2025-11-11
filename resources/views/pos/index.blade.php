@@ -29,10 +29,11 @@
             @include('pos.screens.shift-start')
             @include('pos.screens.shift-end')
             @include('pos.screens.journal')
+            @include('pos.screens.search-results')
             @include('pos.screens.sale-detail')
         </div>
 
-        <!-- ===== Menu latéral GLOBAL (présent partout sauf login) ===== -->
+        <!-- ===== GLOBAL Side Menu (present everywhere except login) ===== -->
         <div id="side-menu" class="position-fixed top-0 start-0 vh-100 bg-white shadow"
              style="width:0; max-width:30%; overflow:auto; z-index:1050; transition: width 0.3s;">
             <div class="d-flex justify-content-end p-2 border-bottom">
@@ -43,21 +44,21 @@
                     <i class="bi bi-house"></i> @t("Dashboard")
                 </button>
                 <button id="btn-end-shift" class="btn btn-warning w-100 mb-2">@t("Close Shift")</button>
-                <button id="btn-journal" class="btn btn-primary w-100 mb-2">journal</button>
+                <button id="btn-journal" class="btn btn-primary w-100 mb-2">Journal</button>
                 <hr />
                 <button id="btn-logout" class="btn btn-danger w-100 mb-2">@t("logout")</button>
                 <button id="btn-force-sync" class="btn btn-info w-100 mb-2">@t("Force catalog sync")</button>
 
-                <!-- NOUVEAU: Cash In / Cash Out -->
+                <!-- NEW: Cash In / Cash Out -->
                 <button id="btn-cash-in"  class="btn btn-success w-100 mb-2"><i class="bi bi-plus-circle"></i> Cash In</button>
                 <button id="btn-cash-out" class="btn btn-danger  w-100 mb-2"><i class="bi bi-dash-circle"></i> Cash Out</button>
             </div>
         </div>
 
-        <!-- Overlay global -->
+        <!-- Global overlay -->
         <div id="side-menu-overlay" class="position-fixed top-0 start-0 w-100 h-100"
              style="display:none; z-index:1040; background: rgba(0,0,0,0.4);"></div>
-        <!-- ===== Fin menu latéral GLOBAL ===== -->
+        <!-- ===== End GLOBAL Side Menu ===== -->
 
     </div>
 
@@ -111,7 +112,7 @@ function writeCatalogCache(storeId) {
     const payments = (db.table("payments")?.data) ?? [];
     const payload = { catalog, payments, savedAt: Date.now() };
     localStorage.setItem(getCatalogCacheKey(storeId), JSON.stringify(payload));
-    console.log("✅ Cache catalogue écrit (store:", storeId, ")", {catalog: catalog?.length ?? 0, payments: payments?.length ?? 0});
+    console.log("✅ Catalog cache written (store:", storeId, ")", {catalog: catalog?.length ?? 0, payments: payments?.length ?? 0});
   } catch (e) {
     console.warn("❌ writeCatalogCache error:", e);
   }
@@ -159,7 +160,7 @@ function saveCategoryTreeToLocal(storeId) {
   try {
     const tree = window.categoryTree ?? null;
     localStorage.setItem(getCategoryKey(storeId), JSON.stringify({ tree, savedAt: Date.now() }));
-    console.log("✅ Catégories sauvegardées (store:", storeId, ") hasTree:", !!tree);
+    console.log("✅ Categories saved (store:", storeId, ") hasTree:", !!tree);
   } catch (e) {
     console.warn("❌ saveCategoryTreeToLocal error:", e);
   }
@@ -180,9 +181,9 @@ function restoreCategoryTreeFromLocal(storeId) {
   const tree = readCategoryTreeFromLocal(storeId);
   if (tree) {
     window.categoryTree = tree;
-    console.log("✅ Catégories restaurées depuis clef dédiée (store:", storeId, ")");
+    console.log("✅ Categories restored from dedicated key (store:", storeId, ")");
   } else {
-    console.log("ℹ️ Aucune catégorie à restaurer (store:", storeId, ")");
+    console.log("ℹ️ No categories to restore (store:", storeId, ")");
   }
 }
 </script>
@@ -217,8 +218,8 @@ function restoreCategoryTreeFromLocal(storeId) {
           </div>
 
           <div class="d-flex justify-content-end">
-            <button type="button" class="btn btn-secondary me-2" data-bs-dismiss="modal">@t("btn.cancel")</button>
-            <button type="button" class="btn btn-success" id="cashDialogOk">@t("btn.validate")</button>
+            <button type="button" class="btn btn-secondary me-2" data-bs-dismiss="modal">Cancel</button>
+            <button type="button" class="btn btn-success" id="cashDialogOk">Validate</button>
           </div>
         </div>
       </div>
@@ -358,7 +359,7 @@ function restoreCategoryTreeFromLocal(storeId) {
           const raw = $("#cashDialogInput").val();
           const amount = parseFloat(raw);
           if (!Number.isFinite(amount) || amount <= 0) {
-            alert("@t('Veuillez saisir un montant valide !')");
+            alert("Please enter a valid amount!");
             return;
           }
           try {
@@ -366,10 +367,10 @@ function restoreCategoryTreeFromLocal(storeId) {
             const next = prev + amount;
             localStorage.setItem(storageKey, String(next));
             modal.hide();
-            alert(`${title} : ${amount.toFixed(2)} — Total cumulé: ${next.toFixed(2)}`);
+            alert(`${title}: ${amount.toFixed(2)} — Cumulative Total: ${next.toFixed(2)}`);
           } catch (e) {
             console.error("localStorage error:", e);
-            alert("@t('Erreur lors de l\\'enregistrement !')");
+            alert("Error saving!");
           }
         });
       }

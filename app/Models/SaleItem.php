@@ -10,11 +10,12 @@ class SaleItem extends Model
     use HasFactory;
 
     protected $fillable = [
-        'sale_id', 'product_id', 'quantity', 'price', 'discounts'
+        'sale_id', 'product_id', 'quantity', 'price', 'discounts', 'is_delivery', 'delivery_address'
     ];
 
     protected $casts = [
         'discounts' => 'array',
+        'is_delivery' => 'boolean',
     ];
 
     public function sale() {

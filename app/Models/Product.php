@@ -5,10 +5,11 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Support\Str;
+use Laravel\Scout\Searchable;
 
 class Product extends Model
 {
-    use HasFactory;
+    use HasFactory, Searchable;
 
     protected $fillable = [
         'ean',
@@ -23,6 +24,7 @@ class Product extends Model
         'is_active',
         'is_best_seller',
         'is_resalable',
+        'allow_overselling',
         'attributes',
     ];
 
@@ -34,6 +36,7 @@ class Product extends Model
         'is_active' => 'boolean',
         'is_best_seller' => 'boolean',
         'is_resalable' => 'boolean',
+        'allow_overselling' => 'boolean',
     ];
 
     // Relation vers les stocks
@@ -189,5 +192,64 @@ class Product extends Model
         $slug  = $this->publicSlug($locale);
         $loc = $locale ?: app()->getLocale();
         return "{$base}/{$loc}/{$path}/{$slug}";
+    }
+
+    // ============ Laravel Scout / Meilisearch Methods ============
+
+    /**
+     * Get the indexable data array for the model.
+     */
+    public function toSearchableArray()
+    {
+        return [
+            'id' => $this->id,
+            'ean' => $this->ean,
+
+            // Produit - multilingue (FR/EN)
+            'name_fr' => $this->name['fr'] ?? '',
+            'name_en' => $this->name['en'] ?? '',
+            'description_fr' => strip_tags($this->description['fr'] ?? ''),
+            'description_en' => strip_tags($this->description['en'] ?? ''),
+
+            // Marque - pas traduisible
+            'brand_name' => $this->brand?->name,
+            'brand_id' => $this->brand_id,
+
+            // Catégories - traduisibles
+            'category_names_fr' => $this->categories->map(function($c) {
+                return $c->translation('fr')?->name ?? '';
+            })->filter()->values()->toArray(),
+
+            'category_names_en' => $this->categories->map(function($c) {
+                return $c->translation('en')?->name ?? '';
+            })->filter()->values()->toArray(),
+
+            'category_ids' => $this->categories->pluck('id')->toArray(),
+
+            // Métadonnées pour filtres
+            'price' => (float) $this->price,
+            'is_active' => (bool) $this->is_active,
+            'is_best_seller' => (bool) $this->is_best_seller,
+
+            // Pour affichage
+            'image_url' => $this->primaryImage?->path,
+        ];
+    }
+
+    /**
+     * Get the name of the index associated with the model.
+     */
+    public function searchableAs()
+    {
+        return 'products';
+    }
+
+    /**
+     * Determine if the model should be searchable.
+     */
+    public function shouldBeSearchable()
+    {
+        // Indexer uniquement les produits actifs (optionnel)
+        return true; // ou: return $this->is_active;
     }
 }

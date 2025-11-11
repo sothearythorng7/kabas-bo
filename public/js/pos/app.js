@@ -13,6 +13,7 @@ db.register(new PaymentsTable());
 // Session
 let currentUser = null;
 let currentShift = null;
+let currentJournalSales = null; // For storing current journal view (current shift or historical)
 
 // Sales (dashboard)
 let sales = [];
@@ -92,10 +93,10 @@ async function syncSalesToBO() {
                 if (sale) sale.synced = true;
             });
             localStorage.setItem(key, JSON.stringify(stored));
-            console.log("Ventes synchronisées :", data.synced_sales);
+            console.log("Sales synchronized:", data.synced_sales);
         }
     } catch (err) {
-        console.error("Erreur synchronisation ventes :", err);
+        console.error("Sales synchronization error:", err);
     }
 }
 
@@ -105,7 +106,7 @@ setInterval(syncSalesToBO, 30000);
 
 function prepareSalesSync() {
     if (!currentShift) {
-        console.warn("Aucun shift actif pour synchroniser les ventes.");
+        console.warn("No active shift to synchronize sales.");
         return;
     }
 
@@ -115,7 +116,7 @@ function prepareSalesSync() {
     const unsyncedSales = validatedSales.filter(s => !s.synced);
 
     if (unsyncedSales.length === 0) {
-        console.log("Aucune vente en attente de synchronisation.");
+        console.log("No sales pending synchronization.");
         return;
     }
 
@@ -123,19 +124,22 @@ function prepareSalesSync() {
         id: sale.id,
         label: sale.label,
         payment_type: sale.payment_type,
+        split_payments: sale.split_payments || null,
         items: sale.items.map(item => ({
             product_id: item.product_id,
             name: item.name || null,
             ean: item.ean || null,
             price: item.price,
             quantity: item.quantity,
-            discounts: item.discounts || []
+            discounts: item.discounts || [],
+            is_delivery: item.is_delivery || false,
+            delivery_address: item.delivery_address || null
         })),
         discounts: sale.discounts || [],
         total: calculateSaleTotal(sale)
     }));
 
-    console.log("JSON prêt pour synchronisation :", JSON.stringify(payload, null, 2));
+    console.log("JSON ready for synchronization:", JSON.stringify(payload, null, 2));
     return payload;
 }
 
@@ -169,7 +173,7 @@ function saveSalesToLocal() {
         calculateAndSaveSale(sale, currentShift);
     });
 
-    console.log("Ventes sauvegardées dans localStorage pour le shift :", currentShift.id);
+    console.log("Sales saved in localStorage for shift:", currentShift.id);
 }
 
 function loadSalesFromLocal() {
@@ -382,7 +386,7 @@ function showProductsByCategory(path) {
     });
 
     if (!results.length) {
-        alert("Aucun produit trouvé dans cette catégorie");
+        alert("No products found in this category");
         return;
     }
 
@@ -392,7 +396,7 @@ function showProductsByCategory(path) {
         <div class="modal fade" id="productSelectModal" tabindex="-1">
             <div class="modal-dialog">
                 <div class="modal-content p-3">
-                    <h5>Sélectionnez le produit</h5>
+                    <h5>Select the product</h5>
                     <ul class="list-group mb-3">
                         ${results.map((p, i) => `<li class="list-group-item list-group-item-action product-item" data-idx="${i}">${p.name.en} - ${parseFloat(p.price).toFixed(2)}</li>`).join('')}
                     </ul>
@@ -413,7 +417,7 @@ function showProductsByCategory(path) {
         modal.hide();
         modalEl.remove();
 
-        const qty = await showNumericModal(`Quantité pour ${product.name.en}`);
+        const qty = await showNumericModal(`Quantity for ${product.name.en}`);
         if (qty > 0) {
             const sale = sales.find(s => s.id === activeSaleId);
             if (!sale) addNewSale();
@@ -473,9 +477,9 @@ async function loadCatalog(storeId) {
             }));
 
             payments.insertMany(paymentsData);
-            console.log("Moyens de paiement chargés :", payments.data);
+            console.log("Payment methods loaded:", payments.data);
         } else {
-            console.warn("Pas de moyens de paiement reçus");
+            console.warn("No payment methods received");
         }
 
         // --- 3️⃣ Categories ---
@@ -484,7 +488,7 @@ async function loadCatalog(storeId) {
         console.log("Normalized categoryTree (array with numeric ids):", window.categoryTree);
 
     } catch (err) {
-        console.error("Erreur loadCatalog:", err);
+        console.error("loadCatalog error:", err);
         throw err;
     }
 }
@@ -511,7 +515,7 @@ async function checkUserShift(userId) {
         }
     } catch (err) {
         console.error("checkUserShift:", err);
-        alert("Erreur lors de la vérification du shift.");
+        alert("Error checking shift.");
         showScreen("login");
     } finally {
         if (syncModal) syncModal.hide();
@@ -530,12 +534,12 @@ async function startShift(userId, startAmount) {
         });
         if (!res.ok) {
             const txt = await res.text();
-            throw new Error(txt || "Impossible de démarrer le shift");
+            throw new Error(txt || "Unable to start shift");
         }
         currentShift = await res.json();
         $("#btn-end-shift").removeClass("d-none");
         showScreen("dashboard");
-        console.log("Shift démarré:", currentShift);
+        console.log("Shift started:", currentShift);
     } catch (err) {
         console.error("startShift:", err);
         throw err;
@@ -560,8 +564,8 @@ async function endShift(userId, endAmount) {
         currentShift = null;
         $("#btn-end-shift").addClass("d-none");
         showScreen("shiftstart");
-        alert("Shift terminé !");
-        console.log("Shift terminé:", shift);
+        alert("Shift ended!");
+        console.log("Shift ended:", shift);
     } catch (err) {
         console.error("endShift:", err);
         throw err;
@@ -596,7 +600,7 @@ function initShiftstart() {
         try {
             await startShift(currentUser.id, amount);
         } catch (err) {
-            alert(err.message || "Erreur démarrage shift");
+            alert(err.message || "Error starting shift");
         }
     });
 }
@@ -626,7 +630,7 @@ function initShiftend() {
         try {
             await endShift(currentUser.id, amount);
         } catch (err) {
-            alert(err.message || "Erreur clôture shift");
+            alert(err.message || "Error closing shift");
         }
     });
 }
@@ -645,7 +649,7 @@ async function performSearchAndShowModal(query) {
     );
 
     if (!results.length) {
-        alert("Aucun produit trouvé");
+        alert("No products found");
         return;
     }
 
@@ -655,7 +659,7 @@ async function performSearchAndShowModal(query) {
         <div class="modal fade" id="productSelectModal" tabindex="-1">
             <div class="modal-dialog">
                 <div class="modal-content p-3">
-                    <h5>Sélectionnez le produit</h5>
+                    <h5>Select the product</h5>
                     <ul class="list-group mb-3">
                         ${results.map((p, i) => `<li class="list-group-item list-group-item-action product-item" data-idx="${i}">${p.name.en} - ${parseFloat(p.price).toFixed(2)}</li>`).join('')}
                     </ul>
@@ -676,7 +680,7 @@ async function performSearchAndShowModal(query) {
         modal.hide();
         modalEl.remove();
 
-        const qty = await showNumericModal(`Quantité pour ${product.name.en}`);
+        const qty = await showNumericModal(`Quantity for ${product.name.en}`);
         if (qty > 0) {
             const sale = sales.find(s => s.id === activeSaleId);
             if (!sale) addNewSale();
@@ -746,25 +750,127 @@ async function initPOS() {
         const users = db.table("users");
         users.clear();
         users.insertMany(data);
-        console.log("Utilisateurs synchronisés :", users.data);
+        console.log("Users synchronized:", users.data);
         showScreen("login");
     } catch (err) {
         console.error("initPOS:", err);
-        alert("Impossible de synchroniser les utilisateurs.");
+        alert("Unable to synchronize users.");
     }
 }
 
 function initSalesHistory() {
     const $tableBody = $("#sales-history-table tbody");
 
+    // Get today's date
+    const today = new Date();
+    const todayDay = today.getDate().toString().padStart(2, '0');
+    const todayMonth = (today.getMonth() + 1).toString().padStart(2, '0');
+    const todayYear = today.getFullYear();
+
+    // Populate day dropdown (1-31)
+    const $daySelect = $("#journal-day");
+    $daySelect.empty().append('<option value="">Day</option>');
+    for (let i = 1; i <= 31; i++) {
+        const day = i.toString().padStart(2, '0');
+        $daySelect.append(`<option value="${day}">${i}</option>`);
+    }
+    $daySelect.val(todayDay); // Set to today
+
+    // Month is already populated in HTML, just set to today
+    $("#journal-month").val(todayMonth);
+
+    // Populate year dropdown (current year and 2 years back)
+    const $yearSelect = $("#journal-year");
+    $yearSelect.empty().append('<option value="">Year</option>');
+    const currentYear = new Date().getFullYear();
+    for (let i = currentYear; i >= currentYear - 2; i--) {
+        $yearSelect.append(`<option value="${i}">${i}</option>`);
+    }
+    $yearSelect.val(todayYear); // Set to current year
+
+    // Setup search button
+    $("#btn-search-date").off("click").on("click", async function() {
+        const day = $("#journal-day").val();
+        const month = $("#journal-month").val();
+        const year = $("#journal-year").val();
+
+        if (!day || !month || !year) {
+            alert("Please select a complete date (day, month, and year)");
+            return;
+        }
+
+        const selectedDate = `${year}-${month}-${day}`;
+
+        try {
+            const response = await fetch("/api/pos/shifts/sales-by-date", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    date: selectedDate,
+                    user_id: currentUser.id
+                })
+            });
+
+            const data = await response.json();
+
+            if (data.sales.length === 0) {
+                alert("No sales found for this date");
+                return;
+            }
+
+            // Convert backend data to frontend format
+            const formattedSales = data.sales.map(sale => ({
+                id: sale.id,
+                date: new Date(sale.created_at).toLocaleString(),
+                items: sale.items.map(item => {
+                    const price = parseFloat(item.price);
+                    const quantity = item.quantity;
+                    return {
+                        product_id: item.product_id,
+                        name: item.product ? item.product.name : { en: 'Delivery Service' },
+                        ean: item.product ? item.product.ean : 'DELIVERY',
+                        price: price,
+                        quantity: quantity,
+                        line_total: price * quantity,
+                        discounts: item.discounts || [],
+                        is_delivery: item.is_delivery || false,
+                        delivery_address: item.delivery_address || null
+                    };
+                }),
+                payment_type: sale.payment_type,
+                split_payments: sale.split_payments,
+                total: parseFloat(sale.total),
+                discounts: sale.discounts || [],
+                discount_total: sale.discounts ? sale.discounts.reduce((sum, d) => sum + parseFloat(d.amount || 0), 0) : 0,
+                validated: true,
+                synced: true
+            }));
+
+            // Show search results on dedicated screen
+            showSearchResults(selectedDate, formattedSales);
+        } catch (error) {
+            console.error("Error loading historical data:", error);
+            alert("Error loading sales for this date");
+        }
+    });
+
+    // Load current shift data from localStorage
+    const key = `pos_sales_validated_shift_${currentShift.id}`;
+    const stored = JSON.parse(localStorage.getItem(key)) || [];
+    const validatedSales = stored.filter(s => s.validated);
+    const shiftInfo = currentShift;
+
+    // Store in global variable for sale detail view
+    currentJournalSales = validatedSales;
+
     // --- Affichage résumé du shift ---
-    const start = currentShift.started_at ? new Date(currentShift.started_at) : null;
-    const end = currentShift.ended_at ? new Date(currentShift.ended_at) : new Date(); // si pas terminé, on prend maintenant
+    const start = shiftInfo.started_at ? new Date(shiftInfo.started_at) : null;
+    const end = shiftInfo.ended_at ? new Date(shiftInfo.ended_at) : new Date(); // si pas terminé, on prend maintenant
 
     // Format avec année sur 2 chiffres
-    const fmt = d => d ? d.toLocaleString("fr-FR", { 
-        year: "2-digit", month: "2-digit", day: "2-digit", 
-        hour: "2-digit", minute: "2-digit" 
+    const fmt = d => d ? d.toLocaleString("fr-FR", {
+        year: "2-digit", month: "2-digit", day: "2-digit",
+        hour: "2-digit", minute: "2-digit"
     }) : "-";
 
     // Calcul durée en heures (arrondi 2 décimales)
@@ -775,9 +881,9 @@ function initSalesHistory() {
         duration = diffHrs.toFixed(2) + " h";
     }
 
-    $("#shift-id").text(currentShift.id);
+    $("#shift-id").text(shiftInfo.id);
     $("#shift-start").text(fmt(start));
-    $("#shift-end").text(currentShift.ended_at ? fmt(end) : window.i18n.running);
+    $("#shift-end").text(shiftInfo.ended_at ? fmt(end) : window.i18n.running);
     $("#shift-duration").text(duration);
     $("#shift-seller").text(currentUser?.name || "-");
 
@@ -785,11 +891,6 @@ function initSalesHistory() {
     $("#btn-back-dashboard").off("click").on("click", () => {
         showScreen("dashboard");
     });
-
-    // --- Récupération et traitement des ventes validées ---
-    const key = `pos_sales_validated_shift_${currentShift.id}`;
-    const stored = JSON.parse(localStorage.getItem(key)) || [];
-    const validatedSales = stored.filter(s => s.validated);
 
     let totalByPayment = {};
     let totalArticles = 0;
@@ -826,10 +927,28 @@ function initSalesHistory() {
     validatedSales.forEach(sale => {
         const numProducts = sale.items.reduce((sum, item) => sum + item.quantity, 0);
         const totalBeforeDiscount = sale.items.reduce((sum, item) => sum + item.price * item.quantity, 0);
-        const payment = sale.payment_type || "";
+
+        // Display payment info - handle split payments
+        let paymentDisplay = '';
+        if (sale.split_payments && sale.split_payments.length > 1) {
+            paymentDisplay = `<span class="badge bg-warning text-dark">Split (${sale.split_payments.length})</span>`;
+        } else if (sale.split_payments && sale.split_payments.length === 1) {
+            paymentDisplay = sale.split_payments[0].payment_type || "";
+        } else {
+            paymentDisplay = sale.payment_type || "";
+        }
+
+        // Delivery display - check if any item is a delivery service
+        let deliveryDisplay = '-';
+        const deliveryItem = sale.items.find(item => item.is_delivery);
+        if (deliveryItem) {
+            const deliveryFee = deliveryItem.price * deliveryItem.quantity;
+            deliveryDisplay = `<span class="badge bg-success">$${deliveryFee.toFixed(2)}</span>`;
+        }
+
         const syncedText = sale.synced ? window.i18n.yes : window.i18n.no;
-        const syncedBadge = sale.synced 
-            ? `<span class="badge bg-success">${syncedText}</span>` 
+        const syncedBadge = sale.synced
+            ? `<span class="badge bg-success">${syncedText}</span>`
             : `<span class="badge bg-danger">${syncedText}</span>`;
         const saleDate = sale.date || new Date(sale.id).toLocaleString();
 
@@ -839,7 +958,8 @@ function initSalesHistory() {
                 <td class="text-center">${numProducts}</td>
                 <td class="text-center">$${totalBeforeDiscount.toFixed(2)}</td>
                 <td class="text-center">$${(sale.total || 0).toFixed(2)}</td>
-                <td class="text-center">${payment}</td>
+                <td class="text-center">${paymentDisplay}</td>
+                <td class="text-center">${deliveryDisplay}</td>
                 <td class="text-center">${syncedBadge}</td>
                 <td><button class="btn btn-info view-sale-detail" data-id="${sale.id}"><i class="bi bi-eye"></i></button></td>
             </tr>
@@ -854,13 +974,19 @@ function initSalesHistory() {
     });
 }
 
-function showSaleDetail(saleId) {
-    const key = `pos_sales_validated_shift_${currentShift.id}`;
-    const stored = JSON.parse(localStorage.getItem(key)) || [];
-    const sale = stored.find(s => s.id === saleId);
+function showSaleDetail(saleId, returnScreen = "sales-history") {
+    // Try to find sale in current journal view first
+    let sale = currentJournalSales ? currentJournalSales.find(s => s.id === saleId) : null;
+
+    // If not found, try localStorage (for backward compatibility)
+    if (!sale) {
+        const key = `pos_sales_validated_shift_${currentShift.id}`;
+        const stored = JSON.parse(localStorage.getItem(key)) || [];
+        sale = stored.find(s => s.id === saleId);
+    }
 
     if (!sale) {
-        alert("Vente introuvable");
+        alert("Sale not found");
         return;
     }
 
@@ -904,7 +1030,28 @@ function showSaleDetail(saleId) {
     $("#detail-total-before-discount").text("$" + totalBeforeDiscount.toFixed(2));
     $("#detail-discounts-total").text("$" + totalDiscounts.toFixed(2));
     $("#detail-final-total").text("$" + finalTotal.toFixed(2));
-    $("#detail-payment-type").text(sale.payment_type || "");
+
+    // Display payment method(s) - handle split payments
+    const $paymentType = $("#detail-payment-type");
+    $paymentType.empty();
+    if (sale.split_payments && sale.split_payments.length > 0) {
+        sale.split_payments.forEach(payment => {
+            $paymentType.append(`<span class="badge bg-info text-dark me-1">${payment.payment_type}: $${payment.amount.toFixed(2)}</span>`);
+        });
+    } else {
+        $paymentType.text(sale.payment_type || "");
+    }
+
+    // Display delivery information - check if any item is a delivery service
+    const deliveryItem = sale.items.find(item => item.is_delivery);
+    if (deliveryItem) {
+        $("#delivery-info-section").show();
+        const deliveryFee = deliveryItem.price * deliveryItem.quantity;
+        $("#detail-delivery-fee").text("$" + deliveryFee.toFixed(2));
+        $("#detail-delivery-address").text(deliveryItem.delivery_address || "");
+    } else {
+        $("#delivery-info-section").hide();
+    }
 
     // --- Réductions globales ---
     const $globalDiscountsTbody = $("#sale-global-discounts tbody").empty();
@@ -925,7 +1072,7 @@ function showSaleDetail(saleId) {
 
     // --- Bouton retour ---
     $("#btn-back-sales-history").off("click").on("click", () => {
-        showScreen("sales-history");
+        showScreen(returnScreen);
     });
 
     // --- Affiche l'écran ---
@@ -940,6 +1087,171 @@ function logout() {
     $("#btn-logout").addClass("d-none");
     $("#btn-end-shift").addClass("d-none");
     showScreen("login");
+}
+
+// Show search results on dedicated screen
+function showSearchResults(searchDate, sales) {
+    // Store sales globally for detail view
+    currentJournalSales = sales;
+
+    // Display date
+    $("#search-date-display").text(new Date(searchDate).toLocaleDateString());
+
+    // Populate date selectors for search on results page
+    const dateObj = new Date(searchDate);
+    const searchDay = dateObj.getDate().toString().padStart(2, '0');
+    const searchMonth = (dateObj.getMonth() + 1).toString().padStart(2, '0');
+    const searchYear = dateObj.getFullYear();
+
+    // Populate day dropdown
+    const $daySelect = $("#search-day");
+    $daySelect.empty().append('<option value="">Day</option>');
+    for (let i = 1; i <= 31; i++) {
+        const day = i.toString().padStart(2, '0');
+        $daySelect.append(`<option value="${day}">${i}</option>`);
+    }
+    $daySelect.val(searchDay);
+
+    // Set month
+    $("#search-month").val(searchMonth);
+
+    // Populate year dropdown
+    const $yearSelect = $("#search-year");
+    $yearSelect.empty().append('<option value="">Year</option>');
+    const currentYear = new Date().getFullYear();
+    for (let i = currentYear; i >= currentYear - 2; i--) {
+        $yearSelect.append(`<option value="${i}">${i}</option>`);
+    }
+    $yearSelect.val(searchYear);
+
+    // Setup search button on results page
+    $("#btn-search-date-results").off("click").on("click", async function() {
+        const day = $("#search-day").val();
+        const month = $("#search-month").val();
+        const year = $("#search-year").val();
+
+        if (!day || !month || !year) {
+            alert("Please select a complete date (day, month, and year)");
+            return;
+        }
+
+        const selectedDate = `${year}-${month}-${day}`;
+
+        try {
+            const response = await fetch("/api/pos/shifts/sales-by-date", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    date: selectedDate,
+                    user_id: currentUser.id
+                })
+            });
+
+            const data = await response.json();
+
+            if (data.sales.length === 0) {
+                alert("No sales found for this date");
+                return;
+            }
+
+            // Convert backend data to frontend format
+            const formattedSales = data.sales.map(sale => ({
+                id: sale.id,
+                date: new Date(sale.created_at).toLocaleString(),
+                items: sale.items.map(item => {
+                    const price = parseFloat(item.price);
+                    const quantity = item.quantity;
+                    return {
+                        product_id: item.product_id,
+                        name: item.product ? item.product.name : { en: 'Delivery Service' },
+                        ean: item.product ? item.product.ean : 'DELIVERY',
+                        price: price,
+                        quantity: quantity,
+                        line_total: price * quantity,
+                        discounts: item.discounts || [],
+                        is_delivery: item.is_delivery || false,
+                        delivery_address: item.delivery_address || null
+                    };
+                }),
+                payment_type: sale.payment_type,
+                split_payments: sale.split_payments,
+                total: parseFloat(sale.total),
+                discounts: sale.discounts || [],
+                discount_total: sale.discounts ? sale.discounts.reduce((sum, d) => sum + parseFloat(d.amount || 0), 0) : 0,
+                validated: true,
+                synced: true
+            }));
+
+            // Show new search results
+            showSearchResults(selectedDate, formattedSales);
+        } catch (error) {
+            console.error("Error loading historical data:", error);
+            alert("Error loading sales for this date");
+        }
+    });
+
+    // Sales table
+    const $tableBody = $("#search-sales-table tbody").empty();
+    sales.forEach(sale => {
+        const numProducts = sale.items.reduce((sum, item) => sum + item.quantity, 0);
+        const totalBeforeDiscount = sale.items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+
+        // Display payment info - handle split payments
+        let paymentDisplay = '';
+        if (sale.split_payments && sale.split_payments.length > 1) {
+            paymentDisplay = `<span class="badge bg-warning text-dark">Split (${sale.split_payments.length})</span>`;
+        } else if (sale.split_payments && sale.split_payments.length === 1) {
+            paymentDisplay = sale.split_payments[0].payment_type || "";
+        } else {
+            paymentDisplay = sale.payment_type || "";
+        }
+
+        // Delivery display - check if any item is a delivery service
+        let deliveryDisplay = '-';
+        const deliveryItem = sale.items.find(item => item.is_delivery);
+        if (deliveryItem) {
+            const deliveryFee = deliveryItem.price * deliveryItem.quantity;
+            deliveryDisplay = `<span class="badge bg-success">$${deliveryFee.toFixed(2)}</span>`;
+        }
+
+        const saleDate = sale.date || new Date(sale.id).toLocaleString();
+
+        const $row = $(`
+            <tr>
+                <td>${saleDate}</td>
+                <td class="text-center">${numProducts}</td>
+                <td class="text-center">$${totalBeforeDiscount.toFixed(2)}</td>
+                <td class="text-center">$${(sale.total || 0).toFixed(2)}</td>
+                <td class="text-center">${paymentDisplay}</td>
+                <td class="text-center">${deliveryDisplay}</td>
+                <td><button class="btn btn-info view-sale-detail" data-id="${sale.id}"><i class="bi bi-eye"></i></button></td>
+            </tr>
+        `);
+
+        $row.find(".view-sale-detail").off("click").on("click", function() {
+            const saleId = $(this).data("id");
+            showSaleDetail(saleId, "search-results");
+        });
+
+        $tableBody.append($row);
+    });
+
+    // Setup back button
+    $("#btn-back-to-journal").off("click").on("click", () => {
+        // Reset to today's date
+        const today = new Date();
+        const todayDay = today.getDate().toString().padStart(2, '0');
+        const todayMonth = (today.getMonth() + 1).toString().padStart(2, '0');
+        const todayYear = today.getFullYear();
+
+        $("#journal-day").val(todayDay);
+        $("#journal-month").val(todayMonth);
+        $("#journal-year").val(todayYear);
+        showScreen("sales-history");
+    });
+
+    // Show the search results screen
+    showScreen("search-results");
 }
 
 // bind global buttons

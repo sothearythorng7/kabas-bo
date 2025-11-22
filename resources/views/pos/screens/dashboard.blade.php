@@ -503,7 +503,7 @@ function renderSalesTabs() {
         const globalDiscounts = sale.discounts || [];
 
         $.ajax({
-            url: "http://192.168.1.50:5000/print",
+            url: "https://192.168.1.50:5000/print",
             method: "POST",
             contentType: "application/json",
             data: JSON.stringify({ sale: { items: lines, discounts: globalDiscounts, ticket_number: sale.ticket_number, total } }),
@@ -637,11 +637,52 @@ function addProductToActiveSale(product) {
     renderSalesTabs(); saveSalesToLocal();
 }
 
+// Helper function to get all descendant category IDs
+function getAllDescendantCategoryIds(categoryId, categoryTree) {
+    const ids = [Number(categoryId)];
+
+    // Recursive function to find category node and collect all children
+    function findAndCollect(nodes, targetId) {
+        for (const node of nodes) {
+            if (Number(node.id) === Number(targetId)) {
+                collectChildren(node);
+                return true;
+            }
+            if (node.children && node.children.length > 0) {
+                if (findAndCollect(node.children, targetId)) return true;
+            }
+        }
+        return false;
+    }
+
+    // Collect all child IDs recursively
+    function collectChildren(node) {
+        if (node.children && node.children.length > 0) {
+            for (const child of node.children) {
+                ids.push(Number(child.id));
+                collectChildren(child);
+            }
+        }
+    }
+
+    findAndCollect(categoryTree, categoryId);
+    return ids;
+}
+
 function productMatchesSelectedPath(product) {
     if (!selectedPath.length) return true;
+
     const cats = product.categories || [];
-    const last = Number(selectedPath[selectedPath.length - 1]);
-    return cats.some(c => Number(c?.id) === last);
+    const selectedCategoryId = selectedPath[selectedPath.length - 1];
+
+    // Get all descendant category IDs (includes the selected category itself)
+    const allowedCategoryIds = getAllDescendantCategoryIds(
+        selectedCategoryId,
+        window.categoryTree
+    );
+
+    // Check if product has any of the allowed categories
+    return cats.some(c => allowedCategoryIds.includes(Number(c?.id)));
 }
 
 function renderCatalog() {
@@ -1273,7 +1314,7 @@ function printSale(sale) {
     const globalDiscounts = sale.discounts || [];
 
     $.ajax({
-        url: "http://192.168.1.50:5000/print",
+        url: "https://192.168.1.50:5000/print",
         method: "POST",
         contentType: "application/json",
         data: JSON.stringify({ sale: { items: lines, discounts: globalDiscounts, ticket_number: sale.ticket_number, total } }),

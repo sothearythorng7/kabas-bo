@@ -2,11 +2,11 @@ import Dexie from 'dexie';
 
 export const db = new Dexie('POS_DB');
 
-db.version(2).stores({
+db.version(3).stores({
   products: 'id,store_id,name,price,total_stock',
   sales: '++id,product_id,quantity,total,synced',
   users: 'id,name,pin_code,store_id',
-  shifts: '++id,user_id,store_id,started_at,ended_at,cash_start,cash_end,synced',
+  shifts: '++id,user_id,store_id,started_at,ended_at,cash_start,cash_end,visitors_count,cash_difference,synced',
 });
 
 // --- Utilisateurs ---
@@ -71,13 +71,15 @@ export async function startShift(userId, storeId, cashStart) {
   return shiftId;
 }
 
-export async function closeShift(shiftId, cashEnd) {
+export async function closeShift(shiftId, cashEnd, visitorsCount, cashDifference) {
   const id = Number(shiftId);
   if (!id) throw new Error('ShiftId invalide');
   const shift = await db.shifts.get(id);
   if (!shift) throw new Error('Shift non trouvé');
   await db.shifts.update(id, {
     cash_end: Number(cashEnd) || 0,
+    visitors_count: visitorsCount ? Number(visitorsCount) : null,
+    cash_difference: cashDifference ? Number(cashDifference) : null,
     ended_at: new Date().toISOString(),
     synced: 0
   });

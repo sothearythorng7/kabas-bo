@@ -57,13 +57,25 @@ class DashboardController extends Controller
         // Combiner les deux listes
         $productsOutOfStock = $productsWithoutBatches->merge($productsWithZeroStock)->unique()->count();
 
+        // Produits avec EAN fake ou vide
+        $productsWithFakeOrEmptyEan = Product::where(function($q) {
+            $q->where('ean', 'LIKE', 'FAKE-%')
+              ->orWhereNull('ean')
+              ->orWhere('ean', '');
+        })->count();
+
+        // Produits sans catégorie
+        $productsWithoutCategories = Product::whereDoesntHave('categories')->count();
+
         return view('dashboard', compact(
             'invoicesToPayCount',
             'invoicesToPayTotal',
             'productsWithoutImages',
             'productsWithoutDescriptionFr',
             'productsWithoutDescriptionEn',
-            'productsOutOfStock'
+            'productsOutOfStock',
+            'productsWithFakeOrEmptyEan',
+            'productsWithoutCategories'
         ));
     }
 
@@ -71,7 +83,7 @@ class DashboardController extends Controller
     {
         $issueType = $request->get('type', 'all');
 
-        $query = Product::with('brand', 'images');
+        $query = Product::with('brand', 'images', 'categories');
 
         // Filtrer selon le type de problème
         switch ($issueType) {
@@ -97,6 +109,18 @@ class DashboardController extends Controller
                 });
                 break;
 
+            case 'fake_or_empty_ean':
+                $query->where(function($q) {
+                    $q->where('ean', 'LIKE', 'FAKE-%')
+                      ->orWhereNull('ean')
+                      ->orWhere('ean', '');
+                });
+                break;
+
+            case 'no_category':
+                $query->whereDoesntHave('categories');
+                break;
+
             case 'all':
             default:
                 // Tous les produits avec au moins un problème
@@ -113,7 +137,13 @@ class DashboardController extends Controller
                               ->orWhereRaw("JSON_EXTRACT(description, '$.en') IS NULL")
                               ->orWhereRaw("JSON_UNQUOTE(JSON_EXTRACT(description, '$.en')) = ''")
                               ->orWhereRaw("TRIM(JSON_UNQUOTE(JSON_EXTRACT(description, '$.en'))) = ''");
-                        });
+                        })
+                        ->orWhere(function($q) {
+                            $q->where('ean', 'LIKE', 'FAKE-%')
+                              ->orWhereNull('ean')
+                              ->orWhere('ean', '');
+                        })
+                        ->orWhereDoesntHave('categories');
                 });
                 break;
         }
@@ -136,6 +166,16 @@ class DashboardController extends Controller
             $descEn = $product->description['en'] ?? '';
             if (empty(trim($descEn))) {
                 $issues[] = 'no_description_en';
+            }
+
+            // Vérifier si l'EAN est fake ou vide
+            if (empty($product->ean) || str_starts_with($product->ean, 'FAKE-')) {
+                $issues[] = 'fake_or_empty_ean';
+            }
+
+            // Vérifier si le produit n'a pas de catégorie
+            if ($product->categories->isEmpty()) {
+                $issues[] = 'no_category';
             }
 
             $product->issues = $issues;

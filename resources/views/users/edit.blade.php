@@ -46,7 +46,7 @@
                 @endforeach
             </select>
         </div>
-        <div class="mb-3" id="store-select" style="display:{{ $user->hasRole('Saler') ? 'block' : 'none' }};">
+        <div class="mb-3" id="store-select" style="display:{{ $user->hasRole('SELLER') ? 'block' : 'none' }};">
             <label>{{ __('messages.user_edit.site') }}</label>
             <select name="store_id" class="form-control" id="store_id">
                 <option value="">Sélectionnez un site</option>
@@ -75,7 +75,7 @@ const storeDiv = document.getElementById('store-select');
 const storeSelect = document.getElementById('store_id');
 
 function toggleStoreSelect() {
-    if(roleSelect.value === 'Saler') {
+    if(roleSelect.value === 'SELLER') {
         storeDiv.style.display = 'block';
         storeSelect.setAttribute('required', true);
     } else {

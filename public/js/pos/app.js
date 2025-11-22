@@ -1257,7 +1257,7 @@ function showSearchResults(searchDate, sales) {
 // bind global buttons
 $(document).on("click", "#btn-logout", logout);
 $(document).on("click", "#btn-end-shift", function() {
-    if (currentUser) showScreen("shiftend");
+    if (currentUser) { showScreen("shiftend"); initShiftEnd(); }
 });
 $(document).on("click", "#btn-journal", function() {
     if (currentUser) showScreen("sales-history");

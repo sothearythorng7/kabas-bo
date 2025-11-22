@@ -108,9 +108,13 @@
                     @foreach($locales as $locale)
                         <div class="tab-pane fade @if($i===0) show active @endif" id="name-{{ $locale }}" role="tabpanel">
                             <div class="mb-3">
-                                <label class="form-label">{{ __('messages.product.name') }} ({{ strtoupper($locale) }})</label>
+                                <label class="form-label">{{ __('messages.product.name') }} ({{ strtoupper($locale) }})
+                                    @if($locale === 'en')
+                                        <span class="text-danger">*</span>
+                                    @endif
+                                </label>
                                 <input type="text" name="name[{{ $locale }}]" class="form-control"
-                                       value="{{ old("name.$locale", $product->name[$locale] ?? '') }}" required>
+                                       value="{{ old("name.$locale", $product->name[$locale] ?? '') }}" {{ $locale === 'en' ? 'required' : '' }}>
                             </div>
                         </div>
                         @php $i++; @endphp

@@ -150,26 +150,104 @@
         {{-- Onglet Produits --}}
         @if(in_array($resellerType, ['consignment', 'shop']))
         <div class="tab-pane fade" id="products" role="tabpanel" aria-labelledby="products-tab">
+            {{-- Formulaire de recherche --}}
+            <div class="mb-3">
+                <form action="{{ route('resellers.show', $reseller->id) }}" method="GET" class="row g-2">
+                    <input type="hidden" name="tab" value="products">
+                    <div class="col-md-6">
+                        <input type="text" name="q" value="{{ request('q') }}" class="form-control"
+                               placeholder="Rechercher par nom ou EAN">
+                    </div>
+                    <div class="col-md-2">
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="bi bi-search"></i> {{ __('messages.btn.search') }}
+                        </button>
+                    </div>
+                    @if(request('q'))
+                    <div class="col-md-2">
+                        <a href="{{ route('resellers.show', $reseller->id) }}?tab=products" class="btn btn-secondary w-100">
+                            <i class="bi bi-x-circle"></i> {{ __('messages.btn.reset') }}
+                        </a>
+                    </div>
+                    @endif
+                </form>
+            </div>
+
             <table class="table table-striped table-hover mt-3">
                 <thead>
                     <tr>
                         <th>{{ __('messages.product.name') }}</th>
                         <th>{{ __('messages.product.brand') }}</th>
                         <th class="text-center">{{ __('messages.resellers.stock') }}</th>
+                        <th class="text-center">{{ __('messages.resellers.stock_alert') }}</th>
+                        <th class="text-center">{{ __('messages.btn.actions') }}</th>
                     </tr>
                 </thead>
                 <tbody>
                     @foreach($products as $product)
+                        @php
+                            $currentStock = $stock[$product->id] ?? 0;
+                            $alertThreshold = $alertStocks[$product->id] ?? 0;
+                        @endphp
                         <tr>
                             <td>{{ $product->name[app()->getLocale()] ?? reset($product->name) }}</td>
                             <td>{{ $product->brand->name ?? '-' }}</td>
-                            <td class="text-center">{{ $stock[$product->id] ?? 0 }}</td>
+                            <td class="text-center">
+                                <span class="badge {{ $currentStock >= $alertThreshold ? 'bg-success' : 'bg-danger' }}">
+                                    {{ $currentStock }}
+                                </span>
+                            </td>
+                            <td class="text-center">{{ $alertThreshold }}</td>
+                            <td class="text-center">
+                                <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#editStockModal{{ $product->id }}">
+                                    <i class="bi bi-pencil-fill"></i>
+                                </button>
+                            </td>
                         </tr>
+
+                        {{-- Modal pour éditer le stock --}}
+                        <div class="modal fade" id="editStockModal{{ $product->id }}" tabindex="-1" aria-hidden="true">
+                            <div class="modal-dialog modal-dialog-scrollable">
+                                <form action="{{ route('resellers.update-stock', $reseller->id) }}" method="POST">
+                                    @csrf
+                                    <input type="hidden" name="product_id" value="{{ $product->id }}">
+                                    <div class="modal-content">
+                                        <div class="modal-header">
+                                            <h5 class="modal-title">{{ __('messages.resellers.edit_stock') }}: {{ $product->name[app()->getLocale()] ?? reset($product->name) }}</h5>
+                                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                        </div>
+                                        <div class="modal-body">
+                                            <div class="mb-3">
+                                                <label class="form-label">{{ __('messages.resellers.current_stock') }}</label>
+                                                <input type="text" class="form-control" value="{{ $currentStock }}" disabled>
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="form-label">{{ __('messages.resellers.new_stock') }}</label>
+                                                <input type="number" name="new_stock" class="form-control" value="{{ $currentStock }}" required min="0">
+                                                <small class="text-muted">{{ __('messages.resellers.adjustment_note') }}</small>
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="form-label">{{ __('messages.resellers.alert_threshold') }}</label>
+                                                <input type="number" name="alert_stock" class="form-control" value="{{ $alertThreshold }}" min="0">
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="form-label">{{ __('messages.resellers.adjustment_reason') }}</label>
+                                                <textarea name="note" class="form-control" rows="2"></textarea>
+                                            </div>
+                                        </div>
+                                        <div class="modal-footer">
+                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ __('messages.btn.cancel') }}</button>
+                                            <button type="submit" class="btn btn-primary">{{ __('messages.btn.save') }}</button>
+                                        </div>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
                     @endforeach
                 </tbody>
             </table>
             @if($products instanceof \Illuminate\Pagination\LengthAwarePaginator)
-                {{ $products->links() }}
+                {{ $products->appends(['tab' => 'products', 'q' => request('q')])->links() }}
             @endif
         </div>
 
@@ -356,4 +434,52 @@
         </div>
     </div>
 </div>
+
+<style>
+/* S'assurer que le modal-footer est visible */
+.modal-dialog-scrollable .modal-content {
+    max-height: calc(100vh - 3.5rem);
+}
+
+.modal-dialog-scrollable .modal-body {
+    overflow-y: auto;
+}
+
+.modal-footer {
+    display: flex !important;
+    flex-shrink: 0;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    padding: 0.75rem;
+    border-top: 1px solid #dee2e6;
+}
+</style>
+
+<script>
+// Gérer l'affichage de l'onglet selon le paramètre tab
+document.addEventListener('DOMContentLoaded', function() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const tab = urlParams.get('tab');
+
+    if (tab) {
+        // Désactiver tous les onglets
+        document.querySelectorAll('.nav-link').forEach(link => {
+            link.classList.remove('active');
+        });
+        document.querySelectorAll('.tab-pane').forEach(pane => {
+            pane.classList.remove('show', 'active');
+        });
+
+        // Activer l'onglet demandé
+        const targetTab = document.getElementById(tab + '-tab');
+        const targetPane = document.getElementById(tab);
+
+        if (targetTab && targetPane) {
+            targetTab.classList.add('active');
+            targetPane.classList.add('show', 'active');
+        }
+    }
+});
+</script>
 @endsection

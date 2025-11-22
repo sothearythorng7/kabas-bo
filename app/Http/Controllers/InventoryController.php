@@ -6,6 +6,7 @@ use App\Models\Product;
 use App\Models\Store;
 use App\Models\StockBatch;
 use App\Models\Brand;
+use App\Models\Reseller;
 use Illuminate\Http\Request;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
@@ -22,8 +23,9 @@ class InventoryController extends Controller
     public function index()
     {
         $stores = Store::orderBy('name')->get();
+        $resellers = Reseller::where('type', 'consignment')->orderBy('name')->get();
         $brands = Brand::orderBy('name')->get();
-        return view('inventory.index', compact('stores', 'brands'));
+        return view('inventory.index', compact('stores', 'resellers', 'brands'));
     }
 
     /**
@@ -32,11 +34,26 @@ class InventoryController extends Controller
     public function export(Request $request)
     {
         $request->validate([
-            'store_id' => 'required|exists:stores,id',
+            'location_type' => 'required|in:store,reseller',
+            'location_id' => 'required|integer',
             'brand_id' => 'nullable|string',
         ]);
 
-        $store = Store::findOrFail($request->store_id);
+        // Determine if we're working with a store or reseller
+        $isStore = $request->location_type === 'store';
+        $storeId = null;
+        $resellerId = null;
+        $locationName = '';
+
+        if ($isStore) {
+            $store = Store::findOrFail($request->location_id);
+            $storeId = $store->id;
+            $locationName = $store->name;
+        } else {
+            $reseller = Reseller::where('type', 'consignment')->findOrFail($request->location_id);
+            $resellerId = $reseller->id;
+            $locationName = $reseller->name;
+        }
 
         // Get products filtered by brand if specified
         $query = Product::with(['brand']);
@@ -116,10 +133,15 @@ class InventoryController extends Controller
         $row = 2;
         foreach ($products as $product) {
             // Calculate theoretical stock from batches
-            $theoreticalStock = StockBatch::where('product_id', $product->id)
-                ->where('store_id', $store->id)
-                ->whereNull('reseller_id')
-                ->sum('quantity');
+            $query = StockBatch::where('product_id', $product->id);
+
+            if ($isStore) {
+                $query->where('store_id', $storeId)->whereNull('reseller_id');
+            } else {
+                $query->where('reseller_id', $resellerId);
+            }
+
+            $theoreticalStock = $query->sum('quantity');
 
             // Get translated product name based on current locale
             $locale = app()->getLocale();
@@ -146,7 +168,7 @@ class InventoryController extends Controller
         $sheet->getProtection()->setPassword('inventory2024');
 
         // Generate filename
-        $filename = 'inventaire_' . str_replace(' ', '_', $store->name) . '_' . date('Y-m-d_His') . '.xlsx';
+        $filename = 'inventaire_' . str_replace(' ', '_', $locationName) . '_' . date('Y-m-d_His') . '.xlsx';
 
         // Save to temporary file
         $tempFile = tempnam(sys_get_temp_dir(), 'inventory_');
@@ -162,12 +184,28 @@ class InventoryController extends Controller
     public function import(Request $request)
     {
         $request->validate([
-            'store_id' => 'required|exists:stores,id',
+            'location_type' => 'required|in:store,reseller',
+            'location_id' => 'required|integer',
             'inventory_file' => 'required|file|mimes:xlsx,xls',
             'brand_id' => 'nullable|string',
         ]);
 
-        $store = Store::findOrFail($request->store_id);
+        // Determine if we're working with a store or reseller
+        $isStore = $request->location_type === 'store';
+        $storeId = null;
+        $resellerId = null;
+        $locationName = '';
+
+        if ($isStore) {
+            $store = Store::findOrFail($request->location_id);
+            $storeId = $store->id;
+            $locationName = $store->name;
+        } else {
+            $reseller = Reseller::where('type', 'consignment')->findOrFail($request->location_id);
+            $resellerId = $reseller->id;
+            $locationName = $reseller->name;
+        }
+
         $file = $request->file('inventory_file');
 
         try {
@@ -234,7 +272,11 @@ class InventoryController extends Controller
             }
 
             // Store data in session for confirmation
-            session(['inventory_updates' => $updates, 'inventory_store_id' => $store->id]);
+            session([
+                'inventory_updates' => $updates,
+                'inventory_location_type' => $request->location_type,
+                'inventory_location_id' => $request->location_id,
+            ]);
 
             return redirect()->route('inventory.confirm');
 
@@ -250,16 +292,26 @@ class InventoryController extends Controller
     public function confirm()
     {
         $updates = session('inventory_updates');
-        $storeId = session('inventory_store_id');
+        $locationType = session('inventory_location_type');
+        $locationId = session('inventory_location_id');
 
-        if (!$updates || !$storeId) {
+        if (!$updates || !$locationType || !$locationId) {
             return redirect()->route('inventory.index')
                 ->with('error', __('messages.inventory.no_data_to_confirm'));
         }
 
-        $store = Store::findOrFail($storeId);
+        $isStore = $locationType === 'store';
+        $locationName = '';
 
-        return view('inventory.confirm', compact('updates', 'store'));
+        if ($isStore) {
+            $location = Store::findOrFail($locationId);
+            $locationName = $location->name;
+        } else {
+            $location = Reseller::where('type', 'consignment')->findOrFail($locationId);
+            $locationName = $location->name;
+        }
+
+        return view('inventory.confirm', compact('updates', 'location', 'locationName', 'isStore'));
     }
 
     /**
@@ -268,14 +320,17 @@ class InventoryController extends Controller
     public function apply(Request $request)
     {
         $updates = session('inventory_updates');
-        $storeId = session('inventory_store_id');
+        $locationType = session('inventory_location_type');
+        $locationId = session('inventory_location_id');
 
-        if (!$updates || !$storeId) {
+        if (!$updates || !$locationType || !$locationId) {
             return redirect()->route('inventory.index')
                 ->with('error', __('messages.inventory.no_data_to_apply'));
         }
 
-        $store = Store::findOrFail($storeId);
+        $isStore = $locationType === 'store';
+        $storeId = $isStore ? $locationId : null;
+        $resellerId = !$isStore ? $locationId : null;
 
         DB::beginTransaction();
 
@@ -289,7 +344,7 @@ class InventoryController extends Controller
                     StockBatch::create([
                         'product_id' => $productId,
                         'store_id' => $storeId,
-                        'reseller_id' => null,
+                        'reseller_id' => $resellerId,
                         'quantity' => $difference,
                         'unit_price' => 0,
                         'source_delivery_id' => null,
@@ -300,12 +355,17 @@ class InventoryController extends Controller
                     // Remove stock - deduct from existing batches (FIFO)
                     $quantityToRemove = abs($difference);
 
-                    $batches = StockBatch::where('product_id', $productId)
-                        ->where('store_id', $storeId)
-                        ->whereNull('reseller_id')
+                    $query = StockBatch::where('product_id', $productId)
                         ->where('quantity', '>', 0)
-                        ->orderBy('created_at', 'asc')
-                        ->get();
+                        ->orderBy('created_at', 'asc');
+
+                    if ($isStore) {
+                        $query->where('store_id', $storeId)->whereNull('reseller_id');
+                    } else {
+                        $query->where('reseller_id', $resellerId);
+                    }
+
+                    $batches = $query->get();
 
                     foreach ($batches as $batch) {
                         if ($quantityToRemove <= 0) break;
@@ -326,7 +386,7 @@ class InventoryController extends Controller
             DB::commit();
 
             // Clear session data
-            session()->forget(['inventory_updates', 'inventory_store_id']);
+            session()->forget(['inventory_updates', 'inventory_location_type', 'inventory_location_id']);
 
             return redirect()->route('inventory.index')
                 ->with('success', __('messages.inventory.updated', ['count' => count($updates)]));
@@ -343,7 +403,7 @@ class InventoryController extends Controller
      */
     public function cancel()
     {
-        session()->forget(['inventory_updates', 'inventory_store_id']);
+        session()->forget(['inventory_updates', 'inventory_location_type', 'inventory_location_id']);
         return redirect()->route('inventory.index')
             ->with('info', __('messages.inventory.import_cancelled'));
     }

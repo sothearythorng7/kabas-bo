@@ -50,9 +50,133 @@
         <div class="alert alert-warning">{{ session('warning') }}</div>
     @endif
 
-    @if(!$shift)
+    @if($shifts->isNotEmpty())
+        <!-- Liste des shifts filtrés -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-list"></i> @t('Liste des shifts')</h5>
+            </div>
+            <div class="card-body">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>@t('ID')</th>
+                            <th>@t('Utilisateur')</th>
+                            <th>@t('Début')</th>
+                            <th>@t('Fin')</th>
+                            <th>@t('Durée')</th>
+                            <th>@t('Caisse ouverture')</th>
+                            <th>@t('Caisse clôture')</th>
+                            <th>@t('Différence cash')</th>
+                            <th>@t('Actions')</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach($shifts as $s)
+                        <tr>
+                            <td>{{ $s->id }}</td>
+                            <td>{{ $s->user->name ?? 'N/A' }}</td>
+                            <td>{{ $s->started_at ? $s->started_at->format('d/m/Y H:i') : 'N/A' }}</td>
+                            <td>{{ $s->ended_at ? $s->ended_at->format('d/m/Y H:i') : 'En cours' }}</td>
+                            <td>
+                                @if($s->started_at && $s->ended_at)
+                                    {{ $s->started_at->diffForHumans($s->ended_at, true) }}
+                                @else
+                                    {{ $s->started_at->diffForHumans(null, true) }}
+                                @endif
+                            </td>
+                            <td>${{ number_format($s->opening_cash ?? 0, 2) }}</td>
+                            <td>
+                                @if($s->closing_cash !== null)
+                                    ${{ number_format($s->closing_cash, 2) }}
+                                @else
+                                    <span class="text-muted">N/A</span>
+                                @endif
+                            </td>
+                            <td>
+                                @if($s->cash_difference !== null)
+                                    <span class="badge bg-{{ $s->cash_difference == 0 ? 'success' : ($s->cash_difference > 0 ? 'warning' : 'danger') }}">
+                                        {{ $s->cash_difference > 0 ? '+' : '' }}${{ number_format($s->cash_difference, 2) }}
+                                    </span>
+                                @else
+                                    <span class="text-muted">N/A</span>
+                                @endif
+                            </td>
+                            <td>
+                                <a href="{{ route('financial.shifts.index', array_merge(['store' => $store->id, 'shift_id' => $s->id], request()->only(['date_from', 'date_to', 'user_id']))) }}"
+                                   class="btn btn-sm btn-primary">
+                                    <i class="bi bi-eye"></i> @t('Voir détails')
+                                </a>
+                            </td>
+                        </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    @elseif(!$shift)
         <div class="alert alert-info">@t('Aucun shift ouvert pour ce magasin.')</div>
     @else
+        <!-- Informations du shift -->
+        <div class="card mb-4">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0"><i class="bi bi-clock-history"></i> @t('Détails du shift')</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-3">
+                        <strong>@t('Utilisateur'):</strong><br>
+                        {{ $shift->user->name ?? 'N/A' }}
+                    </div>
+                    <div class="col-md-3">
+                        <strong>@t('Début'):</strong><br>
+                        {{ $shift->started_at ? $shift->started_at->format('d/m/Y H:i') : 'N/A' }}
+                    </div>
+                    <div class="col-md-3">
+                        <strong>@t('Fin'):</strong><br>
+                        {{ $shift->ended_at ? $shift->ended_at->format('d/m/Y H:i') : 'En cours' }}
+                    </div>
+                    <div class="col-md-3">
+                        <strong>@t('Durée'):</strong><br>
+                        @if($shift->started_at && $shift->ended_at)
+                            {{ $shift->started_at->diffForHumans($shift->ended_at, true) }}
+                        @else
+                            {{ $shift->started_at->diffForHumans(null, true) }}
+                        @endif
+                    </div>
+                </div>
+                <hr>
+                <div class="row">
+                    <div class="col-md-3">
+                        <strong>@t('Caisse ouverture'):</strong><br>
+                        ${{ number_format($shift->opening_cash ?? 0, 2) }}
+                    </div>
+                    <div class="col-md-3">
+                        <strong>@t('Caisse clôture'):</strong><br>
+                        @if($shift->closing_cash !== null)
+                            ${{ number_format($shift->closing_cash, 2) }}
+                        @else
+                            <span class="text-muted">N/A</span>
+                        @endif
+                    </div>
+                    <div class="col-md-3">
+                        <strong>@t('Différence cash'):</strong><br>
+                        @if($shift->cash_difference !== null)
+                            <span class="badge bg-{{ $shift->cash_difference == 0 ? 'success' : ($shift->cash_difference > 0 ? 'warning' : 'danger') }}">
+                                {{ $shift->cash_difference > 0 ? '+' : '' }}${{ number_format($shift->cash_difference, 2) }}
+                            </span>
+                        @else
+                            <span class="text-muted">N/A</span>
+                        @endif
+                    </div>
+                    <div class="col-md-3">
+                        <strong>@t('Visiteurs'):</strong><br>
+                        {{ $shift->visitors_count ?? 'N/A' }}
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <div class="row mb-4">
             <div class="col-md-3">
                 <div class="card text-white bg-primary mb-3">

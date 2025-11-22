@@ -6,7 +6,12 @@
 
     <div class="alert alert-warning">
         <i class="bi bi-exclamation-triangle"></i>
-        <strong>{{ __('messages.inventory.warning_same_store') }}</strong> {{ __('messages.inventory.confirm_warning') }} <strong>{{ $store->name }}</strong>.
+        <strong>{{ __('messages.inventory.warning_same_store') }}</strong> {{ __('messages.inventory.confirm_warning') }} <strong>{{ $locationName }}</strong>
+        @if($isStore)
+            ({{ __('messages.inventory.store') }})
+        @else
+            ({{ __('messages.inventory.reseller_consignment') }})
+        @endif.
     </div>
 
     <div class="card mb-4">

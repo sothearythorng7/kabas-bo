@@ -4,7 +4,7 @@
 <h1 class="mt-4 mb-4">@t('Tableau de bord')</h1>
 
 <!-- Tableau des alertes produits -->
-@if(($productsWithoutImages ?? 0) > 0 || ($productsWithoutDescriptionFr ?? 0) > 0 || ($productsWithoutDescriptionEn ?? 0) > 0 || ($productsOutOfStock ?? 0) > 0)
+@if(($productsWithoutImages ?? 0) > 0 || ($productsWithoutDescriptionFr ?? 0) > 0 || ($productsWithoutDescriptionEn ?? 0) > 0 || ($productsOutOfStock ?? 0) > 0 || ($productsWithFakeOrEmptyEan ?? 0) > 0 || ($productsWithoutCategories ?? 0) > 0)
 <div class="card shadow mb-4">
     <div class="card-header py-3">
         <h6 class="m-0 font-weight-bold text-danger">
@@ -81,6 +81,38 @@
                         <td class="text-center">
                             <a class="btn btn-sm btn-danger" href="{{ route('stocks.index') }}">
                                 <i class="bi bi-eye"></i> @t('Voir le stock')
+                            </a>
+                        </td>
+                    </tr>
+                    @endif
+
+                    @if(($productsWithFakeOrEmptyEan ?? 0) > 0)
+                    <tr>
+                        <td>
+                            <i class="bi bi-upc-scan text-warning"></i> @t('Produits avec EAN fake ou vide')
+                        </td>
+                        <td class="text-center">
+                            <span class="badge bg-warning text-dark fs-5">{{ $productsWithFakeOrEmptyEan }}</span>
+                        </td>
+                        <td class="text-center">
+                            <a class="btn btn-sm btn-warning" href="{{ route('dashboard.products-issues', ['type' => 'fake_or_empty_ean']) }}">
+                                <i class="bi bi-eye"></i> @t('Voir les produits')
+                            </a>
+                        </td>
+                    </tr>
+                    @endif
+
+                    @if(($productsWithoutCategories ?? 0) > 0)
+                    <tr>
+                        <td>
+                            <i class="bi bi-bookmarks text-primary"></i> @t('Produits sans catégorie')
+                        </td>
+                        <td class="text-center">
+                            <span class="badge bg-primary fs-5">{{ $productsWithoutCategories }}</span>
+                        </td>
+                        <td class="text-center">
+                            <a class="btn btn-sm btn-primary" href="{{ route('dashboard.products-issues', ['type' => 'no_category']) }}">
+                                <i class="bi bi-eye"></i> @t('Voir les produits')
                             </a>
                         </td>
                     </tr>

@@ -62,7 +62,7 @@ const storeDiv = document.getElementById('store-select');
 const storeSelect = document.getElementById('store_id');
 
 function toggleStoreSelect() {
-    if(roleSelect.value === 'Saler') {
+    if(roleSelect.value === 'SELLER') {
         storeDiv.style.display = 'block';
         storeSelect.setAttribute('required', true);
     } else {

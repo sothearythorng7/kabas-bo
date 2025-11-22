@@ -15,12 +15,19 @@
                     <form action="{{ route('inventory.export') }}" method="POST">
                         @csrf
                         <div class="mb-3">
-                            <label for="export_store_id" class="form-label">{{ __('messages.inventory.select_store') }} *</label>
-                            <select name="store_id" id="export_store_id" class="form-select" required>
-                                <option value="">-- {{ __('messages.inventory.choose_store') }} --</option>
-                                @foreach($stores as $store)
-                                    <option value="{{ $store->id }}">{{ $store->name }}</option>
-                                @endforeach
+                            <label for="export_location_type" class="form-label">{{ __('messages.inventory.select_location_type') }} *</label>
+                            <select name="location_type" id="export_location_type" class="form-select" required onchange="updateExportLocationOptions()">
+                                <option value="">-- {{ __('messages.inventory.choose_location_type') }} --</option>
+                                <option value="store">{{ __('messages.inventory.store') }}</option>
+                                <option value="reseller">{{ __('messages.inventory.reseller_consignment') }}</option>
+                            </select>
+                        </div>
+                        <div class="mb-3" id="export_location_container" style="display: none;">
+                            <label for="export_location_id" class="form-label">
+                                <span id="export_location_label">{{ __('messages.inventory.select_location') }}</span> *
+                            </label>
+                            <select name="location_id" id="export_location_id" class="form-select" required>
+                                <option value="">-- {{ __('messages.inventory.choose_location') }} --</option>
                             </select>
                         </div>
                         <div class="mb-3">
@@ -55,12 +62,19 @@
                     <form action="{{ route('inventory.import') }}" method="POST" enctype="multipart/form-data">
                         @csrf
                         <div class="mb-3">
-                            <label for="import_store_id" class="form-label">{{ __('messages.inventory.select_store') }} *</label>
-                            <select name="store_id" id="import_store_id" class="form-select" required>
-                                <option value="">-- {{ __('messages.inventory.choose_store') }} --</option>
-                                @foreach($stores as $store)
-                                    <option value="{{ $store->id }}">{{ $store->name }}</option>
-                                @endforeach
+                            <label for="import_location_type" class="form-label">{{ __('messages.inventory.select_location_type') }} *</label>
+                            <select name="location_type" id="import_location_type" class="form-select" required onchange="updateImportLocationOptions()">
+                                <option value="">-- {{ __('messages.inventory.choose_location_type') }} --</option>
+                                <option value="store">{{ __('messages.inventory.store') }}</option>
+                                <option value="reseller">{{ __('messages.inventory.reseller_consignment') }}</option>
+                            </select>
+                        </div>
+                        <div class="mb-3" id="import_location_container" style="display: none;">
+                            <label for="import_location_id" class="form-label">
+                                <span id="import_location_label">{{ __('messages.inventory.select_location') }}</span> *
+                            </label>
+                            <select name="location_id" id="import_location_id" class="form-select" required>
+                                <option value="">-- {{ __('messages.inventory.choose_location') }} --</option>
                             </select>
                         </div>
                         <div class="mb-3">
@@ -152,4 +166,78 @@
         </div>
     </div>
 @endif
+
+<script>
+// Data from backend
+const stores = @json($stores);
+const resellers = @json($resellers);
+
+function updateExportLocationOptions() {
+    const locationType = document.getElementById('export_location_type').value;
+    const locationContainer = document.getElementById('export_location_container');
+    const locationSelect = document.getElementById('export_location_id');
+    const locationLabel = document.getElementById('export_location_label');
+
+    if (!locationType) {
+        locationContainer.style.display = 'none';
+        locationSelect.innerHTML = '<option value="">-- {{ __('messages.inventory.choose_location') }} --</option>';
+        return;
+    }
+
+    locationContainer.style.display = 'block';
+    locationSelect.innerHTML = '<option value="">-- {{ __('messages.inventory.choose_location') }} --</option>';
+
+    if (locationType === 'store') {
+        locationLabel.textContent = '{{ __('messages.inventory.select_store') }}';
+        stores.forEach(store => {
+            const option = document.createElement('option');
+            option.value = store.id;
+            option.textContent = store.name;
+            locationSelect.appendChild(option);
+        });
+    } else if (locationType === 'reseller') {
+        locationLabel.textContent = '{{ __('messages.inventory.select_reseller') }}';
+        resellers.forEach(reseller => {
+            const option = document.createElement('option');
+            option.value = reseller.id;
+            option.textContent = reseller.name;
+            locationSelect.appendChild(option);
+        });
+    }
+}
+
+function updateImportLocationOptions() {
+    const locationType = document.getElementById('import_location_type').value;
+    const locationContainer = document.getElementById('import_location_container');
+    const locationSelect = document.getElementById('import_location_id');
+    const locationLabel = document.getElementById('import_location_label');
+
+    if (!locationType) {
+        locationContainer.style.display = 'none';
+        locationSelect.innerHTML = '<option value="">-- {{ __('messages.inventory.choose_location') }} --</option>';
+        return;
+    }
+
+    locationContainer.style.display = 'block';
+    locationSelect.innerHTML = '<option value="">-- {{ __('messages.inventory.choose_location') }} --</option>';
+
+    if (locationType === 'store') {
+        locationLabel.textContent = '{{ __('messages.inventory.select_store') }}';
+        stores.forEach(store => {
+            const option = document.createElement('option');
+            option.value = store.id;
+            option.textContent = store.name;
+            locationSelect.appendChild(option);
+        });
+    } else if (locationType === 'reseller') {
+        locationLabel.textContent = '{{ __('messages.inventory.select_reseller') }}';
+        resellers.forEach(reseller => {
+            const option = document.createElement('option');
+            option.value = reseller.id;
+            option.textContent = reseller.name;
+            locationSelect.appendChild(option);
+        });
+    }
+}
+</script>
 @endsection

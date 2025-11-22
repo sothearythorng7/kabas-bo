@@ -11,7 +11,7 @@ class Shift extends Model
     use HasFactory;
 
     protected $fillable = [
-        'user_id', 'store_id', 'opening_cash', 'closing_cash', 'started_at', 'ended_at', 'synced'
+        'user_id', 'store_id', 'opening_cash', 'closing_cash', 'visitors_count', 'cash_difference', 'started_at', 'ended_at', 'synced'
     ];
 
     protected $casts = [

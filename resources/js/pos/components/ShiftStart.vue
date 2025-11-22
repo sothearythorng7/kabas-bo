@@ -6,8 +6,8 @@
           <h5 class="modal-title">Démarrage du shift</h5>
         </div>
         <div class="modal-body">
-          <label>Cash en caisse:</label>
-          <input type="number" v-model="cash" class="form-control" />
+          <label class="form-label fw-bold mb-3">Cash en caisse ($):</label>
+          <VirtualKeypad v-model="cash" :allow-decimal="true" placeholder="0.00" />
         </div>
         <div class="modal-footer">
           <button class="btn btn-primary" @click="startShiftHandler">Démarrer</button>
@@ -22,6 +22,7 @@ import { ref } from 'vue';
 import { useUserStore } from '../store/User.js';
 import { syncShifts } from '../db.js';
 import { closeShiftStart } from './ModalManager.vue';
+import VirtualKeypad from './VirtualKeypad.vue';
 
 const cash = ref(0);
 const store = useUserStore();

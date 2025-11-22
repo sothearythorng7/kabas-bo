@@ -108,6 +108,7 @@ Route::middleware(['auth', SetUserLocale::class])->group(function () {
         Route::resource('suppliers', SupplierController::class)->except('show');
         Route::resource('categories', CategoryController::class)->except(['show', 'create', 'edit']);
         Route::resource('brands', BrandController::class);
+        Route::get('products/check-ean', [ProductController::class, 'checkEan'])->name('products.check-ean');
         Route::resource('products', ProductController::class);
         Route::post('products/{product}/photos', [ProductController::class, 'uploadPhotos'])->name('products.photos.upload');
         Route::delete('products/{product}/photos/{photo}', [ProductController::class, 'deletePhoto'])->name('products.photos.delete');
@@ -293,6 +294,7 @@ Route::middleware(['auth', SetUserLocale::class])->group(function () {
 
 
         Route::resource('resellers', ResellerController::class);
+        Route::post('resellers/{reseller}/update-stock', [ResellerController::class, 'updateStock'])->name('resellers.update-stock');
         Route::post('resellers/{reseller}/contacts', [ResellerContactController::class, 'store'])->name('resellers.contacts.store');
         Route::delete('resellers/{reseller}/contacts/{contact}', [ResellerContactController::class, 'destroy'])->name('resellers.contacts.destroy');
         Route::get('resellers/{reseller}/deliveries/create', [ResellerStockDeliveryController::class, 'create'])->name('resellers.deliveries.create');
@@ -416,8 +418,10 @@ Route::prefix('api/pos')->middleware('api')->group(function () {
 
     // Shifts
     Route::get('shifts/current/{userId}', [ShiftController::class, 'currentShift']);
+    Route::get('shifts/expected-cash/{userId}', [ShiftController::class, 'expectedCash']);
     Route::post('shifts/start', [ShiftController::class, 'start']);
     Route::post('shifts/end', [ShiftController::class, 'end']);
+    Route::post('shifts/sync', [SyncController::class, 'shifts']);
     Route::post('shifts/sales-by-date', [ShiftController::class, 'salesByDate']);
 
     Route::post('sales/sync', [SyncController::class, 'sales']);

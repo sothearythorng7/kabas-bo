@@ -60,6 +60,14 @@ class ProductController extends Controller
         return view('products.index', compact('products', 'brands'));
     }
 
+    public function checkEan(Request $request)
+    {
+        $ean = $request->query('ean');
+        $exists = Product::where('ean', $ean)->exists();
+
+        return response()->json(['exists' => $exists]);
+    }
+
     public function show(Product $product)
     {
         return response()->json($product);
@@ -94,14 +102,25 @@ public function store(Request $request)
         'is_active' => 'sometimes|boolean',
         'is_best_seller' => 'sometimes|boolean',
         'name' => 'required|array',
-        'name.*' => 'required|string',
+        'name.en' => 'required|string',
+        'name.*' => 'nullable|string',
     ]);
 
     $product = null;
 
     DB::transaction(function () use ($data, $locales, &$product) {
+        // Préparer les traductions pour name et slugs
+        $nameTranslations = [];
+        $slugsTranslations = [];
+        foreach ($locales as $locale) {
+            $nameTranslations[$locale] = $data['name'][$locale] ?? '';
+            $slugsTranslations[$locale] = Str::slug($data['name'][$locale] ?? '');
+        }
+
         $product = Product::create([
             'ean' => $data['ean'],
+            'name' => $nameTranslations,
+            'slugs' => $slugsTranslations,
             'price' => $data['price'] ?? 0,
             'price_btob' => $data['price_btob'] ?? 0,
             'brand_id' => $data['brand_id'] ?? null,
@@ -111,20 +130,14 @@ public function store(Request $request)
             'allow_overselling' => $data['allow_overselling'] ?? false,
         ]);
 
-        foreach ($locales as $locale) {
-            $product->setTranslation('name', $locale, $data['name'][$locale] ?? '');
-            $product->setTranslation('slugs', $locale, Str::slug($data['name'][$locale] ?? ''));
-        }
-
-        $product->save();
-
-        // Attacher tous les magasins avec stock initial 0
+        // Attacher tous les magasins avec alerte de stock par défaut
         $stores = Store::all();
         $syncData = [];
         foreach ($stores as $store) {
             $syncData[$store->id] = [
-                'stock_quantity' => 0,
-                'alert_stock_quantity' => 0
+                'alert_stock_quantity' => 0,
+                'created_at' => now(),
+                'updated_at' => now(),
             ];
         }
         $product->stores()->attach($syncData);
@@ -174,7 +187,8 @@ public function update(Request $request, Product $product)
     $data = $request->validate([
         'ean' => 'required|string|unique:products,ean,'.$product->id,
         'name' => 'required|array',
-        'name.*' => 'required|string',
+        'name.en' => 'required|string',
+        'name.*' => 'nullable|string',
         'description' => 'nullable|array',
         'description.*' => 'nullable|string',
         'price' => 'required|numeric|min:0',
@@ -359,7 +373,7 @@ public function update(Request $request, Product $product)
         ]);
 
         $newQuantity = $request->stock_quantity;
-        $alertQuantity = $request->stock_quantity ?? 0;
+        $alertQuantity = $request->alert_stock_quantity ?? 0;
 
         DB::transaction(function() use ($product, $store, $newQuantity, $alertQuantity) {
             $currentStock = $product->stockBatches()

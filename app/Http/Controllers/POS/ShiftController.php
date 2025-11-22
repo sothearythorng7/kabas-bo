@@ -55,6 +55,8 @@ class ShiftController extends Controller
         $request->validate([
             'user_id' => 'required|exists:users,id',
             'end_amount' => 'required|numeric',
+            'visitors_count' => 'nullable|integer|min:0',
+            'cash_difference' => 'nullable|numeric',
         ]);
 
         $shift = Shift::where('user_id', $request->user_id)
@@ -67,10 +69,58 @@ class ShiftController extends Controller
 
         $shift->update([
             'closing_cash' => $request->end_amount,
+            'visitors_count' => $request->visitors_count,
+            'cash_difference' => $request->cash_difference,
             'ended_at' => Carbon::now(),
         ]);
 
         return response()->json($shift);
+    }
+
+    // Calculate expected cash from shift sales
+    public function expectedCash($userId)
+    {
+        $shift = Shift::where('user_id', $userId)
+                    ->whereNull('ended_at')
+                    ->first();
+
+        if (!$shift) {
+            return response()->json(['error' => 'No shift in progress'], 422);
+        }
+
+        // Calculate cash sales for this shift
+        $cashSales = Sale::where('shift_id', $shift->id)
+            ->where(function($query) {
+                $query->where('payment_type', 'cash')
+                    ->orWhere('payment_type', 'espèces')
+                    ->orWhereRaw("JSON_CONTAINS(split_payments, JSON_OBJECT('method', 'cash'))")
+                    ->orWhereRaw("JSON_CONTAINS(split_payments, JSON_OBJECT('method', 'espèces'))");
+            })
+            ->get();
+
+        $totalCashFromSales = 0;
+
+        foreach ($cashSales as $sale) {
+            if ($sale->split_payments && is_array($sale->split_payments)) {
+                // If split payments, only count cash portion
+                foreach ($sale->split_payments as $payment) {
+                    if (isset($payment['method']) && in_array(strtolower($payment['method']), ['cash', 'espèces'])) {
+                        $totalCashFromSales += floatval($payment['amount'] ?? 0);
+                    }
+                }
+            } else {
+                // Full amount is cash
+                $totalCashFromSales += floatval($sale->total ?? 0);
+            }
+        }
+
+        $expectedCash = floatval($shift->opening_cash) + $totalCashFromSales;
+
+        return response()->json([
+            'opening_cash' => floatval($shift->opening_cash),
+            'cash_from_sales' => $totalCashFromSales,
+            'expected_cash' => $expectedCash,
+        ]);
     }
 
     // Get sales by date

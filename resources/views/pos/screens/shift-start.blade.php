@@ -1,8 +1,8 @@
 <div id="screen-shiftstart" class="pos-screen d-none text-center">
 
-    <!-- Header: menu button + title aligned left -->
+    <!-- Header: menu button (disabled) + title aligned left -->
     <div class="d-flex justify-content-start align-items-center mb-3 gap-2">
-        <button id="btn-open-menu" class="btn btn-outline-secondary" title="@t('Menu')">
+        <button id="btn-open-menu" class="btn btn-outline-secondary" title="@t('Menu')" disabled style="opacity: 0.5; cursor: not-allowed;">
             <i class="bi bi-list"></i>
         </button>
         <h2 class="mb-0">Start Your Shift</h2>

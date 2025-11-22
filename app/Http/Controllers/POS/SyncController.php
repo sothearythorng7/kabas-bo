@@ -29,6 +29,61 @@ class SyncController extends Controller
             ->get();
     }
 
+    public function shifts(Request $request)
+    {
+        $data = $request->validate([
+            'shifts' => 'required|array',
+            'shifts.*.user_id' => 'required|exists:users,id',
+            'shifts.*.store_id' => 'required|exists:stores,id',
+            'shifts.*.cash_start' => 'required|numeric',
+            'shifts.*.cash_end' => 'nullable|numeric',
+            'shifts.*.visitors_count' => 'nullable|integer',
+            'shifts.*.cash_difference' => 'nullable|numeric',
+            'shifts.*.started_at' => 'required|date',
+            'shifts.*.ended_at' => 'nullable|date',
+        ]);
+
+        $syncedShifts = [];
+
+        foreach ($data['shifts'] as $shiftData) {
+            // Check if shift already exists
+            $existingShift = Shift::where('user_id', $shiftData['user_id'])
+                ->where('started_at', $shiftData['started_at'])
+                ->first();
+
+            if ($existingShift) {
+                // Update existing shift
+                $existingShift->update([
+                    'closing_cash' => $shiftData['cash_end'] ?? null,
+                    'visitors_count' => $shiftData['visitors_count'] ?? null,
+                    'cash_difference' => $shiftData['cash_difference'] ?? null,
+                    'ended_at' => $shiftData['ended_at'] ?? null,
+                    'synced' => true,
+                ]);
+                $syncedShifts[] = $existingShift->id;
+            } else {
+                // Create new shift
+                $shift = Shift::create([
+                    'user_id' => $shiftData['user_id'],
+                    'store_id' => $shiftData['store_id'],
+                    'opening_cash' => $shiftData['cash_start'],
+                    'closing_cash' => $shiftData['cash_end'] ?? null,
+                    'visitors_count' => $shiftData['visitors_count'] ?? null,
+                    'cash_difference' => $shiftData['cash_difference'] ?? null,
+                    'started_at' => $shiftData['started_at'],
+                    'ended_at' => $shiftData['ended_at'] ?? null,
+                    'synced' => true,
+                ]);
+                $syncedShifts[] = $shift->id;
+            }
+        }
+
+        return response()->json([
+            'status' => 'success',
+            'synced_shifts' => $syncedShifts,
+        ]);
+    }
+
     public function sales(Request $request)
     {
         $data = $request->validate([

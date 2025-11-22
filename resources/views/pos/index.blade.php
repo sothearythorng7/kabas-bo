@@ -246,10 +246,10 @@ function restoreCategoryTreeFromLocal(storeId) {
             $("#side-menu-overlay").hide();
         }
 
-        // Ouverture depuis n’importe quel écran ayant un #btn-open-menu
+        // Ouverture depuis n'importe quel écran ayant un #btn-open-menu
         $(document).on("click", "#btn-open-menu", function() {
-            // si login visible, on ignore
-            if (isLoginVisible()) return;
+            // si login visible ou pas de shift actif, on ignore
+            if (isLoginVisible() || !hasActiveShift() || isShiftStartVisible()) return;
             $menu.css("width", "30%");
             $overlay.show();
         });
@@ -281,13 +281,21 @@ function restoreCategoryTreeFromLocal(storeId) {
             window.__menuWrappedShowScreen = true;
         }
 
-        // Masquer automatiquement le menu sur l’écran de login
+        // Masquer automatiquement le menu sur l'écran de login ou shift-start
         function isLoginVisible() {
             const $login = $("#screen-login");
             return $login.length && !$login.hasClass("d-none");
         }
+        function isShiftStartVisible() {
+            const $shiftStart = $("#screen-shiftstart");
+            return $shiftStart.length && !$shiftStart.hasClass("d-none");
+        }
+        function hasActiveShift() {
+            return window.currentShift && window.currentShift.id;
+        }
         function updateMenuVisibility() {
-            if (isLoginVisible()) {
+            // Désactiver le menu si: login visible OU pas de shift actif OU écran shift-start visible
+            if (isLoginVisible() || !hasActiveShift() || isShiftStartVisible()) {
                 // force close + disable overlay
                 $menu.css("width", "0");
                 $overlay.hide();

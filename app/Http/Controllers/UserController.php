@@ -29,7 +29,7 @@ class UserController extends Controller
             'email' => 'required|email|unique:users,email',
             'password' => 'required|confirmed',
             'role' => 'required|string|exists:roles,name',
-            'store_id' => $request->role === 'Saler' ? 'required|exists:stores,id' : 'nullable',
+            'store_id' => $request->role === 'SELLER' ? 'required|exists:stores,id' : 'nullable',
             'pin_code' => 'nullable|digits:6',
         ]);
 
@@ -61,7 +61,7 @@ class UserController extends Controller
             'email' => 'required|email|unique:users,email,' . $user->id,
             'password' => 'nullable|confirmed',
             'role' => 'required|string|exists:roles,name',
-            'store_id' => $request->role === 'Saler' ? 'required|exists:stores,id' : 'nullable',
+            'store_id' => $request->role === 'SELLER' ? 'required|exists:stores,id' : 'nullable',
             'pin_code' => 'nullable|digits:6',
         ]);
 

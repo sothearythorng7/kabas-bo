@@ -16,7 +16,12 @@
                 <div class="row">
                     <div class="col-md-3 mb-3">
                         <label class="form-label">@t("product.ean")</label>
-                        <input type="text" name="ean" class="form-control @error('ean') is-invalid @enderror" value="{{ old('ean') }}" required>
+                        <div class="input-group">
+                            <input type="text" name="ean" id="ean-input" class="form-control @error('ean') is-invalid @enderror" value="{{ old('ean') }}" required>
+                            <button type="button" class="btn btn-outline-secondary" id="generate-ean-btn" title="Générer un EAN fake">
+                                <i class="bi bi-shuffle"></i>
+                            </button>
+                        </div>
                         @error('ean') <div class="invalid-feedback">{{ $message }}</div> @enderror
                     </div>
                     <div class="col-md-3 mb-3">
@@ -55,8 +60,12 @@
                     @foreach($locales as $locale)
                         <div class="tab-pane fade @if($i===0) show active @endif" id="name-{{ $locale }}" role="tabpanel">
                             <div class="mb-3">
-                                <label class="form-label">@t("product.name") ({{ strtoupper($locale) }})</label>
-                                <input type="text" name="name[{{ $locale }}]" class="form-control" value="{{ old("name.$locale") }}" required>
+                                <label class="form-label">@t("product.name") ({{ strtoupper($locale) }})
+                                    @if($locale === 'en')
+                                        <span class="text-danger">*</span>
+                                    @endif
+                                </label>
+                                <input type="text" name="name[{{ $locale }}]" class="form-control" value="{{ old("name.$locale") }}" {{ $locale === 'en' ? 'required' : '' }}>
                             </div>
                         </div>
                         @php $i++; @endphp
@@ -84,4 +93,30 @@
         </div>
     </form>
 </div>
+
+<script>
+document.getElementById('generate-ean-btn').addEventListener('click', function() {
+    // Générer un numéro aléatoire de 8 chiffres
+    const randomNumber = Math.floor(10000000 + Math.random() * 90000000);
+    const fakeEan = 'FAKE-' + randomNumber;
+
+    // Vérifier si cet EAN existe déjà via AJAX
+    fetch('/products/check-ean?ean=' + encodeURIComponent(fakeEan))
+        .then(response => response.json())
+        .then(data => {
+            if (data.exists) {
+                // Si l'EAN existe déjà, générer un nouveau
+                document.getElementById('generate-ean-btn').click();
+            } else {
+                // Insérer l'EAN dans le champ
+                document.getElementById('ean-input').value = fakeEan;
+            }
+        })
+        .catch(error => {
+            console.error('Erreur lors de la vérification de l\'EAN:', error);
+            // En cas d'erreur, on met quand même l'EAN généré
+            document.getElementById('ean-input').value = fakeEan;
+        });
+});
+</script>
 @endsection

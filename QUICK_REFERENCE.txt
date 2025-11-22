@@ -1,0 +1,131 @@
+╔══════════════════════════════════════════════════════════════════════════╗
+║              ENVIRONNEMENT DE TESTING KABAS - RÉFÉRENCE RAPIDE           ║
+╚══════════════════════════════════════════════════════════════════════════╝
+
+📋 INSTALLATION (À FAIRE UNE SEULE FOIS)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  1. cd /var/www/kabas
+  2. sudo bash setup-testing-environment.sh
+  3. sudo bash add-testing-banner.sh
+  4. Configurer le DNS (testing-bo, testing-pos, testing)
+  
+  ✅ LIRE : START_HERE.md et INSTALLATION_INSTRUCTIONS.md
+
+
+🌐 URLS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  PRODUCTION (ne pas toucher)
+  ├─ BO:   https://bo.kabasconceptstore.com
+  ├─ POS:  https://pos.kabasconceptstore.com
+  └─ Site: https://kabasconceptstore.com
+
+  TESTING (travailler ici)
+  ├─ BO:   https://testing-bo.kabasconceptstore.com   [Bandeau ROUGE]
+  ├─ POS:  https://testing-pos.kabasconceptstore.com  [Bandeau ROUGE]
+  └─ Site: https://testing.kabasconceptstore.com      [Bandeau ROUGE]
+
+
+📂 RÉPERTOIRES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ❌ /var/www/kabas/            → PRODUCTION (ne pas toucher)
+  ❌ /var/www/kabas-site/       → PRODUCTION (ne pas toucher)
+  
+  ✅ /var/www/kabas-testing/      → TESTING (coder ici)
+  ✅ /var/www/kabas-site-testing/ → TESTING (coder ici)
+
+
+🔄 WORKFLOW
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  1️⃣ DÉVELOPPER    → /var/www/kabas-testing/
+  2️⃣ TESTER        → https://testing-*.kabasconceptstore.com
+  3️⃣ FAIRE VALIDER → L'utilisateur valide
+  4️⃣ DÉPLOYER      → deploy-specific-files.sh
+
+
+🛠️ COMMANDES UTILES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  Déployer des fichiers vers PROD (après validation) :
+  
+    cd /var/www/kabas
+    sudo bash deploy-specific-files.sh [fichier1] [fichier2] ...
+  
+  Exemple :
+  
+    sudo bash deploy-specific-files.sh \
+        app/Http/Controllers/InventoryController.php \
+        resources/views/inventory/index.blade.php
+
+
+  Vider les caches Laravel :
+  
+    cd /var/www/kabas
+    php artisan config:clear
+    php artisan cache:clear
+    php artisan view:clear
+
+
+  Synchroniser les données PROD → TESTING :
+  
+    mysqldump -u[user] -p[pass] kabas_prod | \
+      mysql -u[user] -p[pass] kabas_testing
+
+
+⚠️  RÈGLES CRITIQUES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ✅ TOUJOURS
+     • Travailler sur TESTING en premier
+     • Faire valider par l'utilisateur
+     • Créer un backup avant déploiement
+     • Vider les caches après déploiement
+  
+  ❌ JAMAIS
+     • Modifier directement PRODUCTION
+     • Déployer sans validation
+     • DELETE/UPDATE direct sur BDD prod
+     • Copier tout un répertoire
+
+
+📚 DOCUMENTATION
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ⭐ START_HERE.md                    → Guide visuel
+  📖 INSTALLATION_INSTRUCTIONS.md    → Installation pas-à-pas
+  📘 TESTING_ENVIRONMENT_GUIDE.md    → Documentation complète
+  🤖 CLAUDE_REMINDER.md              → Aide-mémoire pour Claude
+  📝 README_TESTING_SETUP.md         → Démarrage rapide
+  📄 QUICK_REFERENCE.txt             → Ce fichier
+
+
+🔧 SCRIPTS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  setup-testing-environment.sh  → Installation complète (1 fois)
+  add-testing-banner.sh         → Ajout bandeaux TESTING (1 fois)
+  deploy-specific-files.sh      → Déploiement vers PROD (après validation)
+
+
+💾 BASES DE DONNÉES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  kabas_prod     → ❌ PRODUCTION (ne pas toucher)
+  kabas_testing  → ✅ TESTING (pour tests)
+
+
+📞 AIDE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  Logs Apache  : /var/log/apache2/testing_*.log
+  Logs Laravel : /var/www/kabas-testing/storage/logs/
+  
+  Documentation complète : TESTING_ENVIRONMENT_GUIDE.md
+
+
+╔══════════════════════════════════════════════════════════════════════════╗
+║                         Créé le 2025-11-22                                ║
+╚══════════════════════════════════════════════════════════════════════════╝

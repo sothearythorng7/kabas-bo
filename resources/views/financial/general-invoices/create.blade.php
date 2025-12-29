@@ -2,7 +2,7 @@
 
 @section('content')
 <div class="container mt-4">
-    <h1 class="crud_title">@t('Créer une facture')</h1>
+    <h1 class="crud_title">{{ __('messages.general_invoices.title_create') }}</h1>
     @include('financial.layouts.nav')
 
     <div class="card">
@@ -13,10 +13,10 @@
 
                 <div class="d-flex gap-2">
                     <button type="submit" class="btn btn-primary">
-                        <i class="bi bi-check-circle"></i> @t('Créer')
+                        <i class="bi bi-check-circle"></i> {{ __('messages.general_invoices.create') }}
                     </button>
                     <a href="{{ route('financial.general-invoices.index', $store->id) }}" class="btn btn-secondary">
-                        <i class="bi bi-x-circle"></i> @t('Annuler')
+                        <i class="bi bi-x-circle"></i> {{ __('messages.general_invoices.cancel') }}
                     </a>
                 </div>
             </form>

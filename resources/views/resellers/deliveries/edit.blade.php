@@ -21,7 +21,7 @@
                 $paymentStatus = 'partially_paid';
             } else {
                 $paymentStatus = 'unpaid';
-            }            
+            }
         }
 
     @endphp
@@ -41,7 +41,7 @@
         @if($resellerType == 'buyer')
         <li class="nav-item" role="presentation">
             <button class="nav-link" id="payments-tab" data-bs-toggle="tab" data-bs-target="#payments" type="button" role="tab" aria-controls="payments" aria-selected="false">
-                Paiements <span class="badge bg-secondary">{{ $paymentsCount }}</span>
+                {{ __('messages.resellers.payments') }} <span class="badge bg-secondary">{{ $paymentsCount }}</span>
             </button>
         </li>
         @endif
@@ -50,14 +50,14 @@
     <div class="tab-content mt-3" id="deliveryTabsContent">
         {{-- Onglet Général --}}
         <div class="tab-pane fade show active" id="general" role="tabpanel" aria-labelledby="general-tab">
-            
+
                 {{-- Infos paiement --}}
                 @if($delivery->invoice && $resellerType == 'buyer')
                 <div class="row g-3 mb-3">
                     <div class="col-12 col-md-3">
                         <div class="card text-center bg-success text-white">
                             <div class="card-body">
-                                <h6 class="card-title">@t("Montant total à payer")</h6>
+                                <h6 class="card-title">{{ __('messages.resellers.total_to_pay') }}</h6>
                                 <p class="card-text">${{ number_format($delivery->invoice->total_amount, 2) }}</p>
                             </div>
                         </div>
@@ -66,7 +66,7 @@
                     <div class="col-12 col-md-3">
                         <div class="card text-center bg-info">
                             <div class="card-body">
-                                <h6 class="card-title">@t("Montant total déjà payé")</h6>
+                                <h6 class="card-title">{{ __('messages.resellers.total_already_paid') }}</h6>
                                 <p class="card-text">${{ number_format($totalPaid, 2) }}</p>
                             </div>
                         </div>
@@ -75,7 +75,7 @@
                     <div class="col-12 col-md-3">
                         <div class="card text-center bg-warning">
                             <div class="card-body">
-                                <h6 class="card-title">@t("Montant restant à payer")</h6>
+                                <h6 class="card-title">{{ __('messages.resellers.remaining_to_pay') }}</h6>
                                 <p class="card-text">${{ number_format($remaining, 2) }}</p>
                             </div>
                         </div>
@@ -84,14 +84,14 @@
                     <div class="col-12 col-md-3">
                         <div class="card text-center bg-secondary text-white">
                             <div class="card-body">
-                                <h6 class="card-title">@t("Statut de paiement")</h6>
+                                <h6 class="card-title">{{ __('messages.resellers.payment_status') }}</h6>
                                 <p class="card-text">
                                     @if($paymentStatus === 'paid')
-                                        <span class="badge bg-success">@t("Payé")</span>
+                                        <span class="badge bg-success">{{ __('messages.resellers.paid') }}</span>
                                     @elseif($paymentStatus === 'partially_paid')
-                                        <span class="badge bg-warning text-dark">@t("Partiellement payé")</span>
+                                        <span class="badge bg-warning text-dark">{{ __('messages.resellers.partially_paid') }}</span>
                                     @elseif($paymentStatus === 'unpaid')
-                                        <span class="badge bg-danger">@t("Non payé")</span>
+                                        <span class="badge bg-danger">{{ __('messages.resellers.unpaid') }}</span>
                                     @else
                                         N/A
                                     @endif
@@ -118,7 +118,7 @@
                 <div class="mb-3">
                     <label for="shipping_cost" class="form-label">{{ __('messages.resellers.shipping_cost') }}</label>
                     <input type="number" step="0.01" name="shipping_cost" id="shipping_cost" class="form-control" value="{{ old('shipping_cost', $delivery->shipping_cost) }}">
-                    <small class="text-muted">{{ __('messages.resellers.edit_only_after_creation') ?? 'Only editable after creation' }}</small>
+                    <small class="text-muted">{{ __('messages.resellers.edit_only_after_creation') }}</small>
                 </div>
 
                 <button type="submit" class="btn btn-success">{{ __('messages.btn.save') }}</button>
@@ -130,7 +130,7 @@
 
         {{-- Onglet Produits --}}
         <div class="tab-pane fade" id="products" role="tabpanel" aria-labelledby="products-tab">
-            <h3>{{ __('messages.product.products') }} {{ __('messages.resellers.in_delivery') ?? 'in this Delivery' }}</h3>
+            <h3>{{ __('messages.product.products') }} {{ __('messages.resellers.in_delivery') }}</h3>
 
             <!-- Desktop -->
             <div class="d-none d-md-block">
@@ -142,7 +142,7 @@
                             <th>{{ __('messages.product.brand') }}</th>
                             <th>{{ __('messages.resellers.quantity') }}</th>
                             <th>{{ __('messages.product.price_btob') }}</th>
-                            <th>{{ __('messages.resellers.total_value') ?? 'Total ($)' }}</th>
+                            <th>{{ __('messages.resellers.total_value') }}</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -172,7 +172,7 @@
                                     <p class="mb-1"><strong>{{ __('messages.product.brand') }}:</strong> {{ $product->brand?->name ?? '-' }}</p>
                                     <p class="mb-1"><strong>{{ __('messages.resellers.quantity') }}:</strong> {{ $product->pivot->quantity }}</p>
                                     <p class="mb-1"><strong>{{ __('messages.product.price_btob') }}:</strong> {{ number_format($product->pivot->unit_price, 2) }}</p>
-                                    <p class="mb-0"><strong>{{ __('messages.resellers.total_value') ?? 'Total ($)' }}:</strong> {{ number_format($product->pivot->quantity * $product->pivot->unit_price, 2) }}</p>
+                                    <p class="mb-0"><strong>{{ __('messages.resellers.total_value') }}:</strong> {{ number_format($product->pivot->quantity * $product->pivot->unit_price, 2) }}</p>
                                 </div>
                             </div>
                         </div>
@@ -189,10 +189,10 @@
                     <table class="table table-striped">
                         <thead>
                             <tr>
-                                <th>@t("date")</th>
-                                <th>@t("Montant")</th>
-                                <th>@t("Méthode")</th>
-                                <th>@t("Référence")</th>
+                                <th>{{ __('messages.resellers.date') }}</th>
+                                <th>{{ __('messages.resellers.amount') }}</th>
+                                <th>{{ __('messages.resellers.method') }}</th>
+                                <th>{{ __('messages.resellers.reference') }}</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -215,10 +215,10 @@
                             <div class="col-12 mb-3">
                                 <div class="card shadow-sm">
                                     <div class="card-body p-3">
-                                        <p class="mb-1"><strong>@t("date") :</strong> {{ $payment->paid_at->format('d/m/Y H:i') }}</p>
-                                        <p class="mb-1"><strong>@t("Montant") :</strong> {{ number_format($payment->amount, 2) }}</p>
-                                        <p class="mb-1"><strong>@t("Méthode") :</strong> {{ ucfirst($payment->payment_method) }}</p>
-                                        <p class="mb-1"><strong>@t("Référence") :</strong> {{ $payment->reference }}</p>
+                                        <p class="mb-1"><strong>{{ __('messages.resellers.date') }} :</strong> {{ $payment->paid_at->format('d/m/Y H:i') }}</p>
+                                        <p class="mb-1"><strong>{{ __('messages.resellers.amount') }} :</strong> {{ number_format($payment->amount, 2) }}</p>
+                                        <p class="mb-1"><strong>{{ __('messages.resellers.method') }} :</strong> {{ ucfirst($payment->payment_method) }}</p>
+                                        <p class="mb-1"><strong>{{ __('messages.resellers.reference') }} :</strong> {{ $payment->reference }}</p>
                                     </div>
                                 </div>
                             </div>
@@ -227,13 +227,13 @@
                 </div>
             @else
                 <div class="alert alert-info">
-                    @t("Aucun paiement enregistré pour cette livraison.")
+                    {{ __('messages.resellers.no_payments_delivery') }}
                 </div>
             @endif
 
             <!-- Bouton modal pour ajouter paiement -->
             <button type="button" class="btn btn-primary mt-3" data-bs-toggle="modal" data-bs-target="#addPaymentModal">
-                @t("Ajouter un paiement")
+                {{ __('messages.resellers.add_payment') }}
             </button>
         </div>
         @endif
@@ -250,43 +250,43 @@
             <form action="{{ route('reseller-invoices.addPayment', $delivery->invoice->id) }}" method="POST">
                 @csrf
                 <div class="modal-header">
-                    <h5 class="modal-title" id="addPaymentModalLabel">@t("Ajouter un paiement")</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+                    <h5 class="modal-title" id="addPaymentModalLabel">{{ __('messages.resellers.add_payment') }}</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
-                    
-                    <p><strong>@t("Montant total"):</strong> {{ number_format($delivery->invoice?->total_amount ?? 0, 2) }}</p>
-                    <p><strong>@t("Déjà payé") :</strong> {{ number_format($totalPaid, 2) }}</p>
-                    <p><strong>@t("Reste à payer") :</strong> {{ number_format($remaining, 2) }}</p>
+
+                    <p><strong>{{ __('messages.resellers.total_amount_label') }}:</strong> {{ number_format($delivery->invoice?->total_amount ?? 0, 2) }}</p>
+                    <p><strong>{{ __('messages.resellers.already_paid') }} :</strong> {{ number_format($totalPaid, 2) }}</p>
+                    <p><strong>{{ __('messages.resellers.remaining') }} :</strong> {{ number_format($remaining, 2) }}</p>
                     <div class="mb-3">
-                        <label>Montant</label>
+                        <label>{{ __('messages.resellers.amount') }}</label>
                         <input type="number" step="0.01" name="amount" id="paymentAmount" class="form-control" max="{{ $remaining }}" required>
                         <div id="amountWarning" class="text-danger mt-1" style="display:none;">
-                            ⚠️ @t("Le montant ne peut pas dépasser") {{ number_format($remaining, 2) }}.
+                            {{ __('messages.resellers.amount_cannot_exceed') }} {{ number_format($remaining, 2) }}.
                         </div>
                     </div>
-                    
+
                     <div class="mb-3">
-                        <label>Méthode</label>
+                        <label>{{ __('messages.resellers.method') }}</label>
                         <select name="payment_method" class="form-control" required>
-                            <option value="cash">@t("cash")</option>
-                            <option value="transfer">@t("Virement")</option>
+                            <option value="cash">{{ __('messages.resellers.cash') }}</option>
+                            <option value="transfer">{{ __('messages.resellers.transfer') }}</option>
                         </select>
                     </div>
 
                     <div class="mb-3">
-                        <label>@t("Référence")</label>
+                        <label>{{ __('messages.resellers.reference') }}</label>
                         <input type="text" name="reference" class="form-control">
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">@t("Annuler")</button>
-                    <button type="submit" class="btn btn-primary">@t("Enregistrer")</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ __('messages.btn.cancel') }}</button>
+                    <button type="submit" class="btn btn-primary">{{ __('messages.resellers.save') }}</button>
                 </div>
             </form>
             @else
                 <div class="alert alert-warning">
-                    ⚠️ @t("Cette livraison n’a pas encore de facture").
+                    {{ __('messages.resellers.no_invoice_for_delivery') }}
                 </div>
             @endif
         </div>

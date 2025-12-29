@@ -107,7 +107,7 @@ class ResellerInvoiceController extends Controller
                 'store_id' => $wareHouse->id,
                 'account_id' => $account->id,
                 'amount' => $payment->amount,
-                'currency' => 'EUR',
+                'currency' => 'USD',
                 'direction' => 'credit',
                 'balance_before' => $balanceBefore,
                 'balance_after' => $balanceAfter,

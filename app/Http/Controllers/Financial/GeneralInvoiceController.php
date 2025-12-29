@@ -36,8 +36,11 @@ class GeneralInvoiceController extends Controller
             ->each(fn($invoice) => $invoice->type = 'general'); // ajout d'un attribut type
 
         // Factures fournisseurs filtrées par statut
+        // Exclure les fournisseurs en consignation (ils sont facturés via les SaleReports)
         $supplierInvoices = \App\Models\SupplierOrder::with('supplier')
             ->where('status', 'received')
+            ->where('destination_store_id', $store->id)
+            ->whereHas('supplier', fn($q) => $q->where('type', 'buyer'))
             ->when($statusFilter === 'paid', fn($q) => $q->where('is_paid', true))
             ->when($statusFilter === 'pending', fn($q) => $q->where('is_paid', false))
             ->get()
@@ -47,14 +50,15 @@ class GeneralInvoiceController extends Controller
         $allInvoices = $generalInvoices->merge($supplierInvoices)->sortByDesc('created_at')->values();
 
         // Pagination manuelle
-        $perPage = 10;
+        $perPage = (int) $request->get('per_page', 50);
+        $perPage = in_array($perPage, [50, 100, 200]) ? $perPage : 50;
         $page = Paginator::resolveCurrentPage('page');
         $invoices = new LengthAwarePaginator(
             $allInvoices->forPage($page, $perPage),
             $allInvoices->count(),
             $perPage,
             $page,
-            ['path' => Paginator::resolveCurrentPath()]
+            ['path' => Paginator::resolveCurrentPath(), 'query' => $request->except('page')]
         );
 
         $accounts = FinancialAccount::all();
@@ -155,12 +159,15 @@ class GeneralInvoiceController extends Controller
             'amount' => 'required|numeric|min:0',
             'due_date' => 'nullable|date',
             'status' => 'required|in:pending,paid',
-            'attachment' => 'required|file|mimes:pdf,jpg,jpeg,png',
+            'attachment' => 'nullable|file|mimes:pdf,jpg,jpeg,png',
             'account_id' => 'required|exists:financial_accounts,id',
             'category_id' => 'nullable|exists:invoice_categories,id',
         ]);
 
-        $path = $request->file('attachment')->store("stores/{$store->id}/invoices", 'public');
+        $path = null;
+        if ($request->hasFile('attachment')) {
+            $path = $request->file('attachment')->store("stores/{$store->id}/invoices", 'public');
+        }
 
         GeneralInvoice::create([
             'store_id' => $store->id,
@@ -181,7 +188,8 @@ class GeneralInvoiceController extends Controller
     public function show(Store $store, GeneralInvoice $generalInvoice)
     {
         $this->authorizeInvoice($generalInvoice, $store->id);
-        return view('financial.general-invoices.show', compact('generalInvoice', 'store'));
+        $paymentMethods = \App\Models\FinancialPaymentMethod::all();
+        return view('financial.general-invoices.show', compact('generalInvoice', 'store', 'paymentMethods'));
     }
 
     public function edit(Store $store, GeneralInvoice $generalInvoice)
@@ -208,7 +216,9 @@ class GeneralInvoiceController extends Controller
         ]);
 
         if ($request->hasFile('attachment')) {
-            Storage::disk('public')->delete($generalInvoice->attachment);
+            if ($generalInvoice->attachment) {
+                Storage::disk('public')->delete($generalInvoice->attachment);
+            }
             $generalInvoice->attachment = $request->file('attachment')->store("stores/{$store->id}/invoices", 'public');
         }
 
@@ -229,23 +239,82 @@ class GeneralInvoiceController extends Controller
     public function destroy(Store $store, GeneralInvoice $generalInvoice)
     {
         $this->authorizeInvoice($generalInvoice, $store->id);
-        Storage::disk('public')->delete($generalInvoice->attachment);
+
+        // Si la facture est payée, supprimer la transaction financière correspondante
+        if ($generalInvoice->status === 'paid') {
+            $transactionUrl = route('financial.general-invoices.show', [$store->id, $generalInvoice->id]);
+            $transaction = \App\Models\FinancialTransaction::where('external_reference', $transactionUrl)->first();
+            if ($transaction) {
+                // Supprimer les pièces jointes de la transaction
+                $transaction->attachments()->delete();
+                $transaction->delete();
+            }
+        }
+
+        if ($generalInvoice->attachment) {
+            Storage::disk('public')->delete($generalInvoice->attachment);
+        }
+
         $generalInvoice->delete();
 
         return redirect()->route('financial.general-invoices.index', $store->id)
-            ->with('success', 'Invoice deleted successfully.');
+            ->with('success', __('messages.general_invoices.deleted'));
     }
 
-    public function markAsPaid(Store $store, GeneralInvoice $generalInvoice)
+    public function markAsPaid(Request $request, Store $store, GeneralInvoice $generalInvoice)
     {
         $this->authorizeInvoice($generalInvoice, $store->id);
+
+        $request->validate([
+            'payment_method_id' => 'required|exists:financial_payment_methods,id',
+            'payment_reference' => 'nullable|string|max:255',
+        ]);
+
+        // Récupérer le compte 401 (Fournisseurs)
+        $account = \App\Models\FinancialAccount::where('code', '401')->first();
+
+        if ($account) {
+            // Solde précédent
+            $lastTransaction = \App\Models\FinancialTransaction::where('store_id', $store->id)
+                ->latest('transaction_date')
+                ->first();
+            $balanceBefore = $lastTransaction?->balance_after ?? 0;
+            $balanceAfter = $balanceBefore - $generalInvoice->amount;
+
+            // Création de la transaction
+            $transaction = \App\Models\FinancialTransaction::create([
+                'store_id' => $store->id,
+                'account_id' => $account->id,
+                'amount' => $generalInvoice->amount,
+                'currency' => 'USD',
+                'direction' => 'debit',
+                'balance_before' => $balanceBefore,
+                'balance_after' => $balanceAfter,
+                'label' => 'Paiement facture : ' . $generalInvoice->label,
+                'description' => $request->payment_reference ?? null,
+                'status' => 'validated',
+                'transaction_date' => now(),
+                'payment_method_id' => $request->payment_method_id,
+                'user_id' => auth()->id(),
+                'external_reference' => route('financial.general-invoices.show', [$store->id, $generalInvoice->id]),
+            ]);
+
+            // Ajouter la facture comme pièce jointe si elle existe
+            if ($generalInvoice->attachment) {
+                $transaction->attachments()->create([
+                    'path' => $generalInvoice->attachment,
+                    'file_type' => Storage::disk('public')->mimeType($generalInvoice->attachment) ?? 'application/octet-stream',
+                    'uploaded_by' => auth()->id(),
+                ]);
+            }
+        }
 
         $generalInvoice->update([
             'status' => 'paid',
             'payment_date' => now()->toDateString(),
         ]);
 
-        return redirect()->route('financial.general-invoices.index', $store->id)
+        return redirect()->route('financial.general-invoices.show', [$store->id, $generalInvoice->id])
             ->with('success', __('messages.invoice_marked_paid'));
     }
 

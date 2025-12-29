@@ -40,6 +40,7 @@
         <thead>
             <tr>
                 <th>Date/Time</th>
+                <th>Seller</th>
                 <th class="text-center">Products</th>
                 <th class="text-center">Amount Before Discount</th>
                 <th class="text-center">Paid Amount</th>

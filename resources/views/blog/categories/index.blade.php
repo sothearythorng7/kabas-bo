@@ -2,10 +2,10 @@
 
 @section('content')
 <div class="container mt-4">
-    <h1 class="crud_title">@t('blog_category.title')</h1>
+    <h1 class="crud_title">{{ __('messages.blog_category.title') }}</h1>
 
     <a href="{{ route('blog.categories.create') }}" class="btn btn-success mb-3">
-        <i class="bi bi-plus-circle-fill"></i> @t('blog_category.new_category')
+        <i class="bi bi-plus-circle-fill"></i> {{ __('messages.blog_category.new_category') }}
     </a>
 
     <div class="d-none d-md-block">
@@ -13,11 +13,11 @@
             <thead>
                 <tr>
                     <th></th>
-                    <th class="text-center">@t('blog_category.id')</th>
-                    <th>@t('blog_category.name')</th>
-                    <th class="text-center">@t('blog_category.articles')</th>
-                    <th class="text-center">@t('blog_category.sort_order')</th>
-                    <th class="text-center">@t('blog_category.status')</th>
+                    <th class="text-center">{{ __('messages.blog_category.id') }}</th>
+                    <th>{{ __('messages.blog_category.name') }}</th>
+                    <th class="text-center">{{ __('messages.blog_category.articles') }}</th>
+                    <th class="text-center">{{ __('messages.blog_category.sort_order') }}</th>
+                    <th class="text-center">{{ __('messages.blog_category.status') }}</th>
                 </tr>
             </thead>
             <tbody>
@@ -31,16 +31,16 @@
                             <ul class="dropdown-menu" aria-labelledby="dropdownCategory{{ $category->id }}">
                                 <li>
                                     <a class="dropdown-item" href="{{ route('blog.categories.edit', $category) }}">
-                                        <i class="bi bi-pencil-fill"></i> @t('blog_category.edit')
+                                        <i class="bi bi-pencil-fill"></i> {{ __('messages.blog_category.edit') }}
                                     </a>
                                 </li>
                                 <li><hr class="dropdown-divider"></li>
                                 <li>
-                                    <form action="{{ route('blog.categories.destroy', $category) }}" method="POST" onsubmit="return confirm('@t('blog_category.delete_confirm')')">
+                                    <form action="{{ route('blog.categories.destroy', $category) }}" method="POST" onsubmit="return confirm('{{ __('messages.blog_category.delete_confirm') }}')">
                                         @csrf
                                         @method('DELETE')
                                         <button class="dropdown-item text-danger" type="submit">
-                                            <i class="bi bi-trash-fill"></i> @t('blog_category.delete')
+                                            <i class="bi bi-trash-fill"></i> {{ __('messages.blog_category.delete') }}
                                         </button>
                                     </form>
                                 </li>
@@ -60,9 +60,9 @@
                     <td class="text-center">{{ $category->sort_order }}</td>
                     <td class="text-center">
                         @if($category->is_active)
-                            <span class="badge bg-success">@t('blog_category.active')</span>
+                            <span class="badge bg-success">{{ __('messages.blog_category.active') }}</span>
                         @else
-                            <span class="badge bg-secondary">@t('blog_category.inactive')</span>
+                            <span class="badge bg-secondary">{{ __('messages.blog_category.inactive') }}</span>
                         @endif
                     </td>
                 </tr>

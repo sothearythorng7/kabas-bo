@@ -9,27 +9,27 @@
         <div class="col-md-4 mb-2">
             <div class="card text-white bg-info">
                 <div class="card-body">
-                    <h5 class="card-title">@t("Total order expected amount")</h5>
+                    <h5 class="card-title">{{ __('messages.Total order expected amount') }}</h5>
                     <p class="card-text display-5">${{ number_format($totalPendingAmount, 2) }}</p>
-                    <small>@t("Total amount of orders waiting delivery or waiting invoice")</small>
+                    <small>{{ __('messages.Total amount of orders waiting delivery or waiting invoice') }}</small>
                 </div>
             </div>
         </div>
         <div class="col-md-4 mb-2">
             <div class="card text-white bg-warning">
                 <div class="card-body">
-                    <h5 class="card-title">@t("Total unpaid received orders")</h5>
+                    <h5 class="card-title">{{ __('messages.Total unpaid received orders') }}</h5>
                     <p class="card-text display-5">${{ number_format($totalUnpaidReceivedAmount, 2) }}</p>
-                    <small>@t("Total amount of orders received and not paid")</small>
+                    <small>{{ __('messages.Total amount of orders received and not paid') }}</small>
                 </div>
             </div>
         </div>
         <div class="col-md-4 mb-2">
             <div class="card text-white bg-danger">
                 <div class="card-body">
-                    <h5 class="card-title">@t("Total unpaid invoiced sale reports")</h5>
+                    <h5 class="card-title">{{ __('messages.Total unpaid invoiced sale reports') }}</h5>
                     <p class="card-text display-5">${{ number_format($totalUnpaidInvoicedSaleReportAmount, 2) }}</p>
-                    <small>Total amount of sales reports not paid</small>
+                    <small>{{ __('messages.Total amount of sales reports not paid') }}</small>
                 </div>
             </div>
         </div>
@@ -37,7 +37,7 @@
 
     {{-- ================== COMMANDES ================== --}}
     <div class="card mb-3">
-        <div class="card-header"> @t("Supplier Orders (Buyers)")</div>
+        <div class="card-header"> {{ __('messages.Supplier Orders (Buyers)') }}</div>
         <div class="card-body">
             <ul class="nav nav-tabs" id="ordersTabs" role="tablist">
                 @php
@@ -73,34 +73,34 @@
                                     <th></th>
                                     <th>{{ __('messages.supplier.name') }}</th>
                                     <th>{{ __('messages.supplier_order.created_at') }}</th>
-                                    <th>{{ __('messages.supplier_order.destination') }}</th>
+                                    <th>{{ __('messages.supplier_order.destination_store') }}</th>
                                     @switch($key)
                                         @case('pending')
-                                        <th>@t("Total ordered")</th>
-                                        <th>@t("Theoretical amount")</th>
+                                        <th>{{ __('messages.Total ordered') }}</th>
+                                        <th>{{ __('messages.Theoretical amount') }}</th>
                                         @break
                                         @case('waiting_reception')
-                                        <th>@t("Total ordered")</th>
-                                        <th>@t("Theoretical amount")</th>
+                                        <th>{{ __('messages.Total ordered') }}</th>
+                                        <th>{{ __('messages.Theoretical amount') }}</th>
                                         @break
                                         @case('waiting_invoice')
-                                        <th>@t("Total ordered")</th>
-                                        <th>@t("Total received")</th>
-                                        <th>@t("Theoretical amount")</th>
+                                        <th>{{ __('messages.Total ordered') }}</th>
+                                        <th>{{ __('messages.Total received') }}</th>
+                                        <th>{{ __('messages.Theoretical amount') }}</th>
                                         @break       
                                         @case('received_unpaid')
-                                        <th>@t("Total ordered")</th>
-                                        <th>@t("Total received")</th>
-                                        <th>@t("Theoretical amount")</th>
-                                        <th>@t("Total billed")</th>
-                                        <th>@t("Paid")</th>
+                                        <th>{{ __('messages.Total ordered') }}</th>
+                                        <th>{{ __('messages.Total received') }}</th>
+                                        <th>{{ __('messages.Theoretical amount') }}</th>
+                                        <th>{{ __('messages.Total billed') }}</th>
+                                        <th>{{ __('messages.Paid') }}</th>
                                         @break    
                                         @case('received_paid')
-                                        <th>@t("Total ordered")</th>
-                                        <th>@t("Total received")</th>
-                                        <th>@t("Theoretical amount")</th>
-                                        <th>@t("Total billed")</th>
-                                        <th>@t("Paid")</th>
+                                        <th>{{ __('messages.Total ordered') }}</th>
+                                        <th>{{ __('messages.Total received') }}</th>
+                                        <th>{{ __('messages.Theoretical amount') }}</th>
+                                        <th>{{ __('messages.Total billed') }}</th>
+                                        <th>{{ __('messages.Paid') }}</th>
                                         @break               
                                     @endswitch
                                 </tr>
@@ -165,7 +165,7 @@
                                                         </li>
                                                         <li>
                                                             <button class="dropdown-item" data-bs-toggle="modal" data-bs-target="#markAsPaidModal-{{ $order->id }}">
-                                                                <i class="bi bi-cash-coin"></i> @t("Mark as paid")
+                                                                <i class="bi bi-cash-coin"></i> {{ __('messages.Mark as paid') }}
                                                             </button>
                                                         </li>
                                                     @endif
@@ -198,9 +198,9 @@
                                         <td>${{ number_format($order->invoicedAmount(), 2) }}</td>
                                         <td>
                                             @if($order->is_paid)
-                                                <span class="badge bg-success">@t("Yes")</span>
+                                                <span class="badge bg-success">{{ __('messages.Yes') }}</span>
                                             @else
-                                                <span class="badge bg-danger">@t("No")</span>
+                                                <span class="badge bg-danger">{{ __('messages.No') }}</span>
                                             @endif
                                         </td>
                                         @break    
@@ -211,9 +211,9 @@
                                         <td>${{ number_format($order->invoicedAmount(), 2) }}</td>
                                              <td>
                                                 @if($order->is_paid)
-                                                    <span class="badge bg-success">@t("Yes")</span>
+                                                    <span class="badge bg-success">{{ __('messages.Yes') }}</span>
                                                 @else
-                                                    <span class="badge bg-danger">@t("No")</span>
+                                                    <span class="badge bg-danger">{{ __('messages.No') }}</span>
                                                 @endif
                                             </td>
                                         @break               
@@ -226,13 +226,13 @@
                                                 @csrf
                                                 <div class="modal-content">
                                                     <div class="modal-header">
-                                                        <h5 class="modal-title">@t("Mark order as paid")</h5>
+                                                        <h5 class="modal-title">{{ __('messages.Mark order as paid') }}</h5>
                                                         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                                                     </div>
                                                     <div class="modal-body">
                                                         <div class="mb-3">
                                                             <label class="form-label">
-                                                                @t("Amount paid") : 
+                                                                {{ __('messages.Amount paid') }} : 
                                                                 <strong>${{ $order->invoicedAmount() }}</strong>
                                                             </label>
                                                         </div>
@@ -245,13 +245,13 @@
                                                             </select>
                                                         </div>
                                                         <div class="mb-3">
-                                                            <label class="form-label">@t("Payment reference")</label>
+                                                            <label class="form-label">{{ __('messages.Payment reference') }}</label>
                                                             <input type="text" name="payment_reference" class="form-control form-control-sm">
                                                         </div>
                                                     </div>
                                                     <div class="modal-footer">
                                                         <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">{{ __('messages.btn.cancel') }}</button>
-                                                        <button type="submit" class="btn btn-success btn-sm">@t("Confirm payment")</button>
+                                                        <button type="submit" class="btn btn-success btn-sm">{{ __('messages.Confirm payment') }}</button>
                                                     </div>
                                                 </div>
                                             </form>
@@ -269,14 +269,14 @@
 
     {{-- ================== SALE REPORTS ================== --}}
     <div class="card mb-3">
-        <div class="card-header"> @t("Sale Reports")</div>
+        <div class="card-header"> {{ __('messages.Sale Reports') }}</div>
         <div class="card-body">
             <ul class="nav nav-tabs" id="srTabs" role="tablist">
                 @php
                     $srStatuses = [
-                        'waiting_invoice' =>  @t("Waiting invoice"),
-                        'invoiced_unpaid' => @('Unpaid'),
-                        'invoiced_paid' => @t("paid"),
+                        'waiting_invoice' =>  __('messages.Waiting invoice'),
+                        'invoiced_unpaid' => __('messages.Unpaid'),
+                        'invoiced_paid' => __('messages.Paid'),
                     ];
                 @endphp
                 @foreach($srStatuses as $key => $label)
@@ -303,11 +303,11 @@
                                 <tr>
                                     <th></th>
                                     <th>{{ __('messages.store.name') }}</th>
-                                    <th>@t("Periode")</th>
-                                    <th>@t("Theoretical amount")</th>
+                                    <th>{{ __('messages.Periode') }}</th>
+                                    <th>{{ __('messages.Theoretical amount') }}</th>
                                     @if(in_array($key, ['invoiced_unpaid','invoiced_paid']))
-                                        <th>@t("Total billed")</th>
-                                        <th>@t("Paid")</th>
+                                        <th>{{ __('messages.Total billed') }}</th>
+                                        <th>{{ __('messages.Paid') }}</th>
                                     @endif
                                 </tr>
                             </thead>
@@ -328,13 +328,13 @@
                                                     @if($report->status === 'waiting_invoice')
                                                         <li>
                                                             <a class="dropdown-item" href="{{ route('sale-reports.invoiceReception', [$report->supplier, $report]) }}">
-                                                                <i class="bi bi-receipt"></i> @t("Invoice reception")
+                                                                <i class="bi bi-receipt"></i> {{ __('messages.order.invoice_reception') }}
                                                             </a>
                                                         </li>
                                                     @elseif($report->status === 'invoiced' && !$report->is_paid)
                                                         <li>
                                                             <button class="dropdown-item" data-bs-toggle="modal" data-bs-target="#markAsPaidModalSR-{{ $report->id }}">
-                                                                <i class="bi bi-cash-coin"></i> @t("Mark as paid")
+                                                                <i class="bi bi-cash-coin"></i> {{ __('messages.Mark as paid') }}
                                                             </button>
                                                         </li>
                                                     @endif
@@ -349,9 +349,9 @@
                                             <td>${{ number_format($report->total_amount_invoiced, 2) }}</td>
                                             <td>
                                                 @if($report->is_paid)
-                                                    <span class="badge bg-success">@t("Yes")</span>
+                                                    <span class="badge bg-success">{{ __('messages.Yes') }}</span>
                                                 @else
-                                                    <span class="badge bg-danger">@t("No")</span>
+                                                    <span class="badge bg-danger">{{ __('messages.No') }}</span>
                                                 @endif
                                             </td>
                                         @endif
@@ -364,12 +364,12 @@
                                                 @csrf
                                                 <div class="modal-content">
                                                     <div class="modal-header">
-                                                        <h5 class="modal-title">@t("Mark sale report as paid")</h5>
+                                                        <h5 class="modal-title">{{ __('messages.Mark sale report as paid') }}</h5>
                                                         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                                                     </div>
                                                     <div class="modal-body">
                                                         <div class="mb-3">
-                                                            <label class="form-label">@t("Amount paid") : <strong>${{ $report->total_amount_invoiced }}</strong></label>
+                                                            <label class="form-label">{{ __('messages.Amount paid') }} : <strong>${{ $report->total_amount_invoiced }}</strong></label>
                                                            
                                                         </div>
                                                         <div class="mb-3">
@@ -381,13 +381,13 @@
                                                             </select>
                                                         </div>
                                                         <div class="mb-3">
-                                                            <label class="form-label">@t("Payment reference")</label>
+                                                            <label class="form-label">{{ __('messages.Payment reference') }}</label>
                                                             <input type="text" name="payment_reference" class="form-control">
                                                         </div>
                                                     </div>
                                                     <div class="modal-footer">
                                                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ __('messages.btn.cancel') }}</button>
-                                                        <button type="submit" class="btn btn-success">@t("Confirm payment")</button>
+                                                        <button type="submit" class="btn btn-success">{{ __('messages.Confirm payment') }}</button>
                                                     </div>
                                                 </div>
                                             </form>

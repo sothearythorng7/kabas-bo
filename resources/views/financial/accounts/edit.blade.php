@@ -2,26 +2,26 @@
 
 @section('content')
 <div class="container mt-4">
-    <h1 class="crud_title">@t('financial_account.title_edit') – {{ $store->name }}</h1>
+    <h1 class="crud_title">{{ __('messages.financial_account.title_edit') }} – {{ $store->name }}</h1>
     @include('financial.layouts.nav')
     <form method="POST" action="{{ route('financial.accounts.update', [$store->id, $account->id]) }}" class="mt-3">
         @csrf
         @method('PUT')
 
         <div class="mb-3">
-            <label class="form-label">@t('financial_account.code')</label>
+            <label class="form-label">{{ __('messages.financial_account.code') }}</label>
             <input type="text" name="code" class="form-control" required value="{{ old('code', $account->code) }}">
         </div>
 
         <div class="mb-3">
-            <label class="form-label">@t('financial_account.name')</label>
+            <label class="form-label">{{ __('messages.financial_account.name') }}</label>
             <input type="text" name="name" class="form-control" required value="{{ old('name', $account->name) }}">
         </div>
 
         <div class="mb-3">
-            <label class="form-label">@t('financial_account.type')</label>
+            <label class="form-label">{{ __('messages.financial_account.type') }}</label>
             <select name="type" class="form-select" required>
-                <option value="">-- @t('financial_account.choose') --</option>
+                <option value="">-- {{ __('messages.financial_account.choose') }} --</option>
                 @foreach(\App\Enums\FinancialAccountType::cases() as $type)
                     <option value="{{ $type->value }}" @selected(old('type', $account->type->value ?? '') == $type->value)>{{ $type->label() }}</option>
                 @endforeach
@@ -29,9 +29,9 @@
         </div>
 
         <div class="mb-3">
-            <label class="form-label">@t('financial_account.parent_account')</label>
+            <label class="form-label">{{ __('messages.financial_account.parent_account') }}</label>
             <select name="parent_id" class="form-select">
-                <option value="">-- @t('financial_account.none') --</option>
+                <option value="">-- {{ __('messages.financial_account.none') }} --</option>
                 @foreach($parents as $parent)
                     <option value="{{ $parent->id }}" @selected(old('parent_id', $account->parent_id)==$parent->id)>{{ $parent->code }} - {{ $parent->name }}</option>
                 @endforeach
@@ -39,10 +39,10 @@
         </div>
 
         <button type="submit" class="btn btn-success">
-            <i class="bi bi-save"></i> @t('financial_account.update')
+            <i class="bi bi-save"></i> {{ __('messages.financial_account.update') }}
         </button>
         <a href="{{ route('financial.accounts.index', $store->id) }}" class="btn btn-secondary">
-            <i class="bi bi-x-circle"></i> @t('financial_account.cancel')
+            <i class="bi bi-x-circle"></i> {{ __('messages.financial_account.cancel') }}
         </a>
     </form>
 </div>

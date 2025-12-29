@@ -5,16 +5,16 @@
     @if(request('store_id'))
         <div class="mb-3">
             <a href="{{ route('financial.general-invoices.index', request('store_id')) }}" class="btn btn-sm btn-outline-secondary">
-                <i class="bi bi-arrow-left"></i> @t('Retour au module financier')
+                <i class="bi bi-arrow-left"></i> {{ __('messages.invoice_category.back_to_financial') }}
             </a>
         </div>
     @endif
 
-    <h1 class="crud_title">@t('Catégories de factures')</h1>
+    <h1 class="crud_title">{{ __('messages.invoice_category.title') }}</h1>
 
     <div class="mb-3">
         <a href="{{ route('invoice-categories.create', request()->only('store_id')) }}" class="btn btn-primary">
-            <i class="bi bi-plus-lg"></i> @t('Nouvelle catégorie')
+            <i class="bi bi-plus-lg"></i> {{ __('messages.invoice_category.new_category') }}
         </a>
     </div>
 
@@ -22,9 +22,9 @@
         <thead>
             <tr>
                 <th></th>
-                <th>@t('Nom')</th>
-                <th>@t('Couleur')</th>
-                <th>@t('Nombre de factures')</th>
+                <th>{{ __('messages.invoice_category.name') }}</th>
+                <th>{{ __('messages.invoice_category.color') }}</th>
+                <th>{{ __('messages.invoice_category.invoices_count') }}</th>
             </tr>
         </thead>
         <tbody>
@@ -38,7 +38,7 @@
                         <ul class="dropdown-menu">
                             <li>
                                 <a class="dropdown-item" href="{{ route('invoice-categories.edit', array_merge(['invoice_category' => $category->id], request()->only('store_id'))) }}">
-                                    <i class="bi bi-pencil-fill"></i> @t('Modifier')
+                                    <i class="bi bi-pencil-fill"></i> {{ __('messages.invoice_category.edit') }}
                                 </a>
                             </li>
                             <li>
@@ -47,8 +47,8 @@
                                     @if(request('store_id'))
                                         <input type="hidden" name="store_id" value="{{ request('store_id') }}">
                                     @endif
-                                    <button class="dropdown-item" onclick="return confirm('@t('Confirmer la suppression ?')')">
-                                        <i class="bi bi-trash-fill"></i> @t('Supprimer')
+                                    <button class="dropdown-item" onclick="return confirm('{{ __('messages.invoice_category.confirm_delete') }}')">
+                                        <i class="bi bi-trash-fill"></i> {{ __('messages.invoice_category.delete') }}
                                     </button>
                                 </form>
                             </li>
@@ -64,7 +64,7 @@
                 <td>{{ $category->general_invoices_count }}</td>
             </tr>
         @empty
-            <tr><td colspan="4" class="text-center">@t('Aucune catégorie')</td></tr>
+            <tr><td colspan="4" class="text-center">{{ __('messages.invoice_category.no_category') }}</td></tr>
         @endforelse
         </tbody>
     </table>

@@ -23,6 +23,9 @@ class ProductController extends Controller
 {
     public function index(Request $request)
     {
+        $perPage = $request->input('perPage', 100);
+        $perPage = in_array($perPage, [25, 50, 100]) ? $perPage : 100;
+
         // Si recherche textuelle, utiliser Meilisearch via Scout
         if ($request->filled('q')) {
             $searchQuery = Product::search($request->q)
@@ -39,7 +42,7 @@ class ProductController extends Controller
                 }
             }
 
-            $products = $searchQuery->paginate(100)->withQueryString();
+            $products = $searchQuery->paginate($perPage)->withQueryString();
         } else {
             // Pas de recherche : requête SQL classique
             $query = Product::with('brand', 'stores')->withCount('images');
@@ -52,7 +55,7 @@ class ProductController extends Controller
                 }
             }
 
-            $products = $query->orderBy('id', 'desc')->paginate(100)->withQueryString();
+            $products = $query->orderBy('id', 'desc')->paginate($perPage)->withQueryString();
         }
 
         $brands = Brand::orderBy('name')->get();
@@ -150,7 +153,7 @@ public function store(Request $request)
 
     public function edit(Product $product)
     {
-        $product->load(['categories', 'suppliers', 'stores', 'images']);
+        $product->load(['categories', 'suppliers', 'stores', 'images', 'stockBatches']);
         $allCategories = Category::all();
         $allSuppliers  = Supplier::all();
         $stores        = Store::all();
@@ -168,6 +171,9 @@ public function store(Request $request)
             ]])
             ->toArray();
 
+        // Calcul des alertes produit
+        $productAlerts = $this->getProductAlerts($product);
+
         return view('products.edit', compact(
             'product',
             'allCategories',
@@ -176,8 +182,82 @@ public function store(Request $request)
             'brands',
             'supplierPivot',
             'storePivot',
-            'types'
+            'types',
+            'productAlerts'
         ));
+    }
+
+    /**
+     * Calcule les alertes pour un produit donné
+     */
+    private function getProductAlerts(Product $product): array
+    {
+        $alerts = [];
+
+        // Sans images
+        if ($product->images->isEmpty()) {
+            $alerts[] = [
+                'type' => 'no_image',
+                'icon' => 'bi-image',
+                'color' => 'warning',
+                'message' => __('messages.product_alerts.no_image'),
+            ];
+        }
+
+        // Sans description FR
+        $descFr = $product->description['fr'] ?? '';
+        if (empty(trim($descFr))) {
+            $alerts[] = [
+                'type' => 'no_description_fr',
+                'icon' => 'bi-file-text',
+                'color' => 'danger',
+                'message' => __('messages.product_alerts.no_description_fr'),
+            ];
+        }
+
+        // Sans description EN
+        $descEn = $product->description['en'] ?? '';
+        if (empty(trim($descEn))) {
+            $alerts[] = [
+                'type' => 'no_description_en',
+                'icon' => 'bi-file-text',
+                'color' => 'info',
+                'message' => __('messages.product_alerts.no_description_en'),
+            ];
+        }
+
+        // Hors stock
+        $totalStock = $product->stockBatches->sum('quantity');
+        if ($totalStock == 0) {
+            $alerts[] = [
+                'type' => 'out_of_stock',
+                'icon' => 'bi-box-seam',
+                'color' => 'danger',
+                'message' => __('messages.product_alerts.out_of_stock'),
+            ];
+        }
+
+        // EAN fake ou vide
+        if (empty($product->ean) || str_starts_with($product->ean, 'FAKE-')) {
+            $alerts[] = [
+                'type' => 'fake_or_empty_ean',
+                'icon' => 'bi-upc-scan',
+                'color' => 'warning',
+                'message' => __('messages.product_alerts.fake_or_empty_ean'),
+            ];
+        }
+
+        // Sans catégorie
+        if ($product->categories->isEmpty()) {
+            $alerts[] = [
+                'type' => 'no_category',
+                'icon' => 'bi-bookmarks',
+                'color' => 'primary',
+                'message' => __('messages.product_alerts.no_category'),
+            ];
+        }
+
+        return $alerts;
     }
 
 public function update(Request $request, Product $product)
@@ -256,6 +336,24 @@ public function update(Request $request, Product $product)
 
     return redirect()->back()->with('success', __('messages.common.updated'));
 }
+
+    public function updateDescriptions(Request $request, Product $product)
+    {
+        $locales = config('app.website_locales', ['en']);
+
+        $data = $request->validate([
+            'description' => 'nullable|array',
+            'description.*' => 'nullable|string',
+        ]);
+
+        foreach ($locales as $locale) {
+            $product->setTranslation('description', $locale, $data['description'][$locale] ?? '');
+        }
+
+        $product->save();
+
+        return redirect()->back()->with('success', __('messages.common.updated'));
+    }
 
     public function uploadPhotos(Request $request, Product $product)
     {
@@ -606,6 +704,112 @@ public function search(Request $request)
     }
 
     return response()->json($products);
+}
+
+/**
+ * Duplique un produit avec toutes ses relations
+ */
+public function duplicate(Product $product)
+{
+    $product->load(['categories', 'suppliers', 'stores', 'images', 'variations']);
+
+    $newProduct = DB::transaction(function () use ($product) {
+        // Générer un EAN fake unique
+        do {
+            $fakeEan = 'FAKE-' . mt_rand(10000000, 99999999);
+        } while (Product::where('ean', $fakeEan)->exists());
+
+        // Dupliquer les attributs de base
+        $newName = [];
+        foreach ($product->name as $locale => $name) {
+            $newName[$locale] = 'COPY - ' . $name;
+        }
+
+        // Dupliquer les slugs avec préfixe "copy-"
+        $newSlugs = [];
+        if ($product->slugs) {
+            foreach ($product->slugs as $locale => $slug) {
+                $newSlugs[$locale] = 'copy-' . $slug;
+            }
+        }
+
+        $newProduct = Product::create([
+            'ean' => $fakeEan,
+            'name' => $newName,
+            'description' => $product->description,
+            'slugs' => $newSlugs,
+            'price' => $product->price,
+            'price_btob' => $product->price_btob,
+            'brand_id' => $product->brand_id,
+            'color' => $product->color,
+            'size' => $product->size,
+            'is_active' => false, // Désactivé par défaut
+            'is_best_seller' => $product->is_best_seller,
+            'is_resalable' => $product->is_resalable,
+            'allow_overselling' => $product->allow_overselling,
+            'attributes' => $product->attributes,
+        ]);
+
+        // Dupliquer les catégories
+        if ($product->categories->isNotEmpty()) {
+            $newProduct->categories()->attach($product->categories->pluck('id'));
+        }
+
+        // Dupliquer les fournisseurs avec leurs prix
+        if ($product->suppliers->isNotEmpty()) {
+            $supplierData = [];
+            foreach ($product->suppliers as $supplier) {
+                $supplierData[$supplier->id] = ['purchase_price' => $supplier->pivot->purchase_price];
+            }
+            $newProduct->suppliers()->attach($supplierData);
+        }
+
+        // Dupliquer les liens vers les stores (sans stock)
+        if ($product->stores->isNotEmpty()) {
+            $storeData = [];
+            foreach ($product->stores as $store) {
+                $storeData[$store->id] = ['alert_stock_quantity' => $store->pivot->alert_stock_quantity];
+            }
+            $newProduct->stores()->attach($storeData);
+        }
+
+        // Dupliquer les photos
+        if ($product->images->isNotEmpty()) {
+            foreach ($product->images as $image) {
+                // Copier le fichier physique
+                $originalPath = $image->path;
+                if (Storage::disk('public')->exists($originalPath)) {
+                    $extension = pathinfo($originalPath, PATHINFO_EXTENSION);
+                    $newFileName = 'products/' . uniqid() . '.' . $extension;
+                    Storage::disk('public')->copy($originalPath, $newFileName);
+
+                    ProductImage::create([
+                        'product_id' => $newProduct->id,
+                        'path' => $newFileName,
+                        'is_primary' => $image->is_primary,
+                        'sort_order' => $image->sort_order,
+                    ]);
+                }
+            }
+        }
+
+        // Dupliquer les variations
+        if ($product->variations->isNotEmpty()) {
+            foreach ($product->variations as $variation) {
+                ProductVariation::create([
+                    'product_id' => $newProduct->id,
+                    'variation_type_id' => $variation->variation_type_id,
+                    'variation_value_id' => $variation->variation_value_id,
+                    'linked_product_id' => $variation->linked_product_id,
+                ]);
+            }
+        }
+
+        return $newProduct;
+    });
+
+    return redirect()->route('products.edit', $newProduct)
+        ->with('success', __('messages.product.duplicated'));
 }
 
 }

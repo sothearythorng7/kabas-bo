@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta charset="utf-8">
-    <title>Commande #{{ $order->id }}</title>
+    <title>{{ __('messages.supplier_order.pdf_title') }} #{{ $order->id }}</title>
     <style>
         body { font-family: DejaVu Sans, sans-serif; font-size: 12px; }
         table { width: 100%; border-collapse: collapse; margin-top: 20px; }
@@ -16,30 +16,30 @@
     </style>
 </head>
 <body>
-    <h1>Commande #{{ $order->id }} - {{ $supplier->name }}</h1>
+    <h1>{{ __('messages.supplier_order.pdf_title') }} #{{ $order->id }} - {{ $supplier->name }}</h1>
 
-    <p><strong>Status:</strong>
+    <p><strong>{{ __('messages.common.status') }}:</strong>
         @if($order->status === 'pending')
-            <span class="badge badge-warning">En attente</span>
+            <span class="badge badge-warning">{{ __('messages.supplier_order.status.pending') }}</span>
         @elseif($order->status === 'waiting_reception')
-            <span class="badge badge-info">En attente de réception</span>
+            <span class="badge badge-info">{{ __('messages.supplier_order.status.waiting_reception') }}</span>
         @else
-            <span class="badge badge-success">Réceptionnée</span>
+            <span class="badge badge-success">{{ __('messages.supplier_order.status.received') }}</span>
         @endif
     </p>
 
-    <p><strong>Date création:</strong> {{ $order->created_at->format('d/m/Y H:i') }}</p>
+    <p><strong>{{ __('messages.supplier_order.created_at') }}:</strong> {{ $order->created_at->format('d/m/Y H:i') }}</p>
 
     <table>
         <thead>
             <tr>
                 <th>EAN</th>
-                <th>Produit</th>
-                <th>Marque</th>
-                <th>Prix d'achat</th>
-                <th>Prix de vente</th>
-                <th>Qté commandée</th>
-                <th>Qté reçue</th>
+                <th>{{ __('messages.product.name') }}</th>
+                <th>{{ __('messages.product.brand') }}</th>
+                <th>{{ __('messages.product.purchase_price') }}</th>
+                <th>{{ __('messages.product.price') }}</th>
+                <th>{{ __('messages.supplier_order.qty_ordered') }}</th>
+                <th>{{ __('messages.supplier_order.qty_received') }}</th>
             </tr>
         </thead>
         <tbody>

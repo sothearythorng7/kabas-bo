@@ -65,7 +65,7 @@ class RefillController extends Controller
                     'updated_at'        => now(),
                 ];
 
-                // Création d’un lot dans le stock
+                // Création d'un lot dans le stock
                 $batch = StockBatch::create([
                     'product_id'      => $productId,
                     'store_id'        => $store->id,
@@ -93,5 +93,63 @@ class RefillController extends Controller
 
         return redirect()->route('suppliers.edit', $supplier)
             ->with('success', 'Refill réceptionné avec succès.');
+    }
+
+    /**
+     * Mettre à jour les quantités d'un refill existant
+     */
+    public function updateQuantities(Request $request, Supplier $supplier, Refill $refill)
+    {
+        $request->validate([
+            'products' => 'required|array',
+            'products.*.quantity_received' => 'required|integer|min:0',
+        ]);
+
+        DB::transaction(function() use ($request, $supplier, $refill) {
+            foreach ($request->input('products') as $productId => $productData) {
+                $newQuantity = (int) $productData['quantity_received'];
+
+                // Récupérer la quantité actuelle dans le pivot
+                $pivotData = $refill->products()->where('product_id', $productId)->first();
+                if (!$pivotData) continue;
+
+                $oldQuantity = $pivotData->pivot->quantity_received;
+                $difference = $newQuantity - $oldQuantity;
+
+                // Si pas de changement, on passe
+                if ($difference === 0) continue;
+
+                // Mettre à jour le pivot refill_product
+                $refill->products()->updateExistingPivot($productId, [
+                    'quantity_received' => $newQuantity,
+                    'updated_at' => now(),
+                ]);
+
+                // Mettre à jour le StockBatch correspondant
+                $stockBatch = StockBatch::where('source_refill_id', $refill->id)
+                    ->where('product_id', $productId)
+                    ->first();
+
+                if ($stockBatch) {
+                    $stockBatch->update([
+                        'quantity' => $stockBatch->quantity + $difference,
+                    ]);
+
+                    // Créer une transaction de stock pour tracer l'ajustement
+                    StockTransaction::create([
+                        'stock_batch_id' => $stockBatch->id,
+                        'store_id'       => $refill->destination_store_id,
+                        'product_id'     => $productId,
+                        'type'           => $difference > 0 ? 'in' : 'out',
+                        'quantity'       => abs($difference),
+                        'reason'         => 'refill_adjustment',
+                        'user_id'        => auth()->id(),
+                    ]);
+                }
+            }
+        });
+
+        return redirect()->route('refills.show', [$supplier, $refill])
+            ->with('success', __('messages.refill.quantities_updated'));
     }
 }

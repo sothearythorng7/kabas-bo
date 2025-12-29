@@ -10,9 +10,9 @@ db.register(new UsersTable());
 db.register(new CatalogTable());
 db.register(new PaymentsTable());
 
-// Session
-let currentUser = null;
-let currentShift = null;
+// Session (variables globales pour accès depuis index.blade.php)
+var currentUser = null;
+var currentShift = null;
 let currentJournalSales = null; // For storing current journal view (current shift or historical)
 
 // Sales (dashboard)
@@ -580,8 +580,13 @@ function initShiftstart() {
     $("#shift-start-input").val("");
 
     $("#screen-shiftstart .shift-num-btn").off("click").on("click", function() {
-        if (buffer.length < 9) {
-            buffer += $(this).text();
+        const char = $(this).text();
+        // Prevent multiple decimal points
+        if (char === "." && buffer.includes(".")) {
+            return;
+        }
+        if (buffer.length < 12) {
+            buffer += char;
             $("#shift-start-input").val(buffer);
         }
     });
@@ -610,8 +615,13 @@ function initShiftend() {
     $("#shift-end-input").val("");
 
     $("#screen-shiftend .shift-end-num-btn").off("click").on("click", function() {
-        if (buffer.length < 9) {
-            buffer += $(this).text();
+        const char = $(this).text();
+        // Prevent multiple decimal points
+        if (char === "." && buffer.includes(".")) {
+            return;
+        }
+        if (buffer.length < 12) {
+            buffer += char;
             $("#shift-end-input").val(buffer);
         }
     });
@@ -806,8 +816,7 @@ function initSalesHistory() {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    date: selectedDate,
-                    user_id: currentUser.id
+                    date: selectedDate
                 })
             });
 
@@ -822,10 +831,12 @@ function initSalesHistory() {
             const formattedSales = data.sales.map(sale => ({
                 id: sale.id,
                 date: new Date(sale.created_at).toLocaleString(),
+                seller: sale.shift?.user?.name || '-',
                 items: sale.items.map(item => {
                     const price = parseFloat(item.price);
                     const quantity = item.quantity;
                     return {
+                        id: item.id, // sale_item_id for exchanges
                         product_id: item.product_id,
                         name: item.product ? item.product.name : { en: 'Delivery Service' },
                         ean: item.product ? item.product.ean : 'DELIVERY',
@@ -834,9 +845,33 @@ function initSalesHistory() {
                         line_total: price * quantity,
                         discounts: item.discounts || [],
                         is_delivery: item.is_delivery || false,
-                        delivery_address: item.delivery_address || null
+                        delivery_address: item.delivery_address || null,
+                        exchanged_at: item.exchanged_at || null,
+                        added_via_exchange_id: item.added_via_exchange_id || null
                     };
                 }),
+                // Include exchange history
+                exchanges: (sale.exchanges || []).map(ex => ({
+                    id: ex.id,
+                    return_total: parseFloat(ex.return_total || 0),
+                    new_items_total: parseFloat(ex.new_items_total || 0),
+                    balance: parseFloat(ex.balance || 0),
+                    created_at: ex.created_at,
+                    voucher: ex.generated_voucher ? {
+                        code: ex.generated_voucher.code,
+                        amount: parseFloat(ex.generated_voucher.amount)
+                    } : null,
+                    returned_items: (ex.items || []).filter(i => i.type === 'returned').map(i => ({
+                        product_name: i.product ? (i.product.name?.en || i.product.name?.fr || 'Product') : 'Unknown',
+                        quantity: i.quantity,
+                        unit_price: parseFloat(i.unit_price)
+                    })),
+                    new_items: (ex.items || []).filter(i => i.type === 'new').map(i => ({
+                        product_name: i.product ? (i.product.name?.en || i.product.name?.fr || 'Product') : 'Unknown',
+                        quantity: i.quantity,
+                        unit_price: parseFloat(i.unit_price)
+                    }))
+                })),
                 payment_type: sale.payment_type,
                 split_payments: sale.split_payments,
                 total: parseFloat(sale.total),
@@ -975,14 +1010,16 @@ function initSalesHistory() {
 }
 
 function showSaleDetail(saleId, returnScreen = "sales-history") {
-    // Try to find sale in current journal view first
+    // Try to find sale in current journal view first (from API - has sale_item IDs)
     let sale = currentJournalSales ? currentJournalSales.find(s => s.id === saleId) : null;
+    let saleSource = sale ? 'api' : null;
 
-    // If not found, try localStorage (for backward compatibility)
+    // If not found, try localStorage (for backward compatibility - local sales don't have sale_item IDs)
     if (!sale) {
         const key = `pos_sales_validated_shift_${currentShift.id}`;
         const stored = JSON.parse(localStorage.getItem(key)) || [];
         sale = stored.find(s => s.id === saleId);
+        saleSource = sale ? 'localStorage' : null;
     }
 
     if (!sale) {
@@ -990,20 +1027,34 @@ function showSaleDetail(saleId, returnScreen = "sales-history") {
         return;
     }
 
-    // --- Produits ---
+    console.log(`Sale #${saleId} loaded from: ${saleSource}`);
+    console.log("Sale items:", sale.items?.map(i => ({ id: i.id, product_id: i.product_id })));
+
+    // --- Set sale for exchange ---
+    if (typeof window.setCurrentSaleForExchange === 'function') {
+        window.setCurrentSaleForExchange(sale);
+    }
+
+    // Display sale ID
+    $("#detail-sale-id").text(`(#${sale.id})`);
+
+    // Hide exchange button initially
+    $("#btn-start-exchange").addClass("d-none");
+
+    // --- Produits ACTIFS (non échangés) ---
     const $tbody = $("#sale-items-table tbody").empty();
-    sale.items.forEach(item => {
+    const activeItems = sale.items.filter(item => !item.exchanged_at);
+
+    activeItems.forEach((item, index) => {
         const discounts = item.discounts && item.discounts.length
             ? item.discounts.map(d => {
                 let label = "";
-                // Scope par défaut 'line' si absent
                 const scope = d.scope || "line";
-
                 if(scope === "line") {
                     label = d.type === "percent"
                         ? `Remise ligne: ${d.value}%`
                         : `Remise ligne: $${parseFloat(d.value).toFixed(2)}`;
-                } else { // unit
+                } else {
                     label = d.type === "percent"
                         ? `Remise par article: ${d.value}%`
                         : `Remise par article: $${parseFloat(d.value).toFixed(2)}`;
@@ -1011,20 +1062,131 @@ function showSaleDetail(saleId, returnScreen = "sales-history") {
                 return label;
             }).join(", ")
             : "-";
+
+        const isExchangeable = item.is_exchangeable !== false;
+        const itemName = typeof item.name === 'object' ? (item.name.en || item.name.fr || 'Product') : item.name;
+        const isFromExchange = item.added_via_exchange_id ? true : false;
+
+        // Build item data for exchange
+        const itemData = {
+            sale_item_id: item.id || item.sale_item_id || `item_${index}`,
+            product_id: item.product_id,
+            name: item.name,
+            quantity: item.quantity,
+            price: item.price
+        };
+
+        // Toggle button for exchange
+        const toggleHtml = isExchangeable
+            ? `<div class="exchange-toggle" data-item='${JSON.stringify(itemData)}'>
+                   <i class="bi bi-arrow-left-right toggle-icon"></i>
+               </div>`
+            : `<div class="exchange-toggle disabled"><i class="bi bi-x-lg toggle-icon"></i></div>`;
+
+        const statusHtml = isFromExchange
+            ? `<span class="badge bg-info">Via exchange</span>`
+            : `<span class="badge bg-success">Available</span>`;
+
         const rowHtml = `
             <tr>
-                <td>${item.name.en}</td>
+                <td class="text-center">${toggleHtml}</td>
+                <td><strong>${itemName}</strong></td>
                 <td class="text-center">${item.quantity}</td>
                 <td class="text-center">$${item.price.toFixed(2)}</td>
-                <td class="text-center">$${item.line_total.toFixed(2)}</td>
-                <td>${discounts}</td>
+                <td class="text-center">$${(item.price * item.quantity).toFixed(2)}</td>
+                <td>${statusHtml}</td>
             </tr>
         `;
         $tbody.append(rowHtml);
     });
 
-    // --- Détails financiers ---
-    const totalBeforeDiscount = sale.items.reduce((sum, i) => sum + i.price * i.quantity, 0);
+    // --- Afficher historique des échanges si présent ---
+    const $exchangeHistory = $("#exchange-history-section");
+    if ($exchangeHistory.length) {
+        $exchangeHistory.remove();
+    }
+
+    if (sale.exchanges && sale.exchanges.length > 0) {
+        let exchangeHtml = `
+            <div id="exchange-history-section" class="mt-4">
+                <h5 class="mb-3 text-warning"><i class="bi bi-arrow-left-right me-2"></i>Exchange History</h5>
+        `;
+
+        sale.exchanges.forEach(ex => {
+            exchangeHtml += `
+                <div class="card mb-3 border-warning">
+                    <div class="card-header bg-warning bg-opacity-25">
+                        <strong>Exchange #${ex.id}</strong>
+                        <span class="float-end text-muted">${new Date(ex.created_at).toLocaleString()}</span>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h6 class="text-danger"><i class="bi bi-dash-circle me-1"></i>Returned Items</h6>
+                                <ul class="list-unstyled mb-0">
+            `;
+
+            ex.returned_items.forEach(ri => {
+                exchangeHtml += `<li>- ${ri.product_name} x${ri.quantity} ($${ri.unit_price.toFixed(2)})</li>`;
+            });
+
+            exchangeHtml += `
+                                </ul>
+                                <p class="mt-2 mb-0"><strong>Return Credit:</strong> $${ex.return_total.toFixed(2)}</p>
+                            </div>
+                            <div class="col-md-6">
+                                <h6 class="text-success"><i class="bi bi-plus-circle me-1"></i>New Items</h6>
+                                <ul class="list-unstyled mb-0">
+            `;
+
+            if (ex.new_items.length > 0) {
+                ex.new_items.forEach(ni => {
+                    exchangeHtml += `<li>+ ${ni.product_name} x${ni.quantity} ($${ni.unit_price.toFixed(2)})</li>`;
+                });
+                exchangeHtml += `<p class="mt-2 mb-0"><strong>New Items Total:</strong> $${ex.new_items_total.toFixed(2)}</p>`;
+            } else {
+                exchangeHtml += `<li class="text-muted">None</li>`;
+            }
+
+            exchangeHtml += `
+                                </ul>
+                            </div>
+                        </div>
+            `;
+
+            // Balance et voucher
+            const balanceClass = ex.balance > 0 ? 'text-success' : (ex.balance < 0 ? 'text-danger' : '');
+            exchangeHtml += `
+                        <hr>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span><strong>Balance:</strong> <span class="${balanceClass}">$${ex.balance.toFixed(2)}</span></span>
+            `;
+
+            if (ex.voucher) {
+                const formattedCode = ex.voucher.code.replace(/(.{3})/g, '$1 ').trim();
+                exchangeHtml += `
+                            <span class="badge bg-success fs-6">
+                                <i class="bi bi-ticket-perforated me-1"></i>
+                                Voucher: ${formattedCode} ($${ex.voucher.amount.toFixed(2)})
+                            </span>
+                `;
+            }
+
+            exchangeHtml += `
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+
+        exchangeHtml += `</div>`;
+
+        // Insert after the products table
+        $("#sale-items-table").closest(".mb-4").after(exchangeHtml);
+    }
+
+    // --- Détails financiers (seulement items actifs) ---
+    const totalBeforeDiscount = activeItems.reduce((sum, i) => sum + i.price * i.quantity, 0);
     const totalDiscounts =  totalBeforeDiscount - sale.total || 0;
     const finalTotal = sale.total || 0;
     $("#detail-total-before-discount").text("$" + totalBeforeDiscount.toFixed(2));
@@ -1077,6 +1239,59 @@ function showSaleDetail(saleId, returnScreen = "sales-history") {
 
     // --- Affiche l'écran ---
     showScreen("sale-detail");
+
+    // --- Bouton réimpression (bind après showScreen pour s'assurer que le DOM est visible) ---
+    $("#btn-reprint-sale").off("click").on("click", function() {
+        console.log("Reprint button clicked", sale);
+        reprintSale(sale);
+    });
+}
+
+// Reprint sale receipt from journal
+function reprintSale(sale) {
+    let lines = [], total = 0;
+
+    sale.items.forEach(item => {
+        const name = (typeof item.name === "object" && item.name.en) ? item.name.en : item.name;
+        const qty = item.quantity;
+        const unitPrice = item.price;
+        let lineTotal = unitPrice * qty;
+
+        let itemDiscountTotal = 0;
+        if (Array.isArray(item.discounts)) {
+            item.discounts.forEach(d => {
+                const value = Number(d.value) || 0;
+                if (d.scope === 'unit') {
+                    if (d.type === 'amount') itemDiscountTotal += value * qty;
+                    else if (d.type === 'percent') itemDiscountTotal += unitPrice * (value / 100) * qty;
+                } else if (d.scope === 'line') {
+                    if (d.type === 'amount') itemDiscountTotal += value;
+                    else if (d.type === 'percent') itemDiscountTotal += lineTotal * (value / 100);
+                }
+            });
+        }
+        if (itemDiscountTotal > lineTotal) itemDiscountTotal = lineTotal;
+        lineTotal -= itemDiscountTotal;
+        total += lineTotal;
+
+        lines.push({ name, qty, unitPrice, lineTotal, discounts: item.discounts || [] });
+    });
+
+    const globalDiscounts = sale.discounts || [];
+
+    $.ajax({
+        url: "https://192.168.1.50:5000/print",
+        method: "POST",
+        contentType: "application/json",
+        data: JSON.stringify({ sale: { items: lines, discounts: globalDiscounts, ticket_number: sale.ticket_number, total: sale.total || total } }),
+        success: function() {
+            alert("Receipt reprinted successfully!");
+        },
+        error: function(err) {
+            console.error(err);
+            alert("Error printing receipt!");
+        }
+    });
 }
 
 
@@ -1162,6 +1377,7 @@ function showSearchResults(searchDate, sales) {
                     const price = parseFloat(item.price);
                     const quantity = item.quantity;
                     return {
+                        id: item.id, // sale_item_id for exchanges
                         product_id: item.product_id,
                         name: item.product ? item.product.name : { en: 'Delivery Service' },
                         ean: item.product ? item.product.ean : 'DELIVERY',
@@ -1170,9 +1386,33 @@ function showSearchResults(searchDate, sales) {
                         line_total: price * quantity,
                         discounts: item.discounts || [],
                         is_delivery: item.is_delivery || false,
-                        delivery_address: item.delivery_address || null
+                        delivery_address: item.delivery_address || null,
+                        exchanged_at: item.exchanged_at || null,
+                        added_via_exchange_id: item.added_via_exchange_id || null
                     };
                 }),
+                // Include exchange history
+                exchanges: (sale.exchanges || []).map(ex => ({
+                    id: ex.id,
+                    return_total: parseFloat(ex.return_total || 0),
+                    new_items_total: parseFloat(ex.new_items_total || 0),
+                    balance: parseFloat(ex.balance || 0),
+                    created_at: ex.created_at,
+                    voucher: ex.generated_voucher ? {
+                        code: ex.generated_voucher.code,
+                        amount: parseFloat(ex.generated_voucher.amount)
+                    } : null,
+                    returned_items: (ex.items || []).filter(i => i.type === 'returned').map(i => ({
+                        product_name: i.product ? (i.product.name?.en || i.product.name?.fr || 'Product') : 'Unknown',
+                        quantity: i.quantity,
+                        unit_price: parseFloat(i.unit_price)
+                    })),
+                    new_items: (ex.items || []).filter(i => i.type === 'new').map(i => ({
+                        product_name: i.product ? (i.product.name?.en || i.product.name?.fr || 'Product') : 'Unknown',
+                        quantity: i.quantity,
+                        unit_price: parseFloat(i.unit_price)
+                    }))
+                })),
                 payment_type: sale.payment_type,
                 split_payments: sale.split_payments,
                 total: parseFloat(sale.total),
@@ -1215,10 +1455,12 @@ function showSearchResults(searchDate, sales) {
         }
 
         const saleDate = sale.date || new Date(sale.id).toLocaleString();
+        const sellerName = sale.seller || '-';
 
         const $row = $(`
             <tr>
                 <td>${saleDate}</td>
+                <td>${sellerName}</td>
                 <td class="text-center">${numProducts}</td>
                 <td class="text-center">$${totalBeforeDiscount.toFixed(2)}</td>
                 <td class="text-center">$${(sale.total || 0).toFixed(2)}</td>

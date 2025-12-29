@@ -1,12 +1,12 @@
 <table>
     <thead>
         <tr>
-            <th>@t("date")</th>
-            <th>@t("Libellé")</th>
-            <th>@t("Compte")</th>
-            <th>@t("Montant")</th>
-            <th>@t("Méthode")</th>
-            <th>@t("Solde après")</th>
+            <th>{{ __('messages.financial.date') }}</th>
+            <th>{{ __('messages.financial.label') }}</th>
+            <th>{{ __('messages.financial.account') }}</th>
+            <th>{{ __('messages.financial.amount') }}</th>
+            <th>{{ __('messages.financial.method') }}</th>
+            <th>{{ __('messages.financial.balance_after') }}</th>
         </tr>
     </thead>
     <tbody>

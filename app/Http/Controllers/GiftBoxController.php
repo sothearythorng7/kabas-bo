@@ -200,7 +200,7 @@ class GiftBoxController extends Controller
     public function deleteImage(GiftBox $giftBox, GiftBoxImage $image)
     {
         if ($image->gift_box_id !== $giftBox->id) {
-            return response()->json(['success' => false, 'message' => 'Image non trouvée'], 404);
+            return response()->json(['success' => false, 'message' => __('messages.flash.image_not_found')], 404);
         }
 
         Storage::disk('public')->delete($image->path);

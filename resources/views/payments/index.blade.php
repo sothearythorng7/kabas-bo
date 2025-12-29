@@ -2,37 +2,37 @@
 
 @section('content')
 <div class="container mt-4">
-    <h1 class="crud_title">@t("Paiements fournisseurs") - {{ $site->name }}</h1>
+    <h1 class="crud_title">{{ __('messages.payments.title') }} - {{ $site->name }}</h1>
     <ul class="nav nav-tabs mb-4">
         <li class="nav-item">
-            <a class="nav-link" href="{{ route('stores.dashboard.index', $site) }}">@t("Informations générales")</a>
+            <a class="nav-link" href="{{ route('stores.dashboard.index', $site) }}">{{ __('messages.store_nav.general_info') }}</a>
         </li>
         <li class="nav-item">
-            <a class="nav-link" href="{{ route('stores.journals.index', $site) }}">@t("Journaux")</a>
+            <a class="nav-link" href="{{ route('stores.journals.index', $site) }}">{{ __('messages.store_nav.journals') }}</a>
         </li>
         <li class="nav-item">
-            <a class="nav-link active" href="{{ route('stores.payments.index', $site) }}">@t("Paiements fournisseurs")</a>
+            <a class="nav-link active" href="{{ route('stores.payments.index', $site) }}">{{ __('messages.store_nav.supplier_payments') }}</a>
         </li>
         <li class="nav-item">
-            <a class="nav-link" href="{{ route('stores.expenses.index', $site) }}">@t("Dépenses")</a>
+            <a class="nav-link" href="{{ route('stores.expenses.index', $site) }}">{{ __('messages.store_nav.expenses') }}</a>
         </li>
         <li class="nav-item">
-            <a class="nav-link" href="{{ route('stores.expense-categories.index', $site) }}">@t("Catégories")</a>
+            <a class="nav-link" href="{{ route('stores.expense-categories.index', $site) }}">{{ __('messages.store_nav.categories') }}</a>
         </li>
     </ul>
     <a href="{{ route('stores.payments.create', $site) }}" class="btn btn-success mb-3">
-        <i class="bi bi-plus-circle-fill"></i> @t("Ajouter un paiement")
+        <i class="bi bi-plus-circle-fill"></i> {{ __('messages.payments.add_payment') }}
     </a>
 
     <table class="table table-striped table-hover">
         <thead>
             <tr>
                 <th></th> {{-- Dropdown / Actions --}}
-                <th>@t("Fournisseur")</th>
-                <th>@t("Référence")</th>
-                <th class="text-center">@t("Montant")</th>
-                <th>@t("Date échéance")</th>
-                <th>@t("Document")</th>
+                <th>{{ __('messages.payments.supplier') }}</th>
+                <th>{{ __('messages.payments.reference') }}</th>
+                <th class="text-center">{{ __('messages.payments.amount') }}</th>
+                <th>{{ __('messages.payments.due_date') }}</th>
+                <th>{{ __('messages.payments.document') }}</th>
             </tr>
         </thead>
         <tbody>
@@ -46,15 +46,15 @@
                         <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="dropdownPayment{{ $payment->id }}">
                             <li>
                                 <a class="dropdown-item" href="{{ route('stores.payments.edit', [$site, $payment]) }}">
-                                    <i class="bi bi-pencil-fill"></i> @t("Modifier")
+                                    <i class="bi bi-pencil-fill"></i> {{ __('messages.btn.edit') }}
                                 </a>
                             </li>
                             <li>
-                                <form action="{{ route('stores.payments.destroy', [$site, $payment]) }}" method="POST" onsubmit="return confirm('@t("Supprimer ce paiement ?")')">
+                                <form action="{{ route('stores.payments.destroy', [$site, $payment]) }}" method="POST" onsubmit="return confirm('{{ __('messages.payments.confirm_delete') }}')">
                                     @csrf
                                     @method('DELETE')
                                     <button class="dropdown-item text-danger" type="submit">
-                                        <i class="bi bi-trash-fill"></i> @t("Supprimer")
+                                        <i class="bi bi-trash-fill"></i> {{ __('messages.btn.delete') }}
                                     </button>
                                 </form>
                             </li>
@@ -67,7 +67,7 @@
                 <td>{{ $payment->due_date?->format('d/m/Y') ?? '-' }}</td>
                 <td>
                     @if($payment->document)
-                        <a href="{{ Storage::url($payment->document) }}" target="_blank">Voir</a>
+                        <a href="{{ Storage::url($payment->document) }}" target="_blank">{{ __('messages.payments.view') }}</a>
                     @else
                         -
                     @endif

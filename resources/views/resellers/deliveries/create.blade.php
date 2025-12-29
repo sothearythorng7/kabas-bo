@@ -36,7 +36,7 @@
                                     value="{{ old("products.$product->id.quantity", 0) }}"
                                     class="quantity-input"
                                     data-product-id="{{ $product->id }}">
-                                <small>Stock disponible: {{ $product->available_stock }}</small>
+                                <small>{{ __('messages.resellers.stock_available') }}: {{ $product->available_stock }}</small>
                             </td>
                             <td>
                                 <input type="number" step="0.01" 
@@ -71,7 +71,7 @@
                                            min="0"
                                            max="{{ $product->available_stock }}"
                                            value="{{ old("products.{$product->id}.quantity", 0) }}">
-                                    <small>Stock disponible: {{ $product->available_stock }}</small>
+                                    <small>{{ __('messages.resellers.stock_available') }}: {{ $product->available_stock }}</small>
                                 </div>
 
                                 <div class="mb-2">

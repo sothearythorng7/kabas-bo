@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia';
-import { db, syncCatalog } from '../db.js';
+import { db, syncCatalog, startShift as dbStartShift } from '../db.js';
 
 export const useUserStore = defineStore('user', {
   state: () => ({
@@ -20,6 +20,13 @@ export const useUserStore = defineStore('user', {
       this.activeShift = shift || null;
       await syncCatalog(u.store_id);
       return true;
+    },
+    async startShift(cashStart) {
+      if (!this.user) return null;
+      const shiftId = await dbStartShift(this.user.id, this.user.store_id, cashStart);
+      const shift = await db.shifts.get(shiftId);
+      this.activeShift = shift;
+      return shift;
     },
     setActiveShift(shift) { this.activeShift = shift },
     updateLastActive() { this.lastActive = Date.now() }

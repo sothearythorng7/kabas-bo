@@ -1,8 +1,8 @@
 <!DOCTYPE html>
-<html>
+<html lang="{{ app()->getLocale() }}">
 <head>
     <meta charset="utf-8">
-    <title>Invoice #{{ $invoice->id }}</title>
+    <title>{{ __('messages.invoice.title') }} #{{ $invoice->id }}</title>
     <style>
         body { font-family: sans-serif; font-size: 12px; }
         table { width: 100%; border-collapse: collapse; margin-top: 20px; }
@@ -10,17 +10,17 @@
     </style>
 </head>
 <body>
-    <h1>Invoice #{{ $invoice->id }}</h1>
-    <p><strong>Reseller:</strong> {{ $delivery->reseller->name }}</p>
-    <p><strong>Date:</strong> {{ $invoice->created_at->format('d/m/Y') }}</p>
+    <h1>{{ __('messages.invoice.title') }} #{{ $invoice->id }}</h1>
+    <p><strong>{{ __('messages.resellers.reseller') }}:</strong> {{ $delivery->reseller->name }}</p>
+    <p><strong>{{ __('messages.common.date') }}:</strong> {{ $invoice->created_at->format('d/m/Y') }}</p>
 
     <table>
         <thead>
             <tr>
-                <th>Product</th>
-                <th>Qty</th>
-                <th>Unit Price</th>
-                <th>Total</th>
+                <th>{{ __('messages.product.name') }}</th>
+                <th>{{ __('messages.resellers.quantity') }}</th>
+                <th>{{ __('messages.resellers.unit_price') }}</th>
+                <th>{{ __('messages.common.total') }}</th>
             </tr>
         </thead>
         <tbody>
@@ -33,11 +33,11 @@
                 </tr>
             @endforeach
             <tr>
-                <td colspan="3" align="right"><strong>Shipping</strong></td>
+                <td colspan="3" align="right"><strong>{{ __('messages.resellers.shipping_cost') }}</strong></td>
                 <td>{{ number_format($delivery->shipping_cost, 2) }} $</td>
             </tr>
             <tr>
-                <td colspan="3" align="right"><strong>Total</strong></td>
+                <td colspan="3" align="right"><strong>{{ __('messages.common.total') }}</strong></td>
                 <td><strong>{{ number_format($invoice->total_amount, 2) }} $</strong></td>
             </tr>
         </tbody>

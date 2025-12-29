@@ -37,5 +37,20 @@ class Sale extends Model
     {
         return $this->belongsTo(FinancialTransaction::class);
     }
+
+    public function exchanges()
+    {
+        return $this->hasMany(Exchange::class, 'original_sale_id');
+    }
+
+    public function exchangeAsNew()
+    {
+        return $this->hasOne(Exchange::class, 'new_sale_id');
+    }
+
+    public function vouchersUsed()
+    {
+        return $this->hasMany(Voucher::class, 'used_in_sale_id');
+    }
 }
 

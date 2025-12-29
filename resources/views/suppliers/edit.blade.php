@@ -2,13 +2,14 @@
 
 @section('content')
 <div class="container mt-4">
-    <h1 class="crud_title">{{ __('messages.supplier.title_edit') }} - {{ $supplier->name }} (@t($supplier->type))</h1>
+    <h1 class="crud_title">{{ __('messages.supplier.title_edit') }} - {{ $supplier->name }} ({{ __('messages.supplier.type_' . $supplier->type) }})</h1>
 
     @php
         $productsCount = $products instanceof \Illuminate\Pagination\LengthAwarePaginator ? $products->total() : $products->count();
         $ordersCount = $orders instanceof \Illuminate\Pagination\LengthAwarePaginator ? $orders->total() : $orders->count();
         $saleReportsCount = $supplier->saleReports?->count() ?? 0;
         $refillsCount = $supplier->refills?->count() ?? 0;
+        $returnsCount = $supplier->returns?->count() ?? 0;
         $contactsCount = $supplier->contacts?->count() ?? 0;
     @endphp
 
@@ -22,7 +23,7 @@
         @if($supplier->type === 'consignment')
         <li class="nav-item" role="presentation">
             <button class="nav-link" id="sales-reports-tab" data-bs-toggle="tab" data-bs-target="#sales-reports" type="button" role="tab" aria-controls="sales-reports" aria-selected="false">
-                @t("Sales reports")
+                {{ __('messages.supplier.sales_reports') }}
                 <span class="badge bg-{{ $saleReportsCount > 0 ? 'primary' : 'secondary' }}">
                     {{ $saleReportsCount }}
                 </span>
@@ -30,9 +31,17 @@
         </li>
         <li class="nav-item" role="presentation">
             <button class="nav-link" id="refills-tab" data-bs-toggle="tab" data-bs-target="#refills" type="button" role="tab" aria-controls="refills" aria-selected="false">
-                @t("Refills")
+                {{ __('messages.supplier.refills') }}
                 <span class="badge bg-{{ $refillsCount > 0 ? 'primary' : 'secondary' }}">
                     {{ $refillsCount }}
+                </span>
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="returns-tab" data-bs-toggle="tab" data-bs-target="#returns" type="button" role="tab" aria-controls="returns" aria-selected="false">
+                {{ __('messages.supplier.returns') }}
+                <span class="badge bg-{{ $returnsCount > 0 ? 'primary' : 'secondary' }}">
+                    {{ $returnsCount }}
                 </span>
             </button>
         </li>
@@ -68,19 +77,19 @@
         <div class="tab-pane fade show active" id="general" role="tabpanel" aria-labelledby="general-tab">
             @if($unpaidOrdersCount > 0)
                 <div class="alert alert-warning">
-                    <strong>@t("Unpaid invoices") :</strong> {{ $unpaidOrdersCount }} @t("order(s)") - 
-                    @t("total amount") de <strong>${{ number_format($totalUnpaidAmount, 2) }}</strong>
+                    <strong>{{ __('messages.supplier.unpaid_invoices') }} :</strong> {{ $unpaidOrdersCount }} {{ __('messages.supplier.orders_count') }} -
+                    {{ __('messages.supplier.total_amount_due') }} <strong>${{ number_format($totalUnpaidAmount, 2) }}</strong>
                 </div>
             @endif
             <form action="{{ route('suppliers.update', $supplier) }}" method="POST">
                 @csrf
                 @method('PUT')
                 <div class="mb-3">
-                    <label class="form-label">@t("Supplier type")</label>
+                    <label class="form-label">{{ __('messages.supplier.supplier_type') }}</label>
                     @if($supplier->type === 'buyer')
-                        <span class="badge bg-success">@t("Buyer")</span>
+                        <span class="badge bg-success">{{ __('messages.supplier.type_buyer') }}</span>
                     @elseif($supplier->type === 'consignment')
-                        <span class="badge bg-info">@t("Consignment")</span>
+                        <span class="badge bg-info">{{ __('messages.supplier.type_consignment') }}</span>
                     @else
                         <span class="badge bg-secondary">-</span>
                     @endif
@@ -111,13 +120,13 @@
         <thead>
             <tr>
                 <th></th>
-                <th>@t("Store name")</th>
-                <th>@t("Période")</th>
-                <th>@t("supplier.status")</th>
-                <th>@t("Expected total")</th>
-                <th>@t("Invoiced total")</th>
-                <th>@t("Paid")</th>
-                <th>@t("Sent")</th>
+                <th>{{ __('messages.supplier.store_name') }}</th>
+                <th>{{ __('messages.supplier.period') }}</th>
+                <th>{{ __('messages.supplier.status') }}</th>
+                <th>{{ __('messages.supplier.expected_total') }}</th>
+                <th>{{ __('messages.supplier.invoiced_total') }}</th>
+                <th>{{ __('messages.supplier.paid') }}</th>
+                <th>{{ __('messages.supplier.sent') }}</th>
             </tr>
         </thead>
         <tbody>
@@ -149,7 +158,7 @@
                                 @if($supplier->contacts->whereNotNull('email')->count() > 0)
                                     <li>
                                         <a class="dropdown-item" href="{{ route('sale-reports.send', [$supplier, $report]) }}">
-                                            <i class="bi bi-envelope-fill"></i> Envoyer par email
+                                            <i class="bi bi-envelope-fill"></i> {{ __('messages.supplier.send_by_email') }}
                                         </a>
                                     </li>
                                 @endif
@@ -158,7 +167,7 @@
                                 @if($supplier->contacts->whereNotNull('telegram')->count() > 0 && !empty($report->report_file_path))
                                     <li>
                                         <button class="dropdown-item" data-bs-toggle="modal" data-bs-target="#sendTelegramModal{{ $report->id }}">
-                                            <i class="bi bi-telegram"></i> Envoyer par Telegram
+                                            <i class="bi bi-telegram"></i> {{ __('messages.supplier.send_by_telegram') }}
                                         </button>
                                     </li>
                                 @endif
@@ -168,7 +177,7 @@
                             @if($report->status === 'waiting_invoice')
                                 <li>
                                     <a class="dropdown-item" href="{{ route('sale-reports.invoiceReception', [$supplier, $report]) }}">
-                                        <i class="bi bi-receipt"></i> Réception facture
+                                        <i class="bi bi-receipt"></i> {{ __('messages.supplier.invoice_reception') }}
                                     </a>
                                 </li>
                             @endif
@@ -177,7 +186,7 @@
                             @if($report->status === 'invoiced' && !$report->is_paid)
                                 <li>
                                     <button class="dropdown-item" data-bs-toggle="modal" data-bs-target="#markAsPaidModal-{{ $report->id }}">
-                                        <i class="bi bi-cash-stack"></i> Marquer comme payé
+                                        <i class="bi bi-cash-stack"></i> {{ __('messages.supplier.mark_as_paid') }}
                                     </button>
                                 </li>
                             @endif
@@ -190,9 +199,9 @@
                 <td>{{ $report->period_start->format('d/m/Y') }} - {{ $report->period_end->format('d/m/Y') }}</td>
                 <td>
                     @if($report->status === 'waiting_invoice')
-                        <span class="badge bg-secondary">En attente de facture</span>
+                        <span class="badge bg-secondary">{{ __('messages.supplier.waiting_invoice') }}</span>
                     @elseif($report->status === 'invoiced')
-                        <span class="badge bg-info">Facture reçue</span>
+                        <span class="badge bg-info">{{ __('messages.supplier.invoice_received') }}</span>
                     @endif
                 </td>
                 <td>${{ number_format($report->total_amount_theoretical, 2) }}</td>
@@ -205,16 +214,16 @@
                 </td>
                 <td>
                     @if($report->is_paid)
-                        <span class="badge bg-success">@t("Yes")</span>
+                        <span class="badge bg-success">{{ __('messages.Yes') }}</span>
                     @else
-                        <span class="badge bg-danger">@t("No")</span>
+                        <span class="badge bg-danger">{{ __('messages.No') }}</span>
                     @endif
                 </td>
                 <td>
                     @if($report->sent_at != null)
-                        <span class="badge bg-success">@t("Yes")</span>
+                        <span class="badge bg-success">{{ __('messages.Yes') }}</span>
                     @else
-                        <span class="badge bg-danger">@t("No")</span>
+                        <span class="badge bg-danger">{{ __('messages.No') }}</span>
                     @endif
                 </td>
             </tr>
@@ -228,17 +237,17 @@
                         @method('PUT')
                         <div class="modal-content">
                             <div class="modal-header">
-                                <h5 class="modal-title">@t("Mark report as paid")</h5>
+                                <h5 class="modal-title">{{ __('messages.supplier.mark_report_as_paid') }}</h5>
                                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                             </div>
                             <div class="modal-body">
                                 <div class="mb-3">
-                                    <label class="form-label">@t("Amount paid")</label>
+                                    <label class="form-label">{{ __('messages.supplier.amount_paid') }}</label>
                                     <input type="number" step="0.01" name="amount" class="form-control"
                                         value="{{ $report->total_amount_invoiced ?? $report->total_amount_theoretical }}">
                                 </div>
                                 <div class="mb-3">
-                                    <label class="form-label">@t("Payment method")</label>
+                                    <label class="form-label">{{ __('messages.supplier.payment_method') }}</label>
                                     <select name="payment_method_id" class="form-select" required>
                                         @foreach($paymentMethods as $method)
                                             <option value="{{ $method->id }}">{{ $method->name }}</option>
@@ -246,13 +255,13 @@
                                     </select>
                                 </div>
                                 <div class="mb-3">
-                                    <label class="form-label">@t("Payment reference")</label>
+                                    <label class="form-label">{{ __('messages.supplier.payment_reference') }}</label>
                                     <input type="text" name="payment_reference" class="form-control">
                                 </div>
                             </div>
                             <div class="modal-footer">
                                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ __('messages.btn.cancel') }}</button>
-                                <button type="submit" class="btn btn-success">@t("Confirm payment")</button>
+                                <button type="submit" class="btn btn-success">{{ __('messages.supplier.confirm_payment') }}</button>
                             </div>
                         </div>
                     </form>
@@ -273,16 +282,16 @@
                         <form action="{{ route('sale-reports.send.telegram', [$supplier, $report]) }}" method="POST" enctype="multipart/form-data">
                             @csrf
                             <div class="modal-header">
-                                <h5 class="modal-title">Envoyer le sale report via Telegram</h5>
+                                <h5 class="modal-title">{{ __('messages.supplier.send_telegram_title') }}</h5>
                                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                             </div>
                             <div class="modal-body">
                                 <div class="mb-3">
-                                    <label class="form-label">Destinataires</label>
+                                    <label class="form-label">{{ __('messages.supplier.telegram_recipients') }}</label>
 
                                     <div class="dropdown">
                                         <button class="btn btn-outline-primary dropdown-toggle w-100" type="button" id="recipientsDropdown{{ $report->id }}" data-bs-toggle="dropdown" aria-expanded="false">
-                                            Sélectionner les contacts
+                                            {{ __('messages.supplier.telegram_select_contacts') }}
                                         </button>
 
                                         <ul class="dropdown-menu p-3" aria-labelledby="recipientsDropdown{{ $report->id }}" style="max-height: 250px; overflow-y:auto;">
@@ -296,10 +305,10 @@
                                             @endforeach
                                         </ul>
                                     </div>
-                                    <small class="form-text text-muted">Cochez les contacts à qui envoyer le sale report</small>
+                                    <small class="form-text text-muted">{{ __('messages.supplier.telegram_contacts_help') }}</small>
                                 </div>
                                 <div class="mb-3">
-                                    <label class="form-label">Message</label>
+                                    <label class="form-label">{{ __('messages.supplier.message') }}</label>
                                     @php
                                     $telegramMessage = View::make('telegram.sale_report', [
                                         'report' => $report,
@@ -310,8 +319,8 @@
                                 </div>
                             </div>
                             <div class="modal-footer">
-                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
-                                <button type="submit" class="btn btn-success">Envoyer</button>
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ __('messages.btn.cancel') }}</button>
+                                <button type="submit" class="btn btn-success">{{ __('messages.btn.save') }}</button>
                             </div>
                         </form>
                     </div>
@@ -325,16 +334,16 @@
 <div class="tab-pane fade" id="refills" role="tabpanel" aria-labelledby="refills-tab">
     <div class="d-flex justify-content-between align-items-center mb-3">
         <a href="{{ route('refills.reception.form', $supplier) }}" class="btn btn-success">
-            <i class="bi bi-plus-circle-fill"></i> @t("Add refill")
+            <i class="bi bi-plus-circle-fill"></i> {{ __('messages.supplier.add_refill') }}
         </a>
     </div>
     <table class="table table-striped text-center table-hover">
         <thead>
             <tr>
                 <th></th>
-                <th>@t("stock_movement.id")</th>
-                <th>@t("date")</th>
-                <th>@t("Quantity received")</th>
+                <th>{{ __('messages.stock_movement.id') }}</th>
+                <th>{{ __('messages.common.date') }}</th>
+                <th>{{ __('messages.supplier.quantity_received') }}</th>
             </tr>
         </thead>
         <tbody>
@@ -348,7 +357,7 @@
                             <ul class="dropdown-menu" aria-labelledby="refillActionsDropdown{{ $refill->id }}">
                                 <li>
                                     <a class="dropdown-item" href="{{ route('refills.show', [$supplier, $refill]) }}">
-                                        <i class="bi bi-eye-fill"></i> @t("btn.view")
+                                        <i class="bi bi-eye-fill"></i> {{ __('messages.btn.view') }}
                                     </a>
                                 </li>
                             </ul>
@@ -361,6 +370,76 @@
             @endforeach
         </tbody>
 
+    </table>
+</div>
+
+{{-- Onglet Returns --}}
+<div class="tab-pane fade" id="returns" role="tabpanel" aria-labelledby="returns-tab">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <a href="{{ route('supplier-returns.create', $supplier) }}" class="btn btn-success">
+            <i class="bi bi-plus-circle-fill"></i> {{ __('messages.supplier.add_return') }}
+        </a>
+    </div>
+    <table class="table table-striped text-center table-hover">
+        <thead>
+            <tr>
+                <th></th>
+                <th>{{ __('messages.stock_movement.id') }}</th>
+                <th>{{ __('messages.common.date') }}</th>
+                <th>{{ __('messages.supplier.store_name') }}</th>
+                <th>{{ __('messages.supplier.total_quantity') }}</th>
+                <th>{{ __('messages.supplier.status') }}</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach($supplier->returns()->with(['store'])->latest()->get() as $return)
+                <tr>
+                    <td>
+                        <div class="dropdown">
+                            <button class="btn btn-sm btn-primary dropdown-toggle dropdown-noarrow" type="button" id="returnActionsDropdown{{ $return->id }}" data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="bi bi-three-dots-vertical"></i>
+                            </button>
+                            <ul class="dropdown-menu" aria-labelledby="returnActionsDropdown{{ $return->id }}">
+                                <li>
+                                    <a class="dropdown-item" href="{{ route('supplier-returns.show', [$supplier, $return]) }}">
+                                        <i class="bi bi-eye-fill"></i> {{ __('messages.btn.view') }}
+                                    </a>
+                                </li>
+                                @if($return->isValidated() && $return->pdf_path)
+                                    <li>
+                                        <a class="dropdown-item" href="{{ route('supplier-returns.pdf', [$supplier, $return]) }}">
+                                            <i class="bi bi-file-earmark-pdf-fill"></i> PDF
+                                        </a>
+                                    </li>
+                                @endif
+                                @if($return->isDraft())
+                                    <li>
+                                        <form action="{{ route('supplier-returns.destroy', [$supplier, $return]) }}" method="POST">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button class="dropdown-item text-danger" type="submit" onclick="return confirm('{{ __('messages.supplier.confirm_delete_return') }}')">
+                                                <i class="bi bi-trash-fill"></i> {{ __('messages.btn.delete') }}
+                                            </button>
+                                        </form>
+                                    </li>
+                                @endif
+                            </ul>
+                        </div>
+                    </td>
+                    <td>#{{ $return->id }}</td>
+                    <td>{{ $return->created_at->format('d/m/Y') }}</td>
+                    <td>{{ $return->store->name ?? '-' }}</td>
+                    <td>{{ $return->total_quantity }}</td>
+                    <td>
+                        @if($return->isDraft())
+                            <span class="badge bg-warning">{{ __('messages.supplier.draft') }}</span>
+                        @else
+                            <span class="badge bg-success">{{ __('messages.supplier.validated') }}</span>
+                        @endif
+                    </td>
+                </tr>
+            @endforeach
+        </tbody>
     </table>
 </div>
 
@@ -416,6 +495,31 @@
 
         {{-- Onglet Produits --}}
         <div class="tab-pane fade" id="products" role="tabpanel" aria-labelledby="products-tab">
+            {{-- Recherche produits --}}
+            <div class="mb-3">
+                <form method="GET" action="{{ route('suppliers.edit', $supplier) }}#products" class="d-flex align-items-center gap-2">
+                    <input type="hidden" name="per_page" value="{{ request('per_page', 50) }}">
+                    <div class="input-group" style="max-width: 400px;">
+                        <span class="input-group-text"><i class="bi bi-search"></i></span>
+                        <input type="text" name="product_search" class="form-control"
+                               placeholder="{{ __('messages.supplier.search_products') }}"
+                               value="{{ request('product_search') }}">
+                        <button type="submit" class="btn btn-primary">{{ __('messages.btn.search') }}</button>
+                        @if(request('product_search'))
+                            <a href="{{ route('suppliers.edit', $supplier) }}#products" class="btn btn-secondary">
+                                <i class="bi bi-x-circle"></i>
+                            </a>
+                        @endif
+                    </div>
+                </form>
+                @if(request('product_search'))
+                    <small class="text-muted mt-1 d-block">
+                        {{ __('messages.supplier.search_results_for') }}: "{{ request('product_search') }}"
+                        ({{ $products->total() }} {{ __('messages.supplier.results') }})
+                    </small>
+                @endif
+            </div>
+
             <div class="d-block">
                 <table class="table table-striped">
                     <thead>
@@ -423,9 +527,9 @@
                             <th></th>
                             <th>EAN</th>
                             <th>{{ __('messages.product.name') }}</th>
-                            <th>Brand</th>
-                            <th>Price</th>
-                            <th>Cost Price</th>
+                            <th>{{ __('messages.supplier.brand') }}</th>
+                            <th>{{ __('messages.supplier.price') }}</th>
+                            <th>{{ __('messages.supplier.cost_price') }}</th>
                             <th></th>
                         </tr>
                     </thead>
@@ -464,7 +568,20 @@
                         @endforeach
                     </tbody>
                 </table>
-                {{ $products instanceof \Illuminate\Pagination\LengthAwarePaginator ? $products->links() : '' }}
+                <div class="d-flex justify-content-between align-items-center">
+                    {{ $products instanceof \Illuminate\Pagination\LengthAwarePaginator ? $products->links() : '' }}
+                    <form method="GET" action="{{ route('suppliers.edit', $supplier) }}#products" class="d-flex align-items-center gap-2">
+                        @if(request('product_search'))
+                            <input type="hidden" name="product_search" value="{{ request('product_search') }}">
+                        @endif
+                        <label class="form-label mb-0">{{ __('messages.supplier.per_page') }}:</label>
+                        <select name="per_page" class="form-select form-select-sm" style="width: auto;" onchange="this.form.submit()">
+                            <option value="50" @selected(request('per_page', 50) == 50)>50</option>
+                            <option value="100" @selected(request('per_page') == 100)>100</option>
+                            <option value="200" @selected(request('per_page') == 200)>200</option>
+                        </select>
+                    </form>
+                </div>
             </div>
         </div>
 
@@ -493,10 +610,10 @@
                             {{ __('messages.order.waiting_invoice') }}
                         </option>
                         <option value="received_unpaid" {{ request('status')=='received_unpaid' ? 'selected' : '' }}>
-                            {{ __('messages.order.received') }} - Non payé
+                            {{ __('messages.supplier.received_unpaid') }}
                         </option>
                         <option value="received_paid" {{ request('status')=='received_paid' ? 'selected' : '' }}>
-                            {{ __('messages.order.received') }} - Payé
+                            {{ __('messages.supplier.received_paid') }}
                         </option>
                     </select>
                 </form>
@@ -509,12 +626,12 @@
                         <th>ID</th>
                         <th>{{ __('messages.supplier.status') }}</th>
                         <th>{{ __('messages.supplier.created_at') }}</th>
-                        <th>@t("Shop destination")</th>
-                        <th>@t("Total ordered")</th>
-                        <th>@t("Total delivered")</th>
+                        <th>{{ __('messages.supplier.shop_destination') }}</th>
+                        <th>{{ __('messages.supplier.total_ordered') }}</th>
+                        <th>{{ __('messages.supplier.total_delivered') }}</th>
                         @if($supplier->type === 'buyer')
-                            <th>@t("Theoretical amount")</th>
-                            <th>@t("paid")</th>
+                            <th>{{ __('messages.supplier.theoretical_amount') }}</th>
+                            <th>{{ __('messages.supplier.paid') }}</th>
                         @endif
                     </tr>
                 </thead>
@@ -579,7 +696,7 @@
                                             @if($supplier->type === 'buyer')
                                             <li>
                                                 <a class="dropdown-item" href="{{ route('supplier-orders.invoiceReception', [$supplier, $order]) }}">
-                                                    <i class="bi bi-receipt"></i> Réception de facture
+                                                    <i class="bi bi-receipt"></i> {{ __('messages.supplier.invoice_reception_label') }}
                                                 </a>
                                             </li>
                                             @endif
@@ -614,9 +731,9 @@
                                 </td>
                                 <td>
                                     @if($order->is_paid)
-                                        <span class="badge bg-success">Oui</span>
+                                        <span class="badge bg-success">{{ __('messages.Yes') }}</span>
                                     @else
-                                        <span class="badge bg-danger">Non</span>
+                                        <span class="badge bg-danger">{{ __('messages.No') }}</span>
                                     @endif
                                 </td>
                             @endif

@@ -57,7 +57,7 @@
                 </li>
                 <li>
                     <button class="dropdown-item" data-bs-toggle="modal" data-bs-target="#markAsPaidModal-{{ $order->id }}">
-                        <i class="bi bi-cash-coin"></i> @t("Mark as paid")
+                        <i class="bi bi-cash-coin"></i> {{ __('messages.Mark as paid') }}
                     </button>
                 </li>
             @endif
@@ -70,7 +70,7 @@
             @if($order->status === 'waiting_invoice')
                 <li>
                     <button class="dropdown-item" data-bs-toggle="modal" data-bs-target="#markAsPaidModal-{{ $order->id }}">
-                        <i class="bi bi-cash-coin"></i> @t("Mark as paid")
+                        <i class="bi bi-cash-coin"></i> {{ __('messages.Mark as paid') }}
                     </button>
                 </li>
             @endif

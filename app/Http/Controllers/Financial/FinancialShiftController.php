@@ -20,7 +20,7 @@ class FinancialShiftController extends Controller
         if (!$hasFilters && !$request->has('shift_id')) {
             $shift = Shift::where('store_id', $store->id)
                 ->whereNull('ended_at')
-                ->with('user')
+                ->with(['user', 'shiftUsers.user'])
                 ->first();
 
             // Si plusieurs shifts ouverts, ajouter une alerte
@@ -46,7 +46,7 @@ class FinancialShiftController extends Controller
         if ($request->has('shift_id') && $request->shift_id) {
             $shift = Shift::where('store_id', $store->id)
                 ->where('id', $request->shift_id)
-                ->with('user')
+                ->with(['user', 'shiftUsers.user'])
                 ->first();
 
             $sales = $shift ? $shift->sales()->with('items.product')->get() : collect();
@@ -61,7 +61,7 @@ class FinancialShiftController extends Controller
 
         // Si des filtres sont appliqués, afficher la liste des shifts
         $shiftsQuery = Shift::where('store_id', $store->id)
-            ->with('user');
+            ->with(['user', 'shiftUsers.user']);
 
         if ($request->date_from) {
             $shiftsQuery->whereDate('started_at', '>=', $request->date_from);
@@ -87,15 +87,43 @@ class FinancialShiftController extends Controller
 
     private function calculateShiftStats($sales)
     {
+        // Calculate total discounts with proper handling of scope and type
+        $totalDiscounts = 0;
+
+        foreach ($sales as $sale) {
+            // Sale-level discounts
+            foreach ($sale->discounts ?? [] as $d) {
+                if ($d['type'] === 'amount') {
+                    $totalDiscounts += $d['value'];
+                } elseif ($d['type'] === 'percent') {
+                    // For percent discounts on sale level, calculate based on items gross total
+                    $itemsGross = $sale->items->sum(fn($i) => $i->price * $i->quantity);
+                    $totalDiscounts += ($d['value'] / 100) * $itemsGross;
+                }
+            }
+
+            // Item-level discounts
+            foreach ($sale->items as $item) {
+                foreach ($item->discounts ?? [] as $d) {
+                    if ($d['type'] === 'amount') {
+                        // Check scope: 'unit' means per unit, otherwise per line
+                        if (($d['scope'] ?? 'line') === 'unit') {
+                            $totalDiscounts += $d['value'] * $item->quantity;
+                        } else {
+                            $totalDiscounts += $d['value'];
+                        }
+                    } elseif ($d['type'] === 'percent') {
+                        $totalDiscounts += ($d['value'] / 100) * $item->price * $item->quantity;
+                    }
+                }
+            }
+        }
+
         return [
             'number_of_sales' => $sales->count(),
-            'total_sales' => $sales->sum('total'),
+            'total_sales' => $sales->sum('total'), // sale.total is now the correct net amount
             'total_items' => $sales->flatMap(fn($s) => $s->items)->sum('quantity'),
-            'total_discounts' => $sales->sum(function($s) {
-                return collect($s->discounts)->sum(fn($d) => $d['amount'] ?? 0);
-            }) + $sales->flatMap(fn($s) => $s->items)->sum(function($i) {
-                return collect($i->discounts)->sum(fn($d) => $d['amount'] ?? 0);
-            }),
+            'total_discounts' => $totalDiscounts,
         ];
     }
 

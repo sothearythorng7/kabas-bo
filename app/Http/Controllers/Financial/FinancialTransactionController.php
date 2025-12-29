@@ -18,7 +18,7 @@ class FinancialTransactionController extends Controller
     public function index(Store $store, Request $request)
     {
         $query = FinancialTransaction::where('store_id', $store->id)
-            ->with(['account', 'paymentMethod', 'user']);
+            ->with(['account', 'paymentMethod', 'user', 'sale']);
 
         // Filtre par date
         if ($request->filled('date_from')) {
@@ -107,7 +107,7 @@ class FinancialTransactionController extends Controller
             'store_id' => $store->id,
             'account_id' => $request->account_id,
             'amount' => $request->amount,
-            'currency' => $request->currency ?? 'EUR',
+            'currency' => $request->currency ?? 'USD',
             'direction' => $request->direction,
             'balance_before' => $balanceBefore,
             'balance_after' => $balanceAfter,
@@ -156,6 +156,7 @@ class FinancialTransactionController extends Controller
 
     public function show(Store $store, FinancialTransaction $transaction)
     {
+        $transaction->load(['sale.items.product', 'sale.shift']);
         return view('financial.transactions.show', compact('store', 'transaction'));
     }
 
@@ -185,7 +186,7 @@ class FinancialTransactionController extends Controller
         $transaction->update([
             'account_id' => $request->account_id,
             'amount' => $request->amount,
-            'currency' => $request->currency ?? 'EUR',
+            'currency' => $request->currency ?? 'USD',
             'direction' => $request->direction,
             'label' => $request->label,
             'description' => $request->description,
@@ -259,6 +260,12 @@ class FinancialTransactionController extends Controller
 
     public function destroy(Store $store, FinancialTransaction $transaction)
     {
+        // Empêcher la suppression des transactions liées à une vente POS
+        if ($transaction->sale) {
+            return redirect()->route('financial.transactions.index', $store->id)
+                ->with('error', __('messages.financial_transaction.cannot_delete_pos'));
+        }
+
         $transaction->delete();
 
         return redirect()->route('financial.transactions.index', $store->id)

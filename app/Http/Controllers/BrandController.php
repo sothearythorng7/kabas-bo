@@ -22,7 +22,7 @@ class BrandController extends Controller
     {
         $request->validate(['name' => 'required|string|max:255']);
         Brand::create($request->all());
-        return redirect()->route('brands.index')->with('success', 'Brand created successfully.');
+        return redirect()->route('brands.index')->with('success', __('messages.flash.brand_created'));
     }
 
     public function edit(Brand $brand)
@@ -34,12 +34,12 @@ class BrandController extends Controller
     {
         $request->validate(['name' => 'required|string|max:255']);
         $brand->update($request->all());
-        return redirect()->route('brands.index')->with('success', 'Brand updated successfully.');
+        return redirect()->route('brands.index')->with('success', __('messages.flash.brand_updated'));
     }
 
     public function destroy(Brand $brand)
     {
         $brand->delete();
-        return redirect()->route('brands.index')->with('success', 'Brand deleted successfully.');
+        return redirect()->route('brands.index')->with('success', __('messages.flash.brand_deleted'));
     }
 }

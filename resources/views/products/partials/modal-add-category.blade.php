@@ -12,29 +12,29 @@
     {{-- Onglets desktop --}}
     <ul class="nav nav-tabs d-none d-md-flex" role="tablist">
         <li class="nav-item">
-            <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-general" type="button" role="tab">General</button>
+            <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-general" type="button" role="tab">{{ __('messages.product.tab_general') }}</button>
         </li>
         <li class="nav-item">
             <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-categories" type="button" role="tab">
-                Categories
+                {{ __('messages.categories') }}
                 <span class="badge bg-{{ ($product->categories->count() ?? 0) > 0 ? 'success' : 'danger' }}">{{ $product->categories->count() ?? 0 }}</span>
             </button>
         </li>
         <li class="nav-item">
             <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-suppliers" type="button" role="tab">
-                Suppliers
+                {{ __('messages.menu.suppliers') }}
                 <span class="badge bg-{{ ($product->suppliers->count() ?? 0) > 0 ? 'success' : 'danger' }}">{{ $product->suppliers->count() ?? 0 }}</span>
             </button>
         </li>
-        <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-stores" type="button" role="tab">Stores</button></li>
-        <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-photos" type="button" role="tab">Photos</button></li>
-        <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-descriptions" type="button" role="tab">Descriptions</button></li>
+        <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-stores" type="button" role="tab">{{ __('messages.product.tab_stores') }}</button></li>
+        <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-photos" type="button" role="tab">{{ __('messages.product.tab_photos') }}</button></li>
+        <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-descriptions" type="button" role="tab">{{ __('messages.product.tab_descriptions') }}</button></li>
     </ul>
 
     {{-- Accordéon mobile --}}
     <div class="accordion d-md-none" id="productAccordion">
         @php
-            $sections = ['general'=>'General','categories'=>'Categories','suppliers'=>'Suppliers','stores'=>'Stores','photos'=>'Photos','descriptions'=>'Descriptions'];
+            $sections = ['general'=>__('messages.product.tab_general'),'categories'=>__('messages.categories'),'suppliers'=>__('messages.menu.suppliers'),'stores'=>__('messages.product.tab_stores'),'photos'=>__('messages.product.tab_photos'),'descriptions'=>__('messages.product.tab_descriptions')];
             $first = true;
         @endphp
         @foreach($sections as $key=>$label)

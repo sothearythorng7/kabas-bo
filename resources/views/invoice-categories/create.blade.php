@@ -2,7 +2,7 @@
 
 @section('content')
 <div class="container mt-4">
-    <h1 class="crud_title">@t('Créer une catégorie de facture')</h1>
+    <h1 class="crud_title">{{ __('messages.invoice_category.title_create') }}</h1>
 
     <div class="card">
         <div class="card-body">
@@ -15,10 +15,10 @@
 
                 <div class="d-flex gap-2">
                     <button type="submit" class="btn btn-primary">
-                        <i class="bi bi-check-circle"></i> @t('Créer')
+                        <i class="bi bi-check-circle"></i> {{ __('messages.invoice_category.create') }}
                     </button>
                     <a href="{{ route('invoice-categories.index', request()->only('store_id')) }}" class="btn btn-secondary">
-                        <i class="bi bi-x-circle"></i> @t('Annuler')
+                        <i class="bi bi-x-circle"></i> {{ __('messages.invoice_category.cancel') }}
                     </a>
                 </div>
             </form>

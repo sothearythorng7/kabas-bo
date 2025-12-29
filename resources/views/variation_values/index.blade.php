@@ -2,10 +2,10 @@
 
 @section('content')
 <div class="container mt-4">
-    <h1 class="crud_title">@t("Values of variations")</h1>
+    <h1 class="crud_title">{{ __('messages.variation_value.title') }}</h1>
 
     <a href="{{ route('variation-values.create') }}" class="btn btn-success mb-3">
-        <i class="bi bi-plus-circle-fill"></i> @t("Add value")
+        <i class="bi bi-plus-circle-fill"></i> {{ __('messages.variation_value.add_value') }}
     </a>
 
     <table class="table table-striped table-hover">
@@ -13,8 +13,8 @@
             <tr>
                 <th></th>
                 <th class="text-center">ID</th>
-                <th>@t("warehouse_invoices.type")</th>
-                <th>@t("variation.value")</th>
+                <th>{{ __('messages.variation.type') }}</th>
+                <th>{{ __('messages.variation.value') }}</th>
             </tr>
         </thead>
         <tbody>
@@ -28,15 +28,15 @@
                         <ul class="dropdown-menu">
                             <li>
                                 <a class="dropdown-item" href="{{ route('variation-values.edit', $value) }}">
-                                    <i class="bi bi-pencil-fill"></i> @t("btn.edit")
+                                    <i class="bi bi-pencil-fill"></i> {{ __('messages.btn.edit') }}
                                 </a>
                             </li>
                             <li>
-                                <form action="{{ route('variation-values.destroy', $value) }}" method="POST" onsubmit="return confirm('Confirmer la suppression ?')">
+                                <form action="{{ route('variation-values.destroy', $value) }}" method="POST" onsubmit="return confirm('{{ __('messages.variation.confirm_delete') }}')">
                                     @csrf
                                     @method('DELETE')
                                     <button class="dropdown-item text-danger" type="submit">
-                                        <i class="bi bi-trash-fill"></i> @t("btn.delete")
+                                        <i class="bi bi-trash-fill"></i> {{ __('messages.btn.delete') }}
                                     </button>
                                 </form>
                             </li>

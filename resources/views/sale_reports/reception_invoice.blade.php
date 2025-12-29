@@ -3,7 +3,7 @@
 @section('content')
 <div class="container mt-4">
     <h1 class="crud_title">
-        Réception de facture - Rapport #{{ $saleReport->id }} - {{ $supplier->name }}
+        {{ __('messages.invoice_reception.title') }} - {{ __('messages.invoice_reception.report') }} #{{ $saleReport->id }} - {{ $supplier->name }}
     </h1>
 
     <form action="{{ route('sale-reports.storeInvoiceReception', [$supplier, $saleReport]) }}"
@@ -13,11 +13,11 @@
         <table class="table table-striped table-hover mt-3">
             <thead class="table-light">
                 <tr>
-                    <th>Produit</th>
-                    <th>Quantité vendue</th>
-                    <th>Prix attendu</th>
-                    <th>Prix facturé</th>
-                    <th>Mettre à jour prix référence</th>
+                    <th>{{ __('messages.product.name') }}</th>
+                    <th>{{ __('messages.invoice_reception.quantity_sold') }}</th>
+                    <th>{{ __('messages.invoice_reception.expected_price') }}</th>
+                    <th>{{ __('messages.invoice_reception.invoiced_price') }}</th>
+                    <th>{{ __('messages.invoice_reception.update_reference_price') }}</th>
                 </tr>
             </thead>
             <tbody>
@@ -47,7 +47,7 @@
 
         {{-- Upload facture obligatoire --}}
         <div class="mb-3">
-            <label for="invoice_file" class="form-label fw-bold">Facture fournisseur (PDF ou image)</label>
+            <label for="invoice_file" class="form-label fw-bold">{{ __('messages.invoice_reception.supplier_invoice') }}</label>
             <input type="file" class="form-control @error('invoice_file') is-invalid @enderror"
                    id="invoice_file" name="invoice_file" accept="application/pdf,image/*" required>
             @error('invoice_file')
@@ -58,17 +58,17 @@
         {{-- Total facturé dynamique --}}
         <div class="d-flex justify-content-end my-3">
             <h5>
-                <span class="fw-bold">Total facturé :</span>
+                <span class="fw-bold">{{ __('messages.invoice_reception.total_invoiced') }} :</span>
                 <span id="total-invoiced">0,00 $</span>
             </h5>
         </div>
 
         <div class="mt-3 d-flex justify-content-end">
             <button type="submit" class="btn btn-success me-2">
-                <i class="bi bi-check2-circle"></i> Enregistrer la réception de facture
+                <i class="bi bi-check2-circle"></i> {{ __('messages.invoice_reception.save_reception') }}
             </button>
             <a href="{{ route('suppliers.edit', $supplier) }}#sales-reports" class="btn btn-secondary">
-                <i class="bi bi-x-circle"></i> Annuler
+                <i class="bi bi-x-circle"></i> {{ __('messages.btn.cancel') }}
             </a>
         </div>
     </form>

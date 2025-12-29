@@ -4,6 +4,7 @@ namespace App\Http\Controllers\POS;
 
 use App\Http\Controllers\Controller;
 use App\Models\Shift;
+use App\Models\ShiftUser;
 use App\Models\User;
 use App\Models\Sale;
 use Illuminate\Http\Request;
@@ -39,11 +40,20 @@ class ShiftController extends Controller
 
         $user = User::findOrFail($request->user_id);
 
+        $now = Carbon::now();
+
         $shift = Shift::create([
             'user_id' => $request->user_id,
             'store_id' => $user->store_id,
             'opening_cash' => $request->start_amount,
-            'started_at' => Carbon::now(),
+            'started_at' => $now,
+        ]);
+
+        // Record the first user in shift_users
+        ShiftUser::create([
+            'shift_id' => $shift->id,
+            'user_id' => $request->user_id,
+            'started_at' => $now,
         ]);
 
         return response()->json($shift);
@@ -57,6 +67,8 @@ class ShiftController extends Controller
             'end_amount' => 'required|numeric',
             'visitors_count' => 'nullable|integer|min:0',
             'cash_difference' => 'nullable|numeric',
+            'cash_in' => 'nullable|numeric|min:0',
+            'cash_out' => 'nullable|numeric|min:0',
         ]);
 
         $shift = Shift::where('user_id', $request->user_id)
@@ -67,14 +79,67 @@ class ShiftController extends Controller
             return response()->json(['error' => 'No shift in progress'], 422);
         }
 
+        $now = Carbon::now();
+
         $shift->update([
             'closing_cash' => $request->end_amount,
             'visitors_count' => $request->visitors_count,
             'cash_difference' => $request->cash_difference,
-            'ended_at' => Carbon::now(),
+            'cash_in' => $request->cash_in ?? 0,
+            'cash_out' => $request->cash_out ?? 0,
+            'ended_at' => $now,
         ]);
 
+        // Close the last active user session
+        ShiftUser::where('shift_id', $shift->id)
+            ->whereNull('ended_at')
+            ->update(['ended_at' => $now]);
+
         return response()->json($shift);
+    }
+
+    // Change user during a shift
+    public function changeUser(Request $request)
+    {
+        $request->validate([
+            'shift_id' => 'required|exists:shifts,id',
+            'old_user_id' => 'required|exists:users,id',
+            'new_user_id' => 'required|exists:users,id',
+        ]);
+
+        $shift = Shift::where('id', $request->shift_id)
+            ->whereNull('ended_at')
+            ->first();
+
+        if (!$shift) {
+            return response()->json(['error' => 'No shift in progress'], 422);
+        }
+
+        $now = Carbon::now();
+
+        // Close the old user's session
+        ShiftUser::where('shift_id', $shift->id)
+            ->where('user_id', $request->old_user_id)
+            ->whereNull('ended_at')
+            ->update(['ended_at' => $now]);
+
+        // Start a new session for the new user
+        ShiftUser::create([
+            'shift_id' => $shift->id,
+            'user_id' => $request->new_user_id,
+            'started_at' => $now,
+        ]);
+
+        // Update the shift's current user
+        $shift->update(['user_id' => $request->new_user_id]);
+
+        // Load the new user data
+        $newUser = User::find($request->new_user_id);
+
+        return response()->json([
+            'shift' => $shift,
+            'user' => $newUser,
+        ]);
     }
 
     // Calculate expected cash from shift sales
@@ -89,12 +154,14 @@ class ShiftController extends Controller
         }
 
         // Calculate cash sales for this shift
+        // Check for payment_type CASH (case-insensitive) or split_payments containing cash
         $cashSales = Sale::where('shift_id', $shift->id)
             ->where(function($query) {
-                $query->where('payment_type', 'cash')
-                    ->orWhere('payment_type', 'espèces')
-                    ->orWhereRaw("JSON_CONTAINS(split_payments, JSON_OBJECT('method', 'cash'))")
-                    ->orWhereRaw("JSON_CONTAINS(split_payments, JSON_OBJECT('method', 'espèces'))");
+                $query->whereRaw("LOWER(payment_type) = 'cash'")
+                    ->orWhereRaw("LOWER(payment_type) = 'espèces'")
+                    // Check split_payments with payment_type key (frontend uses payment_type, not method)
+                    ->orWhereRaw("LOWER(JSON_EXTRACT(split_payments, '$[*].payment_type')) LIKE '%cash%'")
+                    ->orWhereRaw("LOWER(JSON_EXTRACT(split_payments, '$[*].payment_type')) LIKE '%espèces%'");
             })
             ->get();
 
@@ -104,7 +171,9 @@ class ShiftController extends Controller
             if ($sale->split_payments && is_array($sale->split_payments)) {
                 // If split payments, only count cash portion
                 foreach ($sale->split_payments as $payment) {
-                    if (isset($payment['method']) && in_array(strtolower($payment['method']), ['cash', 'espèces'])) {
+                    // Check both 'method' and 'payment_type' keys for compatibility
+                    $paymentMethod = $payment['payment_type'] ?? $payment['method'] ?? '';
+                    if (in_array(strtolower($paymentMethod), ['cash', 'espèces'])) {
                         $totalCashFromSales += floatval($payment['amount'] ?? 0);
                     }
                 }
@@ -128,21 +197,22 @@ class ShiftController extends Controller
     {
         $request->validate([
             'date' => 'required|date',
-            'user_id' => 'required|exists:users,id',
+            'user_id' => 'nullable|exists:users,id',
         ]);
 
         $date = Carbon::parse($request->date);
-        $user = User::findOrFail($request->user_id);
 
-        // Get all shifts for this user
-        $userShiftIds = Shift::where('user_id', $user->id)->pluck('id');
+        // Build query for sales on this date
+        $query = Sale::whereDate('created_at', $date)
+            ->with(['items.product', 'shift.user', 'exchanges.items.product', 'exchanges.generatedVoucher']);
 
-        // Find all sales created on this date from user's shifts
-        $sales = Sale::whereIn('shift_id', $userShiftIds)
-            ->whereDate('created_at', $date)
-            ->with(['items.product', 'shift'])
-            ->orderBy('created_at', 'desc')
-            ->get();
+        // If user_id is provided, filter by that user's shifts only
+        if ($request->user_id) {
+            $userShiftIds = Shift::where('user_id', $request->user_id)->pluck('id');
+            $query->whereIn('shift_id', $userShiftIds);
+        }
+
+        $sales = $query->orderBy('created_at', 'desc')->get();
 
         if ($sales->isEmpty()) {
             return response()->json([

@@ -3,10 +3,19 @@
 @section('content')
 <div class="container mt-4">
     <h1 class="crud_title">{{ __('messages.supplier.title') }}</h1>
-    
-    <a href="{{ route('suppliers.create') }}" class="btn btn-success mb-3">
-        <i class="bi bi-plus-circle-fill"></i> {{ __('messages.supplier.btnCreate') }}
-    </a>
+
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <a href="{{ route('suppliers.create') }}" class="btn btn-success">
+            <i class="bi bi-plus-circle-fill"></i> {{ __('messages.supplier.btnCreate') }}
+        </a>
+        <form method="GET" action="{{ route('suppliers.index') }}" class="d-flex align-items-center gap-2">
+            <input type="text" name="search" class="form-control" placeholder="{{ __('messages.supplier.search_placeholder') }}" value="{{ request('search') }}" style="width: 250px;">
+            <button type="submit" class="btn btn-primary"><i class="bi bi-search"></i></button>
+            @if(request('search'))
+                <a href="{{ route('suppliers.index') }}" class="btn btn-secondary"><i class="bi bi-x-lg"></i></a>
+            @endif
+        </form>
+    </div>
 
     <div class="d-none d-md-block">
         <table class="table table-striped table-hover">

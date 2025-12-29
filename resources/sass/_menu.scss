@@ -1,13 +1,13 @@
-/* Modal */
-.modal-dialog { max-width: 70vw; }
-.modal-content { height: 50vh; overflow: hidden; }
+/* Modal - styles spécifiques pour les modals de sélection (produits, images, etc.) */
+.modal-fixed-height .modal-dialog { max-width: 70vw; }
+.modal-fixed-height .modal-content { height: 50vh; overflow: hidden; }
 @media (min-width: 576px) and (max-width: 991.98px) {
-  .modal-dialog { max-width: 80vw; }
-  .modal-content { height: 60vh; }
+  .modal-fixed-height .modal-dialog { max-width: 80vw; }
+  .modal-fixed-height .modal-content { height: 60vh; }
 }
 @media (max-width: 575.98px) {
-  .modal-dialog { max-width: 95vw; }
-  .modal-content { height: 80vh; }
+  .modal-fixed-height .modal-dialog { max-width: 95vw; }
+  .modal-fixed-height .modal-content { height: 80vh; }
 }
 .crud_title {
     width: 100%;

@@ -98,14 +98,14 @@
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content border-danger">
       <div class="modal-header bg-danger text-white">
-        <h5 class="modal-title" id="storeErrorModalLabel">Erreur de sélection</h5>
-        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fermer"></button>
+        <h5 class="modal-title" id="storeErrorModalLabel">{{ __('messages.stock_movement.selection_error') }}</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="{{ __('messages.btn.close') }}"></button>
       </div>
       <div class="modal-body">
-        La source et la destination ne peuvent pas être identiques.
+        {{ __('messages.stock_movement.same_store_error') }}
       </div>
       <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ __('messages.btn.close') }}</button>
       </div>
     </div>
   </div>

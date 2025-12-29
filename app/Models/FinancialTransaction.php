@@ -43,4 +43,10 @@ class FinancialTransaction extends Model
     {
         return $this->belongsTo(User::class, 'user_id');
     }
+
+    // Relation avec la vente POS
+    public function sale()
+    {
+        return $this->hasOne(Sale::class);
+    }
 }

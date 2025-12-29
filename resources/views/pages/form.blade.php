@@ -4,7 +4,7 @@
 @php($locales = $locales ?? config('app.website_locales', ['en']))
 
 <div class="container py-4">
-    <h1 class="h3 crud_title">{{ $page->exists ? t('page.title_edit') : t('page.title_create') }}</h1>
+    <h1 class="h3 crud_title">{{ $page->exists ? __('messages.page.title_edit') : __('messages.page.title_create') }}</h1>
 
     <form method="POST"
           action="{{ $page->exists ? route('admin.pages.update',$page) : route('admin.pages.store') }}">
@@ -15,9 +15,9 @@
         <ul class="nav nav-tabs mb-3" role="tablist">
             @foreach($locales as $i => $loc)
             <li class="nav-item" role="presentation">
-                <button class="nav-link @if($i===0) active @endif" 
-                        data-bs-toggle="tab" 
-                        data-bs-target="#tab-{{ $loc }}" 
+                <button class="nav-link @if($i===0) active @endif"
+                        data-bs-toggle="tab"
+                        data-bs-target="#tab-{{ $loc }}"
                         type="button" role="tab">
                     {{ strtoupper($loc) }}
                 </button>
@@ -27,11 +27,11 @@
 
         <div class="tab-content">
             @foreach($locales as $i => $loc)
-            <div class="tab-pane fade @if($i===0) show active @endif" 
+            <div class="tab-pane fade @if($i===0) show active @endif"
                  id="tab-{{ $loc }}" role="tabpanel">
 
                 <div class="mb-3">
-                    <label class="form-label">@t('page.title_label') ({{ strtoupper($loc) }})</label>
+                    <label class="form-label">{{ __('messages.page.title_label') }} ({{ strtoupper($loc) }})</label>
                     <input type="text"
                            name="title[{{ $loc }}]"
                            class="form-control"
@@ -40,23 +40,23 @@
                 </div>
 
                 <div class="mb-3">
-                    <label class="form-label">@t('page.slug') ({{ strtoupper($loc) }})</label>
+                    <label class="form-label">{{ __('messages.page.slug') }} ({{ strtoupper($loc) }})</label>
                     <input type="text"
                            name="slugs[{{ $loc }}]"
                            class="form-control"
                            value="{{ old("slugs.$loc", $page->slugs[$loc] ?? '') }}"
-                           placeholder="@t('page.slug_placeholder')">
+                           placeholder="{{ __('messages.page.slug_placeholder') }}">
                 </div>
 
                 <div class="mb-3">
-                    <label class="form-label">@t('page.content') ({{ strtoupper($loc) }})</label>
+                    <label class="form-label">{{ __('messages.page.content') }} ({{ strtoupper($loc) }})</label>
                     <textarea name="content[{{ $loc }}]"
                               class="form-control tinymce-text"
                               rows="12">{{ old("content.$loc", $page->content[$loc] ?? '') }}</textarea>
                 </div>
 
                 <div class="mb-3">
-                    <label class="form-label">@t('page.meta_title') ({{ strtoupper($loc) }})</label>
+                    <label class="form-label">{{ __('messages.page.meta_title') }} ({{ strtoupper($loc) }})</label>
                     <input type="text"
                            name="meta_title[{{ $loc }}]"
                            class="form-control"
@@ -64,7 +64,7 @@
                 </div>
 
                 <div class="mb-3">
-                    <label class="form-label">@t('page.meta_description') ({{ strtoupper($loc) }})</label>
+                    <label class="form-label">{{ __('messages.page.meta_description') }} ({{ strtoupper($loc) }})</label>
                     <textarea name="meta_description[{{ $loc }}]"
                               class="form-control" rows="2">{{ old("meta_description.$loc", $page->meta_description[$loc] ?? '') }}</textarea>
                 </div>
@@ -79,15 +79,15 @@
                    id="is_published"
                    value="1"
                    @checked(old('is_published', $page->is_published))>
-            <label class="form-check-label" for="is_published">@t('page.is_published')</label>
+            <label class="form-check-label" for="is_published">{{ __('messages.page.is_published') }}</label>
         </div>
 
         <div class="d-flex gap-2">
             <button type="submit" class="btn btn-primary">
-                <i class="bi bi-save"></i> @t('page.save')
+                <i class="bi bi-save"></i> {{ __('messages.page.save') }}
             </button>
             <a href="{{ route('admin.pages.index') }}" class="btn btn-secondary">
-                <i class="bi bi-x-circle"></i> @t('page.cancel')
+                <i class="bi bi-x-circle"></i> {{ __('messages.page.cancel') }}
             </a>
         </div>
     </form>

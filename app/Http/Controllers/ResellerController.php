@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Brand;
 use App\Models\Reseller;
+use App\Models\ResellerStockReturn;
 use Illuminate\Http\Request;
 use App\Models\Product;
 use App\Models\ResellerSalesReportAnomaly;
@@ -140,11 +142,41 @@ public function show(Request $request, $id)
 
         $stock = $shop->getCurrentStock();
 
+        // Récupérer les marques disponibles pour les produits en stock
+        $brands = Brand::whereHas('products', function ($q) use ($stock) {
+            $q->whereIn('id', $stock->keys());
+        })->orderBy('name')->get();
+
+        // Construire la requête de base
+        $productsQuery = Product::whereIn('id', $stock->keys())->with('brand');
+
+        // Filtre par marque
+        if ($request->filled('brand_id')) {
+            if ($request->brand_id === 'none') {
+                $productsQuery->whereNull('brand_id');
+            } else {
+                $productsQuery->where('brand_id', $request->brand_id);
+            }
+        }
+
         // Recherche avec Meilisearch si query présente
         if ($request->filled('q')) {
             $q = $request->q;
             $searchResults = Product::search($q)->get();
             $productIds = $searchResults->pluck('id')->intersect($stock->keys());
+
+            // Appliquer aussi le filtre marque sur les résultats de recherche
+            if ($request->filled('brand_id')) {
+                if ($request->brand_id === 'none') {
+                    $productIds = $productIds->intersect(
+                        Product::whereIn('id', $productIds)->whereNull('brand_id')->pluck('id')
+                    );
+                } else {
+                    $productIds = $productIds->intersect(
+                        Product::whereIn('id', $productIds)->where('brand_id', $request->brand_id)->pluck('id')
+                    );
+                }
+            }
 
             if ($productIds->isNotEmpty()) {
                 $products = Product::whereIn('id', $productIds)
@@ -156,10 +188,10 @@ public function show(Request $request, $id)
                 $products = Product::whereRaw('1 = 0')->paginate(20)->withQueryString();
             }
         } else {
-            $products = Product::whereIn('id', $stock->keys())
-                ->with('brand')
+            $products = $productsQuery
                 ->orderBy('name')
-                ->paginate(20);
+                ->paginate(20)
+                ->withQueryString();
         }
 
         // Récupérer les alertes de stock depuis product_store
@@ -183,8 +215,14 @@ public function show(Request $request, $id)
             $q->where('store_id', $shopId);
         })->latest()->paginate(10);
 
+        // Récupérer les retours pour ce shop
+        $returns = ResellerStockReturn::where('store_id', $shopId)
+            ->with(['items.product', 'destinationStore'])
+            ->latest()
+            ->paginate(10);
+
         return view('resellers.show', compact(
-            'reseller','products','deliveries','stock','salesReports','anomalies','alertStocks'
+            'reseller','products','deliveries','stock','salesReports','anomalies','alertStocks','returns','brands'
         ));
     }
 
@@ -198,11 +236,41 @@ public function show(Request $request, $id)
 
     $stock = $reseller->getCurrentStock();
 
+    // Récupérer les marques disponibles pour les produits en stock
+    $brands = Brand::whereHas('products', function ($q) use ($stock) {
+        $q->whereIn('id', $stock->keys());
+    })->orderBy('name')->get();
+
+    // Construire la requête de base
+    $productsQuery = Product::whereIn('id', $stock->keys())->with('brand');
+
+    // Filtre par marque
+    if ($request->filled('brand_id')) {
+        if ($request->brand_id === 'none') {
+            $productsQuery->whereNull('brand_id');
+        } else {
+            $productsQuery->where('brand_id', $request->brand_id);
+        }
+    }
+
     // Recherche avec Meilisearch si query présente
     if ($request->filled('q')) {
         $q = $request->q;
         $searchResults = Product::search($q)->get();
         $productIds = $searchResults->pluck('id')->intersect($stock->keys());
+
+        // Appliquer aussi le filtre marque sur les résultats de recherche
+        if ($request->filled('brand_id')) {
+            if ($request->brand_id === 'none') {
+                $productIds = $productIds->intersect(
+                    Product::whereIn('id', $productIds)->whereNull('brand_id')->pluck('id')
+                );
+            } else {
+                $productIds = $productIds->intersect(
+                    Product::whereIn('id', $productIds)->where('brand_id', $request->brand_id)->pluck('id')
+                );
+            }
+        }
 
         if ($productIds->isNotEmpty()) {
             $products = Product::whereIn('id', $productIds)
@@ -214,10 +282,10 @@ public function show(Request $request, $id)
             $products = Product::whereRaw('1 = 0')->paginate(20)->withQueryString();
         }
     } else {
-        $products = Product::whereIn('id', $stock->keys())
-            ->with('brand')
+        $products = $productsQuery
             ->orderBy('name')
-            ->paginate(20);
+            ->paginate(20)
+            ->withQueryString();
     }
 
     // Récupérer les alertes de stock (pour resellers, on n'a pas de store_id fixe)
@@ -236,8 +304,14 @@ public function show(Request $request, $id)
         $q->where('reseller_id', $reseller->id);
     })->latest()->paginate(10);
 
+    // Récupérer les retours pour ce reseller
+    $returns = ResellerStockReturn::where('reseller_id', $reseller->id)
+        ->with(['items.product', 'destinationStore'])
+        ->latest()
+        ->paginate(10);
+
     return view('resellers.show', compact(
-        'reseller','products','deliveries','stock','salesReports','anomalies','alertStocks'
+        'reseller','products','deliveries','stock','salesReports','anomalies','alertStocks','returns','brands'
     ));
 }
 

@@ -12,6 +12,9 @@ use App\Models\FinancialTransaction;
 use App\Models\FinancialAccount;
 use App\Models\FinancialJournal;
 use App\Models\SaleReport;
+use App\Models\RawMaterial;
+use App\Models\RawMaterialStockBatch;
+use App\Models\RawMaterialStockMovement;
 use Illuminate\Http\Request;
 use Barryvdh\DomPDF\Facade\Pdf;
 use App\Models\SupplierOrderInvoiceLine;
@@ -30,13 +33,44 @@ class SupplierOrderController extends Controller
 
     public function create(Supplier $supplier)
     {
-        $products = $supplier->products()->with('brand')->get();
         $stores = Store::all();
+
+        // Si fournisseur de matières premières
+        if ($supplier->is_raw_material_supplier) {
+            $rawMaterials = $supplier->rawMaterials()->active()->get();
+            return view('supplier_orders.create_raw_materials', compact('supplier', 'rawMaterials', 'stores'));
+        }
+
+        // Sinon, commande de produits classique
+        $products = $supplier->products()->with('brand')->get();
         return view('supplier_orders.create', compact('supplier', 'products', 'stores'));
+    }
+
+    /**
+     * Get stock levels for supplier products in a specific store (AJAX)
+     */
+    public function getProductsStock(Supplier $supplier, Store $store)
+    {
+        $productIds = $supplier->products()->pluck('products.id');
+
+        $stocks = StockBatch::whereIn('product_id', $productIds)
+            ->where('store_id', $store->id)
+            ->where('quantity', '>', 0)
+            ->selectRaw('product_id, SUM(quantity) as total_stock')
+            ->groupBy('product_id')
+            ->pluck('total_stock', 'product_id');
+
+        return response()->json($stocks);
     }
 
     public function store(Request $request, Supplier $supplier)
     {
+        // Commande de matières premières
+        if ($supplier->is_raw_material_supplier) {
+            return $this->storeRawMaterialOrder($request, $supplier);
+        }
+
+        // Commande de produits classique
         $request->validate([
             'products' => 'required|array',
             'products.*.quantity' => 'nullable|integer|min:0',
@@ -46,6 +80,7 @@ class SupplierOrderController extends Controller
         $order = $supplier->supplierOrders()->create([
             'status' => 'pending',
             'destination_store_id' => $request->destination_store_id,
+            'order_type' => SupplierOrder::ORDER_TYPE_PRODUCT,
         ]);
 
         $syncData = [];
@@ -73,11 +108,55 @@ class SupplierOrderController extends Controller
         return redirect()->route('suppliers.edit', $supplier)->with('success', __('messages.supplier_order.created'));
     }
 
+    /**
+     * Créer une commande de matières premières
+     */
+    protected function storeRawMaterialOrder(Request $request, Supplier $supplier)
+    {
+        $request->validate([
+            'raw_materials' => 'required|array',
+            'raw_materials.*.quantity' => 'nullable|numeric|min:0',
+            'raw_materials.*.purchase_price' => 'nullable|numeric|min:0',
+        ]);
+
+        $order = $supplier->supplierOrders()->create([
+            'status' => 'pending',
+            'destination_store_id' => null, // Pas de store pour les matières premières
+            'order_type' => SupplierOrder::ORDER_TYPE_RAW_MATERIAL,
+        ]);
+
+        $syncData = [];
+
+        foreach ($request->input('raw_materials') as $materialId => $data) {
+            $quantity = (float) ($data['quantity'] ?? 0);
+            if ($quantity <= 0) continue;
+
+            $material = RawMaterial::find($materialId);
+            if (!$material || $material->supplier_id !== $supplier->id) continue;
+
+            $syncData[$materialId] = [
+                'quantity_ordered' => $quantity,
+                'purchase_price' => $data['purchase_price'] ?? 0,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ];
+        }
+
+        $order->rawMaterials()->sync($syncData);
+
+        return redirect()->route('factory.suppliers.edit', $supplier)->with('success', __('messages.supplier_order.created'));
+    }
+
     public function show(Supplier $supplier, SupplierOrder $order)
     {
-        $order->load(['products.brand', 'priceDifferences.product']);
         $paymentMethods = \App\Models\FinancialPaymentMethod::all();
 
+        if ($order->isRawMaterialOrder()) {
+            $order->load('rawMaterials');
+            return view('supplier_orders.show_raw_materials', compact('supplier', 'order', 'paymentMethods'));
+        }
+
+        $order->load(['products.brand', 'priceDifferences.product']);
         return view('supplier_orders.show', compact('supplier', 'order', 'paymentMethods'));
     }
 
@@ -120,8 +199,33 @@ class SupplierOrderController extends Controller
 
     public function destroy(Supplier $supplier, SupplierOrder $order)
     {
+        // Only allow deletion for pending or waiting_reception orders
+        if (!in_array($order->status, ['pending', 'waiting_reception'])) {
+            return redirect()->back()->with('error', __('messages.supplier_order.cannot_delete'));
+        }
+
+        // If waiting_reception, check for partial reception and delete stock batches
+        if ($order->status === 'waiting_reception') {
+            // Delete stock batches created for this order
+            $stockBatches = StockBatch::where('source_supplier_order_id', $order->id)->get();
+            foreach ($stockBatches as $batch) {
+                // Delete associated stock transactions
+                StockTransaction::where('stock_batch_id', $batch->id)->delete();
+                $batch->delete();
+            }
+        }
+
+        // Detach products from the pivot table
+        $order->products()->detach();
+
+        // Delete price differences if any
+        $order->priceDifferences()->delete();
+
+        // Delete the order
         $order->delete();
-        return redirect()->route('suppliers.edit', $supplier)->with('success', __('messages.supplier_order.deleted'));
+
+        return redirect()->route('suppliers.edit', $supplier)
+            ->with('success', __('messages.supplier_order.deleted'));
     }
 
     public function validateOrder(Supplier $supplier, SupplierOrder $order)
@@ -139,12 +243,23 @@ class SupplierOrderController extends Controller
     // Réception physique
     public function receptionForm(Supplier $supplier, SupplierOrder $order)
     {
+        if ($order->isRawMaterialOrder()) {
+            $order->load('rawMaterials');
+            return view('supplier_orders.reception_raw_materials', compact('supplier', 'order'));
+        }
+
         $order->load('products');
         return view('supplier_orders.reception', compact('supplier', 'order'));
     }
 
     public function storeReception(Request $request, Supplier $supplier, SupplierOrder $order)
     {
+        // Réception de matières premières
+        if ($order->isRawMaterialOrder()) {
+            return $this->storeRawMaterialReception($request, $supplier, $order);
+        }
+
+        // Réception de produits classique
         $store = Store::find($order->destination_store_id);
         if (!$store) {
             return back()->withErrors('Magasin de destination introuvable.');
@@ -193,14 +308,84 @@ class SupplierOrderController extends Controller
         return redirectBackLevels(2)->with('success', __('messages.supplier_order.received'));
     }
 
+    /**
+     * Réception de matières premières
+     */
+    protected function storeRawMaterialReception(Request $request, Supplier $supplier, SupplierOrder $order)
+    {
+        $request->validate([
+            'raw_materials' => 'required|array',
+            'raw_materials.*.quantity_received' => 'nullable|numeric|min:0',
+            'raw_materials.*.batch_number' => 'nullable|string|max:255',
+            'raw_materials.*.expires_at' => 'nullable|date',
+        ]);
+
+        foreach ($request->input('raw_materials', []) as $materialId => $data) {
+            $qtyReceived = (float) ($data['quantity_received'] ?? 0);
+            if ($qtyReceived <= 0) continue;
+
+            $material = RawMaterial::find($materialId);
+            if (!$material) continue;
+
+            // Mettre à jour le pivot avec la quantité reçue
+            $order->rawMaterials()->updateExistingPivot($materialId, [
+                'quantity_received' => $qtyReceived,
+            ]);
+
+            $purchasePrice = $order->rawMaterials()->where('raw_material_id', $materialId)->first()->pivot->purchase_price ?? 0;
+
+            // Créer le lot de stock pour la matière première
+            $batch = RawMaterialStockBatch::create([
+                'raw_material_id' => $materialId,
+                'quantity' => $qtyReceived,
+                'unit_price' => $purchasePrice,
+                'received_at' => now(),
+                'expires_at' => $data['expires_at'] ?? null,
+                'batch_number' => $data['batch_number'] ?? null,
+                'notes' => "Commande fournisseur #{$order->id}",
+            ]);
+
+            // Enregistrer le mouvement de stock
+            if ($material->track_stock) {
+                RawMaterialStockMovement::create([
+                    'raw_material_id' => $materialId,
+                    'raw_material_stock_batch_id' => $batch->id,
+                    'quantity' => $qtyReceived,
+                    'type' => 'purchase',
+                    'reference' => "Commande #{$order->id}",
+                    'source_type' => SupplierOrder::class,
+                    'source_id' => $order->id,
+                    'user_id' => auth()->id(),
+                ]);
+            }
+        }
+
+        // Les matières premières sont toujours en achat direct (pas de consignment)
+        $order->update(['status' => 'waiting_invoice']);
+
+        return redirect()->route('factory.suppliers.edit', $supplier)
+            ->with('success', __('messages.supplier_order.received'));
+    }
+
     public function receptionInvoiceForm(Supplier $supplier, SupplierOrder $order)
     {
+        if ($order->isRawMaterialOrder()) {
+            $order->load('rawMaterials');
+            return view('supplier_orders.invoice_reception_raw_materials', compact('supplier', 'order'));
+        }
+
         $order->load('products');
         return view('supplier_orders.invoice_reception', compact('supplier', 'order'));
     }
 
     public function storeInvoiceReception(Request $request, Supplier $supplier, SupplierOrder $order)
     {
+        // Réception facture matières premières
+        if ($order->isRawMaterialOrder()) {
+            return $this->storeRawMaterialInvoiceReception($request, $supplier, $order);
+        }
+
+        // Réception facture produits classique
         $request->validate([
             'products' => 'required|array',
             'products.*.price_invoiced' => 'required|numeric|min:0',
@@ -243,7 +428,7 @@ class SupplierOrderController extends Controller
                 ]);
             }
 
-            if($priceInvoiced != $expectedPrice) 
+            if($priceInvoiced != $expectedPrice)
             {
                 SupplierOrderInvoiceLine::create([
                     'supplier_order_id' => $order->id,
@@ -262,6 +447,50 @@ class SupplierOrderController extends Controller
         $order->update(['status' => 'received']);
 
         return redirectBackLevels(2)->with('success', __('messages.supplier_order.invoice_received'));
+    }
+
+    /**
+     * Réception facture matières premières
+     */
+    protected function storeRawMaterialInvoiceReception(Request $request, Supplier $supplier, SupplierOrder $order)
+    {
+        $request->validate([
+            'raw_materials' => 'required|array',
+            'raw_materials.*.price_invoiced' => 'required|numeric|min:0',
+            'invoice_file' => 'required|file|mimes:pdf,jpg,jpeg,png|max:5120',
+        ]);
+
+        $order->load('rawMaterials');
+
+        // Sauvegarde du fichier facture
+        if ($request->hasFile('invoice_file')) {
+            $path = $request->file('invoice_file')->store('invoices', 'public');
+            $order->invoice_file = $path;
+            $order->save();
+        }
+
+        foreach ($request->input('raw_materials') as $materialId => $data) {
+            $material = $order->rawMaterials->find($materialId);
+            if (!$material) continue;
+
+            $priceInvoiced = (float) $data['price_invoiced'];
+
+            // Mettre à jour le prix facturé dans le pivot
+            $order->rawMaterials()->updateExistingPivot($materialId, [
+                'invoice_price' => $priceInvoiced,
+            ]);
+
+            // Mettre à jour le prix unitaire dans les lots de stock créés
+            // (On identifie par la note qui contient l'ID de commande)
+            RawMaterialStockBatch::where('raw_material_id', $materialId)
+                ->where('notes', "Commande fournisseur #{$order->id}")
+                ->update(['unit_price' => $priceInvoiced]);
+        }
+
+        $order->update(['status' => 'received']);
+
+        return redirect()->route('factory.suppliers.edit', $supplier)
+            ->with('success', __('messages.supplier_order.invoice_received'));
     }
 
 
@@ -349,7 +578,7 @@ class SupplierOrderController extends Controller
             'store_id' => $storeId,
             'account_id' => $account->id,
             'amount' => $amount,
-            'currency' => 'EUR',
+            'currency' => 'USD',
             'direction' => 'debit',
             'balance_before' => $balanceBefore,
             'balance_after' => $balanceAfter,
@@ -375,5 +604,37 @@ class SupplierOrderController extends Controller
         $order->update(['is_paid' => true]);
 
         return redirect()->back()->with('success', __('messages.supplier_order.marked_paid'));
+    }
+
+    /**
+     * Revert a waiting_reception order back to pending status
+     */
+    public function revertToPending(Supplier $supplier, SupplierOrder $order)
+    {
+        // Only allow for waiting_reception orders
+        if ($order->status !== 'waiting_reception') {
+            return redirect()->back()->with('error', __('messages.supplier_order.cannot_revert'));
+        }
+
+        // Delete any stock batches created during partial reception
+        $stockBatches = StockBatch::where('source_supplier_order_id', $order->id)->get();
+        foreach ($stockBatches as $batch) {
+            // Delete associated stock transactions
+            StockTransaction::where('stock_batch_id', $batch->id)->delete();
+            $batch->delete();
+        }
+
+        // Reset quantity_received on all products
+        $order->products()->each(function ($product) use ($order) {
+            $order->products()->updateExistingPivot($product->id, [
+                'quantity_received' => null,
+            ]);
+        });
+
+        // Update status back to pending
+        $order->update(['status' => 'pending']);
+
+        return redirect()->route('supplier-orders.show', [$supplier, $order])
+            ->with('success', __('messages.supplier_order.reverted_to_pending'));
     }
 }

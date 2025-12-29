@@ -94,7 +94,10 @@ public function index(Store $store, Request $request)
     $unpaidGeneralInvoices = GeneralInvoice::where('store_id', $store->id)
         ->where('status', 'pending')
         ->get();
+    // Exclure les fournisseurs en consignation (facturés via SaleReports)
     $unpaidSupplierOrders = \App\Models\SupplierOrder::where('status', 'received')
+        ->where('destination_store_id', $store->id)
+        ->whereHas('supplier', fn($q) => $q->where('type', 'buyer'))
         ->where('is_paid', false)
         ->get();
 
@@ -102,7 +105,7 @@ public function index(Store $store, Request $request)
     $unpaidInvoicesTotal = $unpaidGeneralInvoices->sum('amount') +
         $unpaidSupplierOrders->sum(fn($order) =>
             $order->products->sum(fn($p) =>
-                ($p->pivot->price_invoiced ?? $p->pivot->purchase_price ?? 0) * ($p->pivot->quantity_received ?? 0)
+                ($p->pivot->invoice_price ?? $p->pivot->purchase_price ?? 0) * ($p->pivot->quantity_received ?? 0)
             )
         );
 
@@ -125,22 +128,40 @@ public function index(Store $store, Request $request)
 
 public function overviewInvoices(Request $request)
 {
-    // On récupère les commandes fournisseurs reçues mais non payées
+    // --- Commandes fournisseurs reçues mais non payées ---
+    // Exclure les fournisseurs en consignation (facturés via SaleReports)
     $ordersQuery = \App\Models\SupplierOrder::with(['supplier', 'destinationStore', 'products'])
         ->where('status', 'received')
+        ->whereHas('supplier', fn($q) => $q->where('type', 'buyer'))
         ->where('is_paid', false)
         ->latest();
 
-    // Pagination
     $orders = $ordersQuery->paginate(15)->appends($request->query());
 
-    // Montant total des factures à payer
-    $totalUnpaidAmount = $ordersQuery->get()->sum(fn($order) =>
+    // Montant total des commandes fournisseurs à payer (basé sur quantity_received)
+    $totalSupplierAmount = $ordersQuery->get()->sum(fn($order) =>
         $order->products->sum(fn($p) =>
-            ($p->pivot->price_invoiced ?? $p->pivot->purchase_price ?? 0) * ($p->pivot->quantity_ordered ?? 0)
+            ($p->pivot->invoice_price ?? $p->pivot->purchase_price ?? 0) * ($p->pivot->quantity_received ?? 0)
         )
     );
 
-    return view('financial.overview_invoices', compact('orders', 'totalUnpaidAmount'));
+    // --- Factures générales non payées (tous magasins confondus) ---
+    $generalInvoicesQuery = GeneralInvoice::with(['store', 'category'])
+        ->where('status', 'pending')
+        ->latest();
+
+    $generalInvoices = $generalInvoicesQuery->paginate(15)->appends($request->query());
+    $totalGeneralAmount = $generalInvoicesQuery->sum('amount');
+
+    // Total global
+    $totalUnpaidAmount = $totalSupplierAmount + $totalGeneralAmount;
+
+    return view('financial.overview_invoices', compact(
+        'orders',
+        'totalSupplierAmount',
+        'generalInvoices',
+        'totalGeneralAmount',
+        'totalUnpaidAmount'
+    ));
 }
 }

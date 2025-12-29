@@ -10,7 +10,7 @@ return [
     [
         'label' => 'messages.menu.catalog',
         'icon'  => 'bi-list-check',
-        'active_pattern' => 'products*|gift-boxes*|gift-cards*|inventory*',
+        'active_pattern' => 'products*|gift-boxes*|gift-cards*|inventory*|vouchers*',
         'submenu' => [
             [
                 'label' => 'messages.menu.physical_products',
@@ -36,6 +36,12 @@ return [
                 'route' => 'inventory.index',
                 'active_pattern' => 'inventory*',
             ],
+            [
+                'label' => 'messages.menu.vouchers',
+                'icon'  => 'bi-ticket-perforated',
+                'route' => 'vouchers.index',
+                'active_pattern' => 'vouchers*',
+            ],
         ]
     ],
     [
@@ -47,14 +53,20 @@ return [
                 'label' => 'messages.menu.stock_overview',
                 'icon'  => 'bi-eye',
                 'route' => 'stocks.index',
-                'active_pattern' => 'stocks*',
+                'active_pattern' => 'stocks.index',
             ],
-            // [
-            //     'label' => 'messages.menu.stock_movements',
-            //     'icon'  => 'bi-arrow-left-right',
-            //     'route' => 'stock-movements.index',
-            //     'active_pattern' => 'stock-movements*',
-            // ],
+            [
+                'label' => 'messages.menu.stock_overview_reseller',
+                'icon'  => 'bi-shop',
+                'route' => 'stocks.reseller',
+                'active_pattern' => 'stocks.reseller',
+            ],
+            [
+                'label' => 'messages.menu.stock_movements',
+                'icon'  => 'bi-arrow-left-right',
+                'route' => 'stock-movements.index',
+                'active_pattern' => 'stock-movements*',
+            ],
         ]
     ],
     [
@@ -79,6 +91,49 @@ return [
                 'icon'  => 'bi-list',
                 'route' => 'suppliers.index',
                 // pas besoin d'active_pattern ici, parent gère les sous-pages
+            ],
+        ]
+    ],
+    [
+        'label' => 'messages.menu.factory',
+        'icon'  => 'bi-building-gear',
+        'active_pattern' => 'factory*',
+        'submenu' => [
+            [
+                'label' => 'messages.menu.factory_dashboard',
+                'icon'  => 'bi-speedometer2',
+                'route' => 'factory.dashboard',
+                'active_pattern' => 'factory$',
+            ],
+            [
+                'label' => 'messages.menu.factory_productions',
+                'icon'  => 'bi-gear',
+                'route' => 'factory.productions.index',
+                'active_pattern' => 'factory/productions*',
+            ],
+            [
+                'label' => 'messages.menu.factory_recipes',
+                'icon'  => 'bi-journal-text',
+                'route' => 'factory.recipes.index',
+                'active_pattern' => 'factory/recipes*',
+            ],
+            [
+                'label' => 'messages.menu.factory_raw_materials',
+                'icon'  => 'bi-box-seam',
+                'route' => 'factory.raw-materials.index',
+                'active_pattern' => 'factory/raw-materials*',
+            ],
+            [
+                'label' => 'messages.menu.factory_inventory',
+                'icon'  => 'bi-clipboard-check',
+                'route' => 'factory.inventory.index',
+                'active_pattern' => 'factory/inventory*',
+            ],
+            [
+                'label' => 'messages.menu.factory_suppliers',
+                'icon'  => 'bi-truck',
+                'route' => 'factory.suppliers.index',
+                'active_pattern' => 'factory/suppliers*',
             ],
         ]
     ],
@@ -164,6 +219,19 @@ return [
                 'icon'  => 'bi-image',
                 'route' => 'hero-slides.index',
                 'active_pattern' => 'hero-slides*',
+            ],
+        ]
+    ],
+    [
+        'label' => 'messages.menu.bi',
+        'icon'  => 'bi-graph-up-arrow',
+        'active_pattern' => 'bi*',
+        'submenu' => [
+            [
+                'label' => 'messages.menu.bi_dashboard',
+                'icon'  => 'bi-speedometer2',
+                'route' => 'bi.dashboard',
+                'active_pattern' => 'bi*',
             ],
         ]
     ],

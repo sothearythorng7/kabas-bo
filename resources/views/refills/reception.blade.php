@@ -2,7 +2,7 @@
 
 @section('content')
 <div class="container mt-4">
-    <h1 class="crud_title">Réception refill - {{ $supplier->name }}</h1>
+    <h1 class="crud_title">{{ __('messages.refill.reception_title') }} - {{ $supplier->name }}</h1>
 
     {{-- Version desktop --}}
     <div class="d-none d-md-block">
@@ -28,10 +28,10 @@
                     <tr>
                         <th>EAN</th>
                         <th>{{ __('messages.product.name') }}</th>
-                        <th>@t("product.brand_label")</th>
+                        <th>{{ __('messages.product.brand_label') }}</th>
                         <th>{{ __('messages.product.purchase_price') }}</th>
                         <th>{{ __('messages.product.price') }}</th>
-                        <th>@t("Quantity received")</th>
+                        <th>{{ __('messages.refill.quantity_received') }}</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -51,7 +51,7 @@
             </table>
             <div class="mt-3">
                 <button type="submit" class="btn btn-success">
-                    <i class="bi bi-box-arrow-in-down"></i> @t("btn.save")
+                    <i class="bi bi-box-arrow-in-down"></i> {{ __('messages.btn.save') }}
                 </button>
                 <a href="{{ route('suppliers.edit', $supplier) }}" class="btn btn-secondary">
                     <i class="bi bi-x-circle"></i> {{ __('messages.btn.cancel') }}

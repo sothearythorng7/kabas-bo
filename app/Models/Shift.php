@@ -11,7 +11,7 @@ class Shift extends Model
     use HasFactory;
 
     protected $fillable = [
-        'user_id', 'store_id', 'opening_cash', 'closing_cash', 'visitors_count', 'cash_difference', 'started_at', 'ended_at', 'synced'
+        'user_id', 'store_id', 'opening_cash', 'closing_cash', 'visitors_count', 'cash_difference', 'cash_in', 'cash_out', 'started_at', 'ended_at', 'synced'
     ];
 
     protected $casts = [
@@ -33,5 +33,17 @@ class Shift extends Model
     public function sales()
     {
         return $this->hasMany(Sale::class);
+    }
+
+    public function shiftUsers()
+    {
+        return $this->hasMany(ShiftUser::class);
+    }
+
+    public function users()
+    {
+        return $this->belongsToMany(User::class, 'shift_users')
+            ->withPivot('started_at', 'ended_at')
+            ->withTimestamps();
     }
 }

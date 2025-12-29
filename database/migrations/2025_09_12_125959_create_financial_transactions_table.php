@@ -13,7 +13,7 @@ return new class extends Migration {
             $table->foreignId('account_id')->constrained('financial_accounts')->cascadeOnDelete();
             $table->foreignId('reseller_invoice_id')->nullable()->constrained('resellers_invoices')->nullOnDelete();
             $table->decimal('amount', 12, 2);
-            $table->string('currency', 3)->default('EUR');
+            $table->string('currency', 3)->default('USD');
             $table->enum('direction', ['debit', 'credit']);
             $table->decimal('balance_before', 12, 2);
             $table->decimal('balance_after', 12, 2);

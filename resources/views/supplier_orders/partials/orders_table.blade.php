@@ -6,13 +6,13 @@
     <th>{{ __('messages.supplier_order.created_at') }}</th>
     <th>Destination</th>
     @if(in_array($key, ['waiting_invoice','received_unpaid','received_paid']))
-        <th>@t("Total ordered")</th>
-        <th>@t("Total received")</th>
+        <th>{{ __('messages.Total ordered') }}</th>
+        <th>{{ __('messages.Total received') }}</th>
     @endif
-    <th>@t("Theoretical amount")</th>
+    <th>{{ __('messages.Theoretical amount') }}</th>
     @if(in_array($key, ['received_unpaid','received_paid']))
-        <th>@t("Total billed")</th>
-        <th>@t("Paid")</th>
+        <th>{{ __('messages.Total billed') }}</th>
+        <th>{{ __('messages.Paid') }}</th>
     @endif
 </tr>
 </thead>
@@ -51,9 +51,9 @@
         <td>${{ number_format($order->totalInvoiced, 2) }}</td>
         <td>
             @if($order->is_paid)
-                <span class="badge bg-success">@t("Yes")</span>
+                <span class="badge bg-success">{{ __('messages.Yes') }}</span>
             @else
-                <span class="badge bg-danger">@t("No")</span>
+                <span class="badge bg-danger">{{ __('messages.No') }}</span>
             @endif
         </td>
     @endif
@@ -67,16 +67,16 @@
       @csrf
       <div class="modal-content">
         <div class="modal-header">
-          <h5 class="modal-title">@t("Mark order as paid")</h5>
+          <h5 class="modal-title">{{ __('messages.Mark order as paid') }}</h5>
           <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
         </div>
         <div class="modal-body">
             <div class="mb-3">
-                <label class="form-label">@t("Amount paid")</label>
+                <label class="form-label">{{ __('messages.Amount paid') }}</label>
                 <input type="number" step="0.01" name="amount" class="form-control" value="{{ $order->totalInvoiced }}">
             </div>
             <div class="mb-3">
-                <label class="form-label">@t("Payment method")</label>
+                <label class="form-label">{{ __('messages.Méthode de paiement') }}</label>
                 <select name="payment_method_id" class="form-select" required>
                     @foreach($paymentMethods as $method)
                         <option value="{{ $method->id }}">{{ $method->name }}</option>
@@ -84,13 +84,13 @@
                 </select>
             </div>
             <div class="mb-3">
-                <label class="form-label">@t("Payment reference")</label>
+                <label class="form-label">{{ __('messages.Payment reference') }}</label>
                 <input type="text" name="payment_reference" class="form-control">
             </div>
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ __('messages.btn.cancel') }}</button>
-          <button type="submit" class="btn btn-success">@t("Confirm payment")</button>
+          <button type="submit" class="btn btn-success">{{ __('messages.Confirm payment') }}</button>
         </div>
       </div>
     </form>

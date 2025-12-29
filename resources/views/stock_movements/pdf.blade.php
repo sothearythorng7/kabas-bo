@@ -19,13 +19,13 @@
         <p><strong>{{ __('messages.stock_movement.user') }}:</strong> {{ $movement->user->name }}</p>
         <p><strong>{{ __('messages.stock_movement.source') }}:</strong> {{ $movement->fromStore?->name ?? '-' }}</p>
         <p><strong>{{ __('messages.stock_movement.destination') }}:</strong> {{ $movement->toStore?->name ?? '-' }}</p>
-        <p><strong>Status:</strong>
+        <p><strong>{{ __('messages.common.status') }}:</strong>
             @switch($movement->status)
-                @case(\App\Models\StockMovement::STATUS_DRAFT) Draft @break
-                @case(\App\Models\StockMovement::STATUS_VALIDATED) Validated @break
-                @case(\App\Models\StockMovement::STATUS_IN_TRANSIT) In transit @break
-                @case(\App\Models\StockMovement::STATUS_RECEIVED) Received @break
-                @case(\App\Models\StockMovement::STATUS_CANCELLED) Cancelled @break
+                @case(\App\Models\StockMovement::STATUS_DRAFT) {{ __('messages.stock_movement.status.draft') }} @break
+                @case(\App\Models\StockMovement::STATUS_VALIDATED) {{ __('messages.stock_movement.status.validated') }} @break
+                @case(\App\Models\StockMovement::STATUS_IN_TRANSIT) {{ __('messages.stock_movement.status.in_transit') }} @break
+                @case(\App\Models\StockMovement::STATUS_RECEIVED) {{ __('messages.stock_movement.status.received') }} @break
+                @case(\App\Models\StockMovement::STATUS_CANCELLED) {{ __('messages.stock_movement.status.cancelled') }} @break
             @endswitch
         </p>
     </div>

@@ -2,7 +2,7 @@
 
 @section('content')
 <div class="container mt-4">
-    <h1 class="crud_title">{{ __('messages.supplier_order.show_title') }} - {{ $supplier->name }} (@t($supplier->type))</h1>
+    <h1 class="crud_title">{{ __('messages.supplier_order.show_title') }} - {{ $supplier->name }} ({{ __('messages.' . $supplier->type) }})</h1>
 
     {{-- Onglets --}}
     <ul class="nav nav-tabs" id="orderTabs" role="tablist">
@@ -20,7 +20,7 @@
         </li>
         <li class="nav-item" role="presentation">
             <button class="nav-link" id="price-diff-tab" data-bs-toggle="tab" data-bs-target="#price-diff" type="button" role="tab" aria-controls="price-diff" aria-selected="false">
-                @t("Price differences")
+                {{ __('messages.Price differences') }}
                 <span class="badge bg-secondary ms-2">{{ $order->priceDifferences->count() }}</span>
             </button>
         </li>
@@ -46,6 +46,10 @@
                                     <i class="bi bi-check-circle-fill"></i> {{ __('messages.btn.validate') }}
                                 </button>
                             </form>
+
+                            <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#cancelPendingModal">
+                                <i class="bi bi-x-circle-fill"></i> {{ __('messages.supplier_order.cancel_order') }}
+                            </button>
                         @elseif($order->status === 'waiting_reception')
                             <a href="{{ route('supplier-orders.pdf', [$supplier, $order]) }}" class="btn btn-primary">
                                 <i class="bi bi-file-earmark-pdf-fill"></i> PDF
@@ -53,6 +57,10 @@
                             <a href="{{ route('supplier-orders.reception', [$supplier, $order]) }}" class="btn btn-info">
                                 <i class="bi bi-box-seam"></i> {{ __('messages.order.reception') }}
                             </a>
+
+                            <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#cancelWaitingModal">
+                                <i class="bi bi-x-circle-fill"></i> {{ __('messages.supplier_order.cancel_order') }}
+                            </button>
                         @elseif($order->status === 'waiting_invoice' && $supplier->isBuyer())
                             <a href="{{ route('supplier-orders.pdf', [$supplier, $order]) }}" class="btn btn-primary">
                                 <i class="bi bi-file-earmark-pdf-fill"></i> PDF
@@ -67,7 +75,7 @@
 
                             @if($supplier->isBuyer() && !$order->is_paid)
                                 <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#markAsPaidModal-{{ $order->id }}">
-                                    <i class="bi bi-cash-stack"></i> @t("Mark order as paid")
+                                    <i class="bi bi-cash-stack"></i> {{ __('messages.Mark order as paid') }}
                                 </button>
 
                                 {{-- Modal Mark as Paid --}}
@@ -77,17 +85,17 @@
                                             @csrf
                                             <div class="modal-content">
                                                 <div class="modal-header">
-                                                    <h5 class="modal-title">@t("Mark order as paid")</h5>
+                                                    <h5 class="modal-title">{{ __('messages.Mark order as paid') }}</h5>
                                                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                                                 </div>
                                                 <div class="modal-body">
                                                     <div class="mb-3">
                                                         <label class="form-label">
-                                                            @t("Amount paid") : <strong>${{ $order->invoicedAmount() }}</strong>
+                                                            {{ __('messages.Amount paid') }} : <strong>${{ $order->invoicedAmount() }}</strong>
                                                         </label>
                                                     </div>
                                                     <div class="mb-3">
-                                                        <label class="form-label">@t("Méthode de paiement")</label>
+                                                        <label class="form-label">{{ __('messages.Méthode de paiement') }}</label>
                                                         <select name="payment_method_id" class="form-select form-select-sm" required>
                                                             @foreach($paymentMethods as $method)
                                                                 <option value="{{ $method->id }}">{{ $method->name }}</option>
@@ -95,13 +103,13 @@
                                                         </select>
                                                     </div>
                                                     <div class="mb-3">
-                                                        <label class="form-label">@t("Payment reference")</label>
+                                                        <label class="form-label">{{ __('messages.Payment reference') }}</label>
                                                         <input type="text" name="payment_reference" class="form-control form-control-sm">
                                                     </div>
                                                 </div>
                                                 <div class="modal-footer">
                                                     <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">{{ __('messages.btn.cancel') }}</button>
-                                                    <button type="submit" class="btn btn-success btn-sm">@t("Confirm payment")</button>
+                                                    <button type="submit" class="btn btn-success btn-sm">{{ __('messages.Confirm payment') }}</button>
                                                 </div>
                                             </div>
                                         </form>
@@ -113,7 +121,7 @@
                         {{-- Lien facture --}}
                         @if($order->invoice_file && $supplier->isBuyer())
                             <a href="{{ Storage::url($order->invoice_file) }}" target="_blank" class="btn btn-dark">
-                                <i class="bi bi-download"></i> @t("Download Invoice")
+                                <i class="bi bi-download"></i> {{ __('messages.Download Invoice') }}
                             </a>
                         @endif
                     </div>
@@ -124,9 +132,9 @@
             <div class="row">
                 <div class="col-md-6">
                     <div class="card mb-3">
-                        <div class="card-header fw-bold">@t("Order information")</div>
+                        <div class="card-header fw-bold">{{ __('messages.Order information') }}</div>
                         <div class="card-body">
-                            <p><strong>{{ __('messages.supplier_order.status') }}:</strong>
+                            <p><strong>{{ __('messages.common.status') }}:</strong>
                                 @if($order->status === 'pending')
                                     <span class="badge bg-warning">{{ __('messages.order.pending') }}</span>
                                 @elseif($order->status === 'waiting_reception')
@@ -147,23 +155,23 @@
                 @if($supplier->isBuyer())
                 <div class="col-md-6">
                     <div class="card mb-3">
-                        <div class="card-header fw-bold">@t("Financial summary")</div>
+                        <div class="card-header fw-bold">{{ __('messages.Financial summary') }}</div>
                         <div class="card-body">
                                 <p>
-                                    <strong>@t("Total theoretical amount"):</strong>
+                                    <strong>{{ __('messages.Total theoretical amount') }}:</strong>
                                     <span class="badge bg-info">${{ number_format($order->expectedAmount(), 2) }}</span>
                                 </p>
                                 @if($order->status === 'received')
                                 <p>
-                                    <strong>@t("Total invoiced amount"):</strong>
+                                    <strong>{{ __('messages.Total invoiced amount') }}:</strong>
                                     <span class="badge bg-primary">${{ number_format($order->invoicedAmount(), 2) }}</span>
                                 </p>
                                 <p>
-                                    <strong>@t("Payment status"):</strong>
+                                    <strong>{{ __('messages.Payment status') }}:</strong>
                                     @if($order->is_paid)
-                                        <span class="badge bg-success">@t("Paid")</span>
+                                        <span class="badge bg-success">{{ __('messages.Paid') }}</span>
                                     @else
-                                        <span class="badge bg-danger">@t("Unpaid")</span>
+                                        <span class="badge bg-danger">{{ __('messages.Unpaid') }}</span>
                                     @endif
                                 </p>
                                 @endif
@@ -189,7 +197,7 @@
                                 @if($supplier->isBuyer())
                                     <th>{{ __('messages.supplier_order.price_invoiced') }}</th>
                                 @endif
-                                <th>@t("quantity ordered")</th>
+                                <th>{{ __('messages.quantity ordered') }}</th>
                                 <th>{{ __('messages.supplier_order.received_quantity') }}</th>
                             </tr>
                         </thead>
@@ -198,7 +206,7 @@
                                 @php
                                     $orderedPrice = $product->pivot->purchase_price;
                                     $invoicedPrice = ($supplier->isBuyer() && $order->status === 'received')
-                                        ? ($product->pivot->price_invoiced ?? $product->pivot->purchase_price ?? null)
+                                        ? ($product->pivot->invoice_price ?? $product->pivot->purchase_price ?? null)
                                         : null;
 
                                     if (is_null($invoicedPrice)) {
@@ -246,10 +254,10 @@
         {{-- Onglet Écarts de prix --}}
         <div class="tab-pane fade" id="price-diff" role="tabpanel" aria-labelledby="price-diff-tab">
             <div class="card mt-3">
-                <div class="card-header fw-bold">@t("Price differences")</div>
+                <div class="card-header fw-bold">{{ __('messages.Price differences') }}</div>
                 <div class="card-body">
                     @if($order->priceDifferences->isEmpty())
-                        <p class="text-muted">@t("No price differences recorded.")</p>
+                        <p class="text-muted">{{ __('messages.No price differences recorded.') }}</p>
                     @else
                         <table class="table table-striped">
                             <thead>
@@ -257,9 +265,9 @@
                                     <th>EAN</th>
                                     <th>{{ __('messages.product.name') }}</th>
                                     <th>Brand</th>
-                                    <th>@t("Reference price")</th>
-                                    <th>@t("Invoiced price")</th>
-                                    <th>@t("Update reference?")</th>
+                                    <th>{{ __('messages.Reference price') }}</th>
+                                    <th>{{ __('messages.Invoiced price') }}</th>
+                                    <th>{{ __('messages.Update reference?') }}</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -272,9 +280,9 @@
                                         <td>{{ number_format($line->invoiced_price, 2) }}</td>
                                         <td>
                                             @if($line->update_reference)
-                                                <span class="badge bg-success">@t("Yes")</span>
+                                                <span class="badge bg-success">{{ __('messages.Yes') }}</span>
                                             @else
-                                                <span class="badge bg-secondary">@t("No")</span>
+                                                <span class="badge bg-secondary">{{ __('messages.No') }}</span>
                                             @endif
                                         </td>
                                     </tr>
@@ -293,4 +301,109 @@
         </a>
     </div>
 </div>
+
+{{-- Modal: Cancel Pending Order (delete completely) --}}
+@if($order->status === 'pending')
+<div class="modal fade" id="cancelPendingModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-danger">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                    {{ __('messages.supplier_order.cancel_order') }}
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-warning mb-3">
+                    <i class="bi bi-info-circle-fill me-2"></i>
+                    {{ __('messages.supplier_order.cancel_pending_warning') }}
+                </div>
+                <p class="mb-0">{{ __('messages.supplier_order.cancel_confirm_question') }}</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="bi bi-arrow-left me-1"></i> {{ __('messages.btn.cancel') }}
+                </button>
+                <form action="{{ route('supplier-orders.destroy', [$supplier, $order]) }}" method="POST" class="d-inline">
+                    @csrf
+                    @method('DELETE')
+                    <button type="submit" class="btn btn-danger">
+                        <i class="bi bi-trash-fill me-1"></i> {{ __('messages.supplier_order.confirm_delete') }}
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+@endif
+
+{{-- Modal: Cancel Waiting Reception Order (choice: revert to pending or delete) --}}
+@if($order->status === 'waiting_reception')
+<div class="modal fade" id="cancelWaitingModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content border-danger">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                    {{ __('messages.supplier_order.cancel_order') }}
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-4">{{ __('messages.supplier_order.cancel_waiting_choose') }}</p>
+
+                <div class="row g-3">
+                    {{-- Option 1: Revert to Pending --}}
+                    <div class="col-md-6">
+                        <div class="card h-100 border-warning">
+                            <div class="card-body text-center">
+                                <i class="bi bi-arrow-counterclockwise text-warning" style="font-size: 2.5rem;"></i>
+                                <h5 class="card-title mt-3">{{ __('messages.supplier_order.revert_to_pending') }}</h5>
+                                <p class="card-text text-muted small">
+                                    {{ __('messages.supplier_order.revert_to_pending_desc') }}
+                                </p>
+                                <form action="{{ route('supplier-orders.revertToPending', [$supplier, $order]) }}" method="POST">
+                                    @csrf
+                                    @method('PUT')
+                                    <button type="submit" class="btn btn-warning w-100">
+                                        <i class="bi bi-arrow-counterclockwise me-1"></i>
+                                        {{ __('messages.supplier_order.revert_to_pending') }}
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+
+                    {{-- Option 2: Delete Completely --}}
+                    <div class="col-md-6">
+                        <div class="card h-100 border-danger">
+                            <div class="card-body text-center">
+                                <i class="bi bi-trash-fill text-danger" style="font-size: 2.5rem;"></i>
+                                <h5 class="card-title mt-3">{{ __('messages.supplier_order.delete_completely') }}</h5>
+                                <p class="card-text text-muted small">
+                                    {{ __('messages.supplier_order.delete_completely_desc') }}
+                                </p>
+                                <form action="{{ route('supplier-orders.destroy', [$supplier, $order]) }}" method="POST">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button type="submit" class="btn btn-danger w-100">
+                                        <i class="bi bi-trash-fill me-1"></i>
+                                        {{ __('messages.supplier_order.confirm_delete') }}
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="bi bi-arrow-left me-1"></i> {{ __('messages.btn.cancel') }}
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+@endif
 @endsection

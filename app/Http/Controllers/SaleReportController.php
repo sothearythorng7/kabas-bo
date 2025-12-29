@@ -6,6 +6,8 @@ use App\Models\SaleReport;
 use App\Models\Supplier;
 use App\Models\Store;
 use App\Models\Product;
+use App\Models\Sale;
+use App\Models\SaleItem;
 use App\Models\FinancialPaymentMethod;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -13,6 +15,7 @@ use App\Jobs\SendSaleReportEmail;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Artisan;
 use App\Jobs\SendTelegramReport;
+use Illuminate\Support\Str;
 
 
 class SaleReportController extends Controller
@@ -43,30 +46,94 @@ class SaleReportController extends Controller
     }
 
 
-
+    /**
+     * Étape 1 : Sélection du magasin et des dates
+     */
     public function create(Supplier $supplier)
     {
         $stores = Store::all();
-        $products = $supplier->products()->get();
 
-        return view('sale_reports.create', compact('supplier', 'stores', 'products'));
+        // Get last report dates per store for default period_start
+        $lastReportsByStore = SaleReport::where('supplier_id', $supplier->id)
+            ->orderByDesc('period_end')
+            ->get()
+            ->groupBy('store_id')
+            ->map(fn($reports) => $reports->first()->period_end->format('Y-m-d'));
+
+        return view('sale_reports.create_step1', compact('supplier', 'stores', 'lastReportsByStore'));
+    }
+
+    /**
+     * Étape 2 : Affichage des produits avec quantités pré-remplies depuis le POS
+     */
+    public function createStep2(Request $request, Supplier $supplier)
+    {
+        $request->validate([
+            'store_id' => 'required|exists:stores,id',
+            'period_start' => 'required|date',
+            'period_end' => 'required|date|after_or_equal:period_start',
+        ]);
+
+        $store = Store::findOrFail($request->store_id);
+        $period_start = $request->period_start;
+        $period_end = $request->period_end;
+
+        // Récupérer les produits du fournisseur
+        $products = $supplier->products()->get();
+        $productIds = $products->pluck('id')->toArray();
+
+        // Récupérer les ventes POS pour ce magasin et cette période
+        $posSalesQuantities = $this->getPosSalesQuantities($store->id, $period_start, $period_end, $productIds);
+
+        $hasPosSales = array_sum($posSalesQuantities) > 0;
+
+        return view('sale_reports.create', compact(
+            'supplier',
+            'store',
+            'period_start',
+            'period_end',
+            'products',
+            'posSalesQuantities',
+            'hasPosSales'
+        ));
+    }
+
+    /**
+     * Récupère les quantités vendues depuis le POS pour une période et un magasin donnés
+     */
+    private function getPosSalesQuantities(int $storeId, string $periodStart, string $periodEnd, array $productIds): array
+    {
+        $quantities = [];
+
+        // Récupérer les ventes du POS pour la période et le magasin
+        $salesItems = SaleItem::whereHas('sale', function ($query) use ($storeId, $periodStart, $periodEnd) {
+            $query->where('store_id', $storeId)
+                ->whereDate('created_at', '>=', $periodStart)
+                ->whereDate('created_at', '<=', $periodEnd);
+        })
+        ->whereIn('product_id', $productIds)
+        ->selectRaw('product_id, SUM(quantity) as total_quantity')
+        ->groupBy('product_id')
+        ->get();
+
+        foreach ($salesItems as $item) {
+            $quantities[$item->product_id] = (int) $item->total_quantity;
+        }
+
+        return $quantities;
     }
 
     public function store(Request $request, Supplier $supplier)
     {
         $request->validate([
             'store_id' => 'required|exists:stores,id',
-            'report_date' => 'required|date',
+            'period_start' => 'required|date',
+            'report_date' => 'required|date|after_or_equal:period_start',
             'products' => 'required|array',
             'products.*.quantity_sold' => 'required|integer|min:0',
         ]);
 
-        $lastReport = SaleReport::where('supplier_id', $supplier->id)
-            ->where('store_id', $request->store_id)
-            ->orderByDesc('period_end')
-            ->first();
-
-        $period_start = $lastReport ? $lastReport->period_end : $request->report_date;
+        $period_start = $request->period_start;
         $period_end = $request->report_date;
 
         $total = 0;
@@ -113,7 +180,13 @@ class SaleReportController extends Controller
             'saleReport' => $saleReport->load('items.product', 'supplier', 'store')
         ]);
 
-        $path = "sale_reports/report_{$saleReport->id}.pdf";
+        // Format: SUPPLIER_NAME_DDMMYYYY_DDMMYYYY.pdf
+        $supplierName = Str::slug($supplier->name, '_');
+        $dateStart = \Carbon\Carbon::parse($period_start)->format('dmY');
+        $dateEnd = \Carbon\Carbon::parse($period_end)->format('dmY');
+        $filename = strtoupper("{$supplierName}_{$dateStart}_{$dateEnd}") . '.pdf';
+
+        $path = "sale_reports/{$filename}";
         \Storage::disk('public')->put($path, $pdf->output());
 
         $saleReport->update([
@@ -166,12 +239,12 @@ class SaleReportController extends Controller
             $file = $request->file('report_file')->store('temp', 'public');
             $file = storage_path('app/public/' . $file);
         } else {
-            $file = $saleReport->report_file_path 
-                ? storage_path('app/public/' . $saleReport->report_file_path) 
+            $file = $saleReport->report_file_path
+                ? storage_path('app/public/' . $saleReport->report_file_path)
                 : null;
         }
 
-        // Dispatch du Job (pas d’Artisan ici !)
+        // Dispatch du Job (pas d'Artisan ici !)
         SendTelegramReport::dispatch($recipients, $message, $file);
 
         return redirect()
@@ -184,7 +257,7 @@ class SaleReportController extends Controller
     public function invoiceReception(Supplier $supplier, SaleReport $saleReport)
     {
         $saleReport->load('items.product');
-        
+
         return view('sale_reports.reception_invoice', compact('supplier', 'saleReport'));
     }
 
@@ -252,7 +325,7 @@ class SaleReportController extends Controller
             'store_id' => $storeId,
             'account_id' => $account->id,
             'amount' => $amount,
-            'currency' => 'EUR',
+            'currency' => 'USD',
             'direction' => 'debit', // sortie d'argent pour le store
             'balance_before' => $balanceBefore,
             'balance_after' => $balanceAfter,

@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Pagination\Paginator;
+use Illuminate\Support\Facades\Event;
 use App\Models\ResellerStockDelivery;
 use App\Observers\ResellerStockDeliveryObserver;
 use App\Models\ResellerSalesReport;
@@ -12,6 +13,8 @@ use App\Models\Store;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\Schema;
+use App\Events\SaleCreated;
+use App\Listeners\SendSaleTelegramNotification;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -30,6 +33,9 @@ class AppServiceProvider extends ServiceProvider
     {
         Paginator::useBootstrapFive();
         ResellerStockDelivery::observe(ResellerStockDeliveryObserver::class);
+
+        // Event listeners
+        Event::listen(SaleCreated::class, SendSaleTelegramNotification::class);
 
         // Partage des stores avec toutes les vues (sauf pendant migrations)
         if (Schema::hasTable('stores')) {

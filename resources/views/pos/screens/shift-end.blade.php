@@ -3,13 +3,13 @@
     <!-- Step 1: Visitors Count -->
     <div id="step-visitors" class="shift-step">
         <div class="d-flex justify-content-start align-items-center mb-3 gap-2">
-            <button id="btn-open-menu" class="btn btn-outline-secondary" title="@t('Menu')">
+            <button id="btn-open-menu" class="btn btn-outline-secondary" title="{{ __('messages.Menu') }}">
                 <i class="bi bi-list"></i>
             </button>
-            <h2 class="mb-0">@t('Close Shift') - @t('Visitors')</h2>
+            <h2 class="mb-0">{{ __('messages.Close Shift') }} - {{ __('messages.Visitors') }}</h2>
         </div>
 
-        <p>@t('How many visitors came to the store during your shift?')</p>
+        <p>{{ __('messages.How many visitors came to the store during your shift?') }}</p>
 
         <input type="text" id="visitors-input" class="form-control mb-3 text-center fs-3" readonly>
 
@@ -29,7 +29,7 @@
                 <button class="btn btn-outline-dark btn-lg w-100 visitors-num-btn">0</button>
             </div>
             <div class="col-4">
-                <button class="btn btn-outline-success btn-lg w-100" id="visitors-next">@t('Next')</button>
+                <button class="btn btn-outline-success btn-lg w-100" id="visitors-next">{{ __('messages.Next') }}</button>
             </div>
         </div>
     </div>
@@ -37,13 +37,13 @@
     <!-- Step 2: Cash Amount -->
     <div id="step-cash" class="shift-step d-none">
         <div class="d-flex justify-content-start align-items-center mb-3 gap-2">
-            <button id="btn-back-to-visitors" class="btn btn-outline-secondary" title="@t('Back')">
+            <button id="btn-back-to-visitors" class="btn btn-outline-secondary" title="{{ __('messages.Back') }}">
                 <i class="bi bi-arrow-left"></i>
             </button>
-            <h2 class="mb-0">@t('Close Shift') - @t('Cash Count')</h2>
+            <h2 class="mb-0">{{ __('messages.Close Shift') }} - {{ __('messages.Cash Count') }}</h2>
         </div>
 
-        <p>@t('Enter the final cash amount in the register')</p>
+        <p>{{ __('messages.Enter the final cash amount in the register') }}</p>
 
         <input type="text" id="shift-end-input" class="form-control mb-3 text-center fs-3" readonly>
 
@@ -57,13 +57,18 @@
                 @endif
             @endfor
             <div class="col-4">
-                <button class="btn btn-outline-danger btn-lg w-100" id="shift-end-clear">C</button>
+                <button class="btn btn-outline-dark btn-lg w-100 shift-end-num-btn" id="shift-end-decimal">.</button>
             </div>
             <div class="col-4">
                 <button class="btn btn-outline-dark btn-lg w-100 shift-end-num-btn">0</button>
             </div>
             <div class="col-4">
-                <button class="btn btn-outline-primary btn-lg w-100" id="shift-end-verify">@t('Verify')</button>
+                <button class="btn btn-outline-danger btn-lg w-100" id="shift-end-clear">C</button>
+            </div>
+        </div>
+        <div class="row g-2 justify-content-center mb-3">
+            <div class="col-12">
+                <button class="btn btn-outline-primary btn-lg w-100" id="shift-end-verify">{{ __('messages.Verify') }}</button>
             </div>
         </div>
     </div>
@@ -71,33 +76,41 @@
     <!-- Step 3: Verification -->
     <div id="step-verify" class="shift-step d-none">
         <div class="d-flex justify-content-start align-items-center mb-3 gap-2">
-            <button id="btn-back-to-cash" class="btn btn-outline-secondary" title="@t('Back')">
+            <button id="btn-back-to-cash" class="btn btn-outline-secondary" title="{{ __('messages.Back') }}">
                 <i class="bi bi-arrow-left"></i>
             </button>
-            <h2 class="mb-0">@t('Cash Verification')</h2>
+            <h2 class="mb-0">{{ __('messages.Cash Verification') }}</h2>
         </div>
 
         <div class="card mb-3">
             <div class="card-body">
                 <table class="table table-borderless mb-0">
                     <tr>
-                        <td class="text-start"><strong>@t('Opening Cash'):</strong></td>
+                        <td class="text-start"><strong>{{ __('messages.Opening Cash') }}:</strong></td>
                         <td class="text-end" id="verify-opening">$0.00</td>
                     </tr>
                     <tr>
-                        <td class="text-start"><strong>@t('Cash Sales'):</strong></td>
+                        <td class="text-start"><strong>{{ __('messages.Cash Sales') }}:</strong></td>
                         <td class="text-end" id="verify-sales">$0.00</td>
                     </tr>
+                    <tr id="row-cash-in" class="d-none">
+                        <td class="text-start"><strong class="text-success">+ Cash In:</strong></td>
+                        <td class="text-end text-success" id="verify-cash-in">$0.00</td>
+                    </tr>
+                    <tr id="row-cash-out" class="d-none">
+                        <td class="text-start"><strong class="text-danger">- Cash Out:</strong></td>
+                        <td class="text-end text-danger" id="verify-cash-out">$0.00</td>
+                    </tr>
                     <tr class="border-top">
-                        <td class="text-start"><strong>@t('Expected Amount'):</strong></td>
+                        <td class="text-start"><strong>{{ __('messages.Expected Amount') }}:</strong></td>
                         <td class="text-end"><strong class="text-primary" id="verify-expected">$0.00</strong></td>
                     </tr>
                     <tr>
-                        <td class="text-start"><strong>@t('Counted Amount'):</strong></td>
+                        <td class="text-start"><strong>{{ __('messages.Counted Amount') }}:</strong></td>
                         <td class="text-end" id="verify-counted">$0.00</td>
                     </tr>
                     <tr class="border-top">
-                        <td class="text-start"><strong>@t('Difference'):</strong></td>
+                        <td class="text-start"><strong>{{ __('messages.Difference') }}:</strong></td>
                         <td class="text-end"><strong id="verify-difference">$0.00</strong></td>
                     </tr>
                 </table>
@@ -111,10 +124,10 @@
 
         <div class="d-grid gap-2">
             <button class="btn btn-warning btn-lg d-none" id="btn-correct-amount">
-                <i class="bi bi-pencil"></i> @t('Correct Amount')
+                <i class="bi bi-pencil"></i> {{ __('messages.Correct Amount') }}
             </button>
             <button class="btn btn-success btn-lg" id="shift-end-confirm">
-                <span id="confirm-btn-text">@t('Confirm')</span>
+                <span id="confirm-btn-text">{{ __('messages.Confirm') }}</span>
             </button>
         </div>
     </div>
@@ -122,7 +135,20 @@
 
 @push('scripts')
 <script>
+window.posTranslations = window.posTranslations || {};
+window.posTranslations.shiftEnd = {
+    pleaseEnterValidAmount: @json(__('messages.Please enter a valid amount!')),
+    confirm: @json(__('messages.Confirm')),
+    thereIsMoreCash: @json(__('messages.There is more cash than expected')),
+    thereIsMissingCash: @json(__('messages.There is missing cash')),
+    forceClose: @json(__('messages.Force Close')),
+    errorFetchingExpectedCash: @json(__('messages.Error fetching expected cash. Proceeding without verification.')),
+    shiftEnded: @json(__('messages.Shift ended!'))
+};
+
 function initShiftEnd() {
+    const t = window.posTranslations.shiftEnd;
+
     // Variables to store shift end data
     let visitorsCount = 0;
     let cashAmount = 0;
@@ -165,8 +191,13 @@ function initShiftEnd() {
     });
 
     $(document).off("click", ".shift-end-num-btn").on("click", ".shift-end-num-btn", function() {
-        console.log("Cash button clicked:", $(this).text());
-        cashBuffer += $(this).text();
+        const char = $(this).text();
+        console.log("Cash button clicked:", char);
+        // Prevent multiple decimal points
+        if (char === "." && cashBuffer.includes(".")) {
+            return;
+        }
+        cashBuffer += char;
         $("#shift-end-input").val(cashBuffer);
         console.log("cashBuffer now:", cashBuffer);
     });
@@ -181,8 +212,27 @@ function initShiftEnd() {
         cashAmount = parseFloat(cashBuffer);
         console.log("cashAmount parsed:", cashAmount);
         if (isNaN(cashAmount)) {
-            alert("@t('Please enter a valid amount!')");
+            alert(t.pleaseEnterValidAmount);
             return;
+        }
+
+        // Sync sales to backend BEFORE fetching expected cash
+        // This ensures all local sales are counted in the expected amount
+        try {
+            console.log("Syncing sales before cash verification...");
+            // Check what's in localStorage before sync
+            const preKey = `pos_sales_validated_shift_${currentShift.id}`;
+            const preSales = JSON.parse(localStorage.getItem(preKey)) || [];
+            console.log("Sales in localStorage before sync:", preSales.length, preSales);
+
+            await syncSalesToBO();
+
+            // Small delay to ensure DB write is complete
+            await new Promise(resolve => setTimeout(resolve, 500));
+
+            console.log("Sales sync completed");
+        } catch (syncErr) {
+            console.warn("Sales sync failed, continuing with verification:", syncErr);
         }
 
         // Fetch expected cash from API
@@ -192,13 +242,42 @@ function initShiftEnd() {
 
             expectedData = await res.json();
 
+            // Get Cash In/Out from localStorage (linked to current shift)
+            const cashIn = window.getShiftCashIn ? window.getShiftCashIn() : 0;
+            const cashOut = window.getShiftCashOut ? window.getShiftCashOut() : 0;
+
+            // Calculate adjusted expected cash: Opening + Sales + CashIn - CashOut
+            const adjustedExpected = expectedData.expected_cash + cashIn - cashOut;
+
             // Display verification data
             $("#verify-opening").text("$" + expectedData.opening_cash.toFixed(2));
             $("#verify-sales").text("$" + expectedData.cash_from_sales.toFixed(2));
-            $("#verify-expected").text("$" + expectedData.expected_cash.toFixed(2));
+
+            // Show Cash In row if > 0
+            if (cashIn > 0) {
+                $("#row-cash-in").removeClass("d-none");
+                $("#verify-cash-in").text("$" + cashIn.toFixed(2));
+            } else {
+                $("#row-cash-in").addClass("d-none");
+            }
+
+            // Show Cash Out row if > 0
+            if (cashOut > 0) {
+                $("#row-cash-out").removeClass("d-none");
+                $("#verify-cash-out").text("$" + cashOut.toFixed(2));
+            } else {
+                $("#row-cash-out").addClass("d-none");
+            }
+
+            $("#verify-expected").text("$" + adjustedExpected.toFixed(2));
             $("#verify-counted").text("$" + cashAmount.toFixed(2));
 
-            const difference = cashAmount - expectedData.expected_cash;
+            // Store adjusted expected for difference calculation
+            expectedData.adjusted_expected = adjustedExpected;
+            expectedData.cash_in = cashIn;
+            expectedData.cash_out = cashOut;
+
+            const difference = cashAmount - adjustedExpected;
             $("#verify-difference").text((difference >= 0 ? "+$" : "-$") + Math.abs(difference).toFixed(2));
 
             // Color code the difference
@@ -206,24 +285,24 @@ function initShiftEnd() {
                 $("#verify-difference").removeClass("text-danger").addClass("text-success");
                 $("#verify-alert").addClass("d-none");
                 $("#btn-correct-amount").addClass("d-none");
-                $("#confirm-btn-text").text("@t('Confirm')");
+                $("#confirm-btn-text").text(t.confirm);
             } else {
                 $("#verify-difference").removeClass("text-success").addClass(difference > 0 ? "text-success" : "text-danger");
                 $("#verify-alert").removeClass("d-none alert-success alert-danger")
                     .addClass(difference > 0 ? "alert-success" : "alert-danger");
                 $("#verify-alert-text").text(
                     difference > 0
-                        ? "@t('There is more cash than expected')"
-                        : "@t('There is missing cash')"
+                        ? t.thereIsMoreCash
+                        : t.thereIsMissingCash
                 );
                 $("#btn-correct-amount").removeClass("d-none");
-                $("#confirm-btn-text").text("@t('Force Close')");
+                $("#confirm-btn-text").text(t.forceClose);
             }
 
             showStep("step-verify");
         } catch(err) {
             console.error(err);
-            alert("@t('Error fetching expected cash. Proceeding without verification.')");
+            alert(t.errorFetchingExpectedCash);
             // Proceed directly to end shift without verification
             await endShift();
         }
@@ -263,7 +342,9 @@ function initShiftEnd() {
     }
 
     async function endShift() {
-        const difference = expectedData ? (cashAmount - expectedData.expected_cash) : null;
+        // Use adjusted expected (with Cash In/Out) for difference calculation
+        const difference = expectedData ? (cashAmount - (expectedData.adjusted_expected ?? expectedData.expected_cash)) : null;
+        const shiftIdToClean = currentShift ? currentShift.id : null;
 
         try {
             const res = await fetch(`{{ config('app.url') }}/api/pos/shifts/end`, {
@@ -276,17 +357,24 @@ function initShiftEnd() {
                     user_id: currentUser.id,
                     end_amount: cashAmount,
                     visitors_count: visitorsCount > 0 ? visitorsCount : null,
-                    cash_difference: difference
+                    cash_difference: difference,
+                    cash_in: expectedData?.cash_in ?? 0,
+                    cash_out: expectedData?.cash_out ?? 0
                 })
             });
 
             if (!res.ok) throw new Error("Unable to end shift");
 
+            // Clean up Cash In/Out from localStorage for this shift
+            if (shiftIdToClean && window.clearShiftCashInOut) {
+                window.clearShiftCashInOut(shiftIdToClean);
+            }
+
             currentShift = null;
             $("#btn-end-shift").addClass("d-none");
             const shift = await res.json();
             console.log("Shift ended:", shift);
-            alert("@t('Shift ended!')");
+            alert(t.shiftEnded);
             logout();
         } catch(err) {
             alert(err.message);

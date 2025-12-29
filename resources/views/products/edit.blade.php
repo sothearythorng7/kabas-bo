@@ -3,6 +3,21 @@
 @section('content')
 <div class="container mt-4">
     <h1 class="crud_title">{{ __('messages.product.title_edit') }} - {{ $product->ean }}<br /><small>{{ $product->name[app()->getLocale()] ?? reset($product->name) }}</small></h1>
+
+    {{-- Alertes produit --}}
+    @if(!empty($productAlerts))
+    <div class="alert alert-warning mb-3">
+        <h6 class="alert-heading mb-2"><i class="bi bi-exclamation-triangle"></i> {{ __('messages.product.alerts') }}</h6>
+        <div class="d-flex flex-wrap gap-2">
+            @foreach($productAlerts as $alert)
+                <span class="badge bg-{{ $alert['color'] }}">
+                    <i class="bi {{ $alert['icon'] }}"></i> {{ $alert['message'] }}
+                </span>
+            @endforeach
+        </div>
+    </div>
+    @endif
+
     <a href="{{ route('products.index') }}" class="btn btn-secondary mb-3">
         <i class="bi bi-arrow-left"></i> {{ __('messages.btn.back_to_list') }}
     </a>
@@ -10,6 +25,12 @@
     class="btn btn-primary mb-3 me-2">
         <i class="bi bi-box-arrow-up-right"></i> {{ __('messages.product.view_public') ?? 'Voir sur le site' }}
     </a>
+    <form action="{{ route('products.duplicate', $product) }}" method="POST" class="d-inline">
+        @csrf
+        <button type="submit" class="btn btn-warning mb-3" onclick="return confirm('{{ __('messages.product.confirm_duplicate') }}')">
+            <i class="bi bi-copy"></i> {{ __('messages.product.duplicate') }}
+        </button>
+    </form>
 
     {{-- Onglets version desktop --}}
     <ul class="nav nav-tabs d-none d-md-flex" role="tablist">
@@ -137,7 +158,7 @@
                 <div class="form-check form-switch mb-2">
                     <input class="form-check-input" type="checkbox" name="allow_overselling" id="allow_overselling" value="1"
                         {{ old('allow_overselling', $product->allow_overselling) ? 'checked' : '' }}>
-                    <label class="form-check-label" for="allow_overselling">@t('product.allow_overselling')</label>
+                    <label class="form-check-label" for="allow_overselling">{{ __('messages.product.allow_overselling') }}</label>
                 </div>
                 <div class="mt-3">
                     <button class="btn btn-success">{{ __('messages.btn.save') }}</button>
@@ -241,8 +262,8 @@
                                         value="{{ $realStock }}">
                                 </td>
                                 <td>
-                                    <input type="number" min="0" name="alert_stock_quantity" class="form-control form-control-sm" 
-                                        placeholder="Alert" value="{{ $store->pivot->alert_stock_quantity }}">
+                                    <input type="number" min="0" name="alert_stock_quantity" class="form-control form-control-sm"
+                                        placeholder="{{ __('messages.product.stock_alert') }}" value="{{ $store->pivot->alert_stock_quantity }}">
                                 </td>
                                 <td>
                                     <button class="btn btn-sm btn-success ms-2"><i class="bi bi-check"></i></button>
@@ -263,7 +284,7 @@
             <form action="{{ route('products.photos.upload', $product) }}" method="POST" enctype="multipart/form-data">
                 @csrf
                 <div class="mb-3">
-                    <label class="form-label">{{ __('messages.product.upload_photos') }}</label>
+                    <label class="form-label">{{ __('messages.product.upload_images') }}</label>
                     <input type="file" name="photos[]" class="form-control" multiple>
                 </div>
                 <div class="mt-3">
@@ -287,7 +308,7 @@
                         <form action="{{ route('products.photos.delete', [$product, $img]) }}" method="POST">
                             @csrf
                             @method('DELETE')
-                            <button type="submit">Delete</button>
+                            <button type="submit">{{ __('messages.btn.delete') }}</button>
                         </form>
                     </div>
                     @endforeach
@@ -372,7 +393,7 @@
                                 onclick='openEditVariationModal({{ $var->id }}, {{ $var->variation_type_id }}, {{ $var->variation_value_id }}, {{ $var->linked_product_id }}, {{ json_encode($linkedProductDisplay) }})'>
                                 <i class="bi bi-pencil"></i> {{ __('messages.btn.edit') }}
                             </button>
-                            <form method="POST" action="{{ route('products.variations.destroy', [$product, $var->id]) }}" onsubmit="return confirm('Confirm?')" style="display: inline-block;">
+                            <form method="POST" action="{{ route('products.variations.destroy', [$product, $var->id]) }}" onsubmit="return confirm('{{ __('messages.variation.confirm_delete') }}')" style="display: inline-block;">
                                 @csrf
                                 @method('DELETE')
                                 <button class="btn btn-sm btn-danger">{{ __('messages.btn.delete') }}</button>
@@ -477,7 +498,7 @@
             document.getElementById('variation_type').addEventListener('change', function() {
                 let typeId = this.value;
                 let valueSelect = document.getElementById('variation_value');
-                valueSelect.innerHTML = '<option>Loading...</option>';
+                valueSelect.innerHTML = '<option>{{ __('messages.common.loading') }}</option>';
                 fetch('/variation-types/'+typeId+'/values')
                     .then(res => res.json())
                     .then(data => {
@@ -496,7 +517,7 @@
             document.getElementById('edit_variation_type').addEventListener('change', function() {
                 let typeId = this.value;
                 let valueSelect = document.getElementById('edit_variation_value');
-                valueSelect.innerHTML = '<option>Loading...</option>';
+                valueSelect.innerHTML = '<option>{{ __('messages.common.loading') }}</option>';
                 fetch('/variation-types/'+typeId+'/values')
                     .then(res => res.json())
                     .then(data => {

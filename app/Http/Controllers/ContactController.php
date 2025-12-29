@@ -20,7 +20,7 @@ class ContactController extends Controller
 
         $supplier->contacts()->create($request->all());
 
-        return redirect()->back()->with('success', 'Contact added successfully');
+        return redirect()->back()->with('success', __('messages.flash.contact_added'));
     }
 
     public function update(Request $request, Supplier $supplier, Contact $contact)
@@ -35,13 +35,13 @@ class ContactController extends Controller
 
         $contact->update($request->all());
 
-        return redirect()->back()->with('success', 'Contact updated successfully');
+        return redirect()->back()->with('success', __('messages.flash.contact_updated'));
     }
 
     public function destroy(Supplier $supplier, Contact $contact)
     {
         $contact->delete();
 
-        return redirect()->back()->with('success', 'Contact deleted successfully');
+        return redirect()->back()->with('success', __('messages.flash.contact_deleted'));
     }
 }

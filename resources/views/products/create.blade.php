@@ -15,17 +15,17 @@
             <div class="tab-pane fade show active" id="tab-general" role="tabpanel">
                 <div class="row">
                     <div class="col-md-3 mb-3">
-                        <label class="form-label">@t("product.ean")</label>
+                        <label class="form-label">{{ __('messages.product.ean') }}</label>
                         <div class="input-group">
                             <input type="text" name="ean" id="ean-input" class="form-control @error('ean') is-invalid @enderror" value="{{ old('ean') }}" required>
-                            <button type="button" class="btn btn-outline-secondary" id="generate-ean-btn" title="Générer un EAN fake">
+                            <button type="button" class="btn btn-outline-secondary" id="generate-ean-btn" title="{{ __('messages.product.generate_fake_ean') }}">
                                 <i class="bi bi-shuffle"></i>
                             </button>
                         </div>
                         @error('ean') <div class="invalid-feedback">{{ $message }}</div> @enderror
                     </div>
                     <div class="col-md-3 mb-3">
-                        <label class="form-label">@t("product.brand_label")</label>
+                        <label class="form-label">{{ __('messages.product.brand_label') }}</label>
                         <select name="brand_id" class="form-select">
                             <option value="">--</option>
                             @foreach($brands as $b)
@@ -34,13 +34,13 @@
                         </select>
                     </div>
                     <div class="col-md-3 mb-3">
-                        <label class="form-label">@t("product.price")</label>
+                        <label class="form-label">{{ __('messages.product.price') }}</label>
                         <input type="number" step="0.01" name="price" class="form-control @error('price') is-invalid @enderror" value="{{ old('price', 0) }}">
                         @error('price') <div class="invalid-feedback">{{ $message }}</div> @enderror
                     </div>
                     <div class="col-md-3 mb-3">
-                        <label class="form-label">@t("product.price_btob")</label>
-                        <input type="number" step="0.01" name="price" class="form-control @error('price_btob') is-invalid @enderror" value="{{ old('price_btob', 0) }}">
+                        <label class="form-label">{{ __('messages.product.price_btob') }}</label>
+                        <input type="number" step="0.01" name="price_btob" class="form-control @error('price_btob') is-invalid @enderror" value="{{ old('price_btob', 0) }}">
                         @error('price_btob') <div class="invalid-feedback">{{ $message }}</div> @enderror
                     </div>
                 </div>
@@ -60,7 +60,7 @@
                     @foreach($locales as $locale)
                         <div class="tab-pane fade @if($i===0) show active @endif" id="name-{{ $locale }}" role="tabpanel">
                             <div class="mb-3">
-                                <label class="form-label">@t("product.name") ({{ strtoupper($locale) }})
+                                <label class="form-label">{{ __('messages.product.name') }} ({{ strtoupper($locale) }})
                                     @if($locale === 'en')
                                         <span class="text-danger">*</span>
                                     @endif
@@ -74,15 +74,15 @@
 
                 <div class="form-check form-switch mb-2">
                     <input class="form-check-input" type="checkbox" name="is_active" id="is_active" value="1" {{ old('is_active', true) ? 'checked' : '' }}>
-                    <label class="form-check-label" for="is_active">@t("active")</label>
+                    <label class="form-check-label" for="is_active">{{ __('messages.product.active') }}</label>
                 </div>
                 <div class="form-check form-switch mb-2">
                     <input class="form-check-input" type="checkbox" name="is_best_seller" id="is_best_seller" value="1" {{ old('is_best_seller', false) ? 'checked' : '' }}>
-                    <label class="form-check-label" for="is_best_seller">@t("Best seller")</label>
+                    <label class="form-check-label" for="is_best_seller">{{ __('messages.product.best_seller') }}</label>
                 </div>
                 <div class="form-check form-switch mb-2">
                     <input class="form-check-input" type="checkbox" name="allow_overselling" id="allow_overselling" value="1" {{ old('allow_overselling', false) ? 'checked' : '' }}>
-                    <label class="form-check-label" for="allow_overselling">@t("product.allow_overselling")</label>
+                    <label class="form-check-label" for="allow_overselling">{{ __('messages.product.allow_overselling') }}</label>
                 </div>
             </div>
         </div>

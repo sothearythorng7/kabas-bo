@@ -2,7 +2,7 @@
 
     <!-- Header: menu button (disabled) + title aligned left -->
     <div class="d-flex justify-content-start align-items-center mb-3 gap-2">
-        <button id="btn-open-menu" class="btn btn-outline-secondary" title="@t('Menu')" disabled style="opacity: 0.5; cursor: not-allowed;">
+        <button id="btn-open-menu" class="btn btn-outline-secondary" title="{{ __('messages.Menu') }}" disabled style="opacity: 0.5; cursor: not-allowed;">
             <i class="bi bi-list"></i>
         </button>
         <h2 class="mb-0">Start Your Shift</h2>
@@ -22,12 +22,17 @@
             @endif
         @endfor
         <div class="col-4">
-            <button class="btn btn-outline-danger btn-lg w-100" id="shift-start-clear">C</button>
+            <button class="btn btn-outline-dark btn-lg w-100 shift-num-btn" id="shift-start-decimal">.</button>
         </div>
         <div class="col-4">
             <button class="btn btn-outline-dark btn-lg w-100 shift-num-btn">0</button>
         </div>
         <div class="col-4">
+            <button class="btn btn-outline-danger btn-lg w-100" id="shift-start-clear">C</button>
+        </div>
+    </div>
+    <div class="row g-2 justify-content-center mb-3">
+        <div class="col-12">
             <button class="btn btn-outline-success btn-lg w-100" id="shift-start-ok">Start</button>
         </div>
     </div>
@@ -40,7 +45,12 @@ function initShiftstart() {
     $("#shift-start-input").val("");
 
     $(".shift-num-btn").off("click").on("click", function() {
-        buffer += $(this).text();
+        const char = $(this).text();
+        // Prevent multiple decimal points
+        if (char === "." && buffer.includes(".")) {
+            return;
+        }
+        buffer += char;
         $("#shift-start-input").val(buffer);
     });
 

@@ -33,8 +33,8 @@
             <tr>
                 <th></th>
                 <th></th>
-                <th>@t("product.ean")</th>
-                <th>@t("Product name")</th>
+                <th>{{ __('messages.product.ean') }}</th>
+                <th>{{ __('messages.common.name') }}</th>
                 <th style="min-width:220px;">
                     <form action="{{ route('products.index') }}" method="GET" id="brandFilterForm">
                         {{-- préserver les autres filtres/params --}}
@@ -55,12 +55,12 @@
                         </select>
                     </form>
                 </th>
-                <th>@t("product.price")</th>
-                <th>@t("product.price_btob")</th> <!-- Nouvelle colonne -->
-                <th>@t("product.active")</th>
-                <th>@t("Best")</th>
-                <th>@t("Resalable")</th>
-                <th class="text-center" style="width:90px;">@t("photo")</th>
+                <th>{{ __('messages.product.price') }}</th>
+                <th>{{ __('messages.product.price_btob') }}</th>
+                <th>{{ __('messages.product.active') }}</th>
+                <th>{{ __('messages.product.best_seller') }}</th>
+                <th>{{ __('messages.product.is_resalable') }}</th>
+                <th class="text-center" style="width:90px;">{{ __('messages.product.photo') }}</th>
             </tr>
         </thead>
         <tbody>
@@ -131,7 +131,22 @@
         </tbody>
     </table>
 
-    {{ $products->links() }}
+    <div class="d-flex justify-content-between align-items-center">
+        <div class="d-flex align-items-center gap-2">
+            <span>{{ __('messages.pagination.show') }}</span>
+            <select class="form-select form-select-sm" style="width:auto;" onchange="window.location.href=this.value">
+                @foreach([25, 50, 100] as $option)
+                    <option value="{{ request()->fullUrlWithQuery(['perPage' => $option, 'page' => 1]) }}" {{ request('perPage', 100) == $option ? 'selected' : '' }}>
+                        {{ $option }}
+                    </option>
+                @endforeach
+            </select>
+            <span>{{ __('messages.pagination.rows') }}</span>
+        </div>
+        <div>
+            {{ $products->links() }}
+        </div>
+    </div>
 </div>
 
 @push('scripts')

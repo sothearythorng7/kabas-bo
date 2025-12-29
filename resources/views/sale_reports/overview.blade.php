@@ -2,16 +2,16 @@
 
 @section('content')
 <div class="container mt-4">
-    <h1 class="crud_title">@t("Sales Reports Overview")</h1>
+    <h1 class="crud_title">{{ __('messages.Sales Reports Overview') }}</h1>
 
     {{-- Totaux --}}
     <div class="alert alert-info">
-        <strong>@t("Total theoretical amount"):</strong>
+        <strong>{{ __('messages.Total theoretical amount') }}:</strong>
         ${{ number_format($totalTheoretical, 2) }}
     </div>
 
     <div class="alert alert-warning">
-        <strong>@t("Total unpaid invoiced reports"):</strong>
+        <strong>{{ __('messages.Total unpaid invoiced reports') }}:</strong>
         ${{ number_format($totalUnpaidInvoiced, 2) }}
     </div>
 
@@ -19,9 +19,9 @@
     <ul class="nav nav-tabs" id="reportsTabs" role="tablist">
         @php
         $statuses = [
-            'waiting_invoice' => @t("order.waiting_invoice"),
-            'invoiced_unpaid' => @t("Invoice received - not paid"),
-            'invoiced_paid' => @t("Invoice received - paid"),
+            'waiting_invoice' => __('messages.order.waiting_invoice'),
+            'invoiced_unpaid' => __('messages.Invoice received - not paid'),
+            'invoiced_paid' => __('messages.Invoice received - paid'),
         ];
         $badgeColors = [
             'waiting_invoice' => 'info',
@@ -32,9 +32,9 @@
 
         @foreach($statuses as $key => $label)
             <li class="nav-item" role="presentation">
-                <button class="nav-link {{ $loop->first ? 'active' : '' }}" 
-                        id="{{ $key }}-tab" data-bs-toggle="tab" 
-                        data-bs-target="#{{ $key }}" type="button" role="tab" 
+                <button class="nav-link {{ $loop->first ? 'active' : '' }}"
+                        id="{{ $key }}-tab" data-bs-toggle="tab"
+                        data-bs-target="#{{ $key }}" type="button" role="tab"
                         aria-controls="{{ $key }}" aria-selected="{{ $loop->first ? 'true' : 'false' }}">
                     {{ $label }}
                     <span class="badge bg-{{ $badgeColors[$key] }}">
@@ -47,20 +47,20 @@
 
     <div class="tab-content mt-3" id="reportsTabsContent">
         @foreach($statuses as $key => $label)
-            <div class="tab-pane fade {{ $loop->first ? 'show active' : '' }}" 
+            <div class="tab-pane fade {{ $loop->first ? 'show active' : '' }}"
                  id="{{ $key }}" role="tabpanel" aria-labelledby="{{ $key }}-tab">
 
                 <table class="table table-striped table-hover">
                     <thead>
                         <tr>
                             <th></th>
-                            <th>@t("Fournisseur")</th>
-                            <th>@t("Store name")</th>
-                            <th>@t("Période")</th>
-                            <th>@t("Theoretical amount")</th>
+                            <th>{{ __('messages.Fournisseur') }}</th>
+                            <th>{{ __('messages.Store name') }}</th>
+                            <th>{{ __('messages.Période') }}</th>
+                            <th>{{ __('messages.Theoretical amount') }}</th>
                             @if(str_contains($key, 'invoiced'))
-                                <th>@t("Total billed")</th>
-                                <th>@t("Paid")</th>
+                                <th>{{ __('messages.Total billed') }}</th>
+                                <th>{{ __('messages.Paid') }}</th>
                             @endif
                         </tr>
                     </thead>
@@ -75,7 +75,7 @@
                                     <ul class="dropdown-menu">
                                         <li>
                                             <a class="dropdown-item" href="{{ route('sale-reports.show', [$report->supplier, $report]) }}">
-                                                <i class="bi bi-eye-fill"></i> @t("View")
+                                                <i class="bi bi-eye-fill"></i> {{ __('messages.btn.view') }}
                                             </a>
                                         </li>
 
@@ -83,7 +83,7 @@
                                         @if($report->status === 'waiting_invoice')
                                             <li>
                                                 <a class="dropdown-item" href="{{ route('sale-reports.invoiceReception', [$report->supplier, $report]) }}">
-                                                    <i class="bi bi-receipt"></i>@t("order.invoice_reception")
+                                                    <i class="bi bi-receipt"></i> {{ __('messages.order.invoice_reception') }}
                                                 </a>
                                             </li>
                                         @endif
@@ -92,7 +92,7 @@
                                         @if($report->status === 'invoiced' && !$report->is_paid)
                                             <li>
                                                 <button class="dropdown-item" data-bs-toggle="modal" data-bs-target="#markAsPaidModal-{{ $report->id }}">
-                                                    <i class="bi bi-cash-coin"></i> @t("Mark as paid")
+                                                    <i class="bi bi-cash-coin"></i> {{ __('messages.Mark as paid') }}
                                                 </button>
                                             </li>
                                         @endif
@@ -101,12 +101,12 @@
                                         @if($report->report_file_path)
                                             <li>
                                                 <a class="dropdown-item" href="{{ Storage::url($report->report_file_path) }}" target="_blank">
-                                                    <i class="bi bi-file-earmark-pdf"></i> Télécharger le rapport
+                                                    <i class="bi bi-file-earmark-pdf"></i> {{ __('messages.Télécharger') }}
                                                 </a>
                                             </li>
                                             <li>
                                                 <a class="dropdown-item" href="{{ route('sale-reports.send', [$report->supplier, $report]) }}">
-                                                    <i class="bi bi-envelope-fill"></i> Envoyer par mail
+                                                    <i class="bi bi-envelope-fill"></i> {{ __('messages.Send by email') }}
                                                 </a>
                                             </li>
                                         @endif
@@ -122,9 +122,9 @@
                                     <td>${{ number_format($report->total_amount_invoiced, 2) }}</td>
                                     <td>
                                         @if($report->is_paid)
-                                            <span class="badge bg-success">@t("Yes")</span>
+                                            <span class="badge bg-success">{{ __('messages.Yes') }}</span>
                                         @else
-                                            <span class="badge bg-danger">@t("No")</span>
+                                            <span class="badge bg-danger">{{ __('messages.No') }}</span>
                                         @endif
                                     </td>
                                 @endif
@@ -138,16 +138,16 @@
                                         @csrf
                                         <div class="modal-content">
                                             <div class="modal-header">
-                                                <h5 class="modal-title">@t("Mark report as paid")</h5>
+                                                <h5 class="modal-title">{{ __('messages.Mark sale report as paid') }}</h5>
                                                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                                             </div>
                                             <div class="modal-body">
                                                 <div class="mb-3">
-                                                    <label class="form-label">@t("Amount paid")</label>
+                                                    <label class="form-label">{{ __('messages.Amount paid') }}</label>
                                                     <input type="number" step="0.01" name="amount" class="form-control" value="{{ $report->total_amount_invoiced }}">
                                                 </div>
                                                 <div class="mb-3">
-                                                    <label class="form-label">@t("Payment method")</label>
+                                                    <label class="form-label">{{ __('messages.Méthode de paiement') }}</label>
                                                     <select name="payment_method_id" class="form-select" required>
                                                         @foreach($paymentMethods as $method)
                                                             <option value="{{ $method->id }}">{{ $method->name }}</option>
@@ -155,13 +155,13 @@
                                                     </select>
                                                 </div>
                                                 <div class="mb-3">
-                                                    <label class="form-label">@t("Payment reference")</label>
+                                                    <label class="form-label">{{ __('messages.Payment reference') }}</label>
                                                     <input type="text" name="payment_reference" class="form-control">
                                                 </div>
                                             </div>
                                             <div class="modal-footer">
                                                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ __('messages.btn.cancel') }}</button>
-                                                <button type="submit" class="btn btn-success">@t("Confirm payment")</button>
+                                                <button type="submit" class="btn btn-success">{{ __('messages.Confirm payment') }}</button>
                                             </div>
                                         </div>
                                     </form>

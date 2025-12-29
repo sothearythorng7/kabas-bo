@@ -2,17 +2,17 @@
 
 @section('content')
 <div class="container mt-4">
-    <h1 class="mb-4 crud_title">@t("Méthodes de paiement")</h1>
+    <h1 class="mb-4 crud_title">{{ __('messages.payment_method.title') }}</h1>
     @include('financial.layouts.nav')
     <a href="{{ route('financial.payment-methods.create', $store->id) }}" class="btn btn-primary mb-3">
-        @t("Nouvelle méthode")
+        {{ __('messages.payment_method.title_create') }}
     </a>
     <table class="table table-striped table-hover">
         <thead>
             <tr>
-                <th></th> <!-- dropdown column -->
-                <th>@t("Nom")</th>
-                <th>@t("Code")</th>
+                <th></th>
+                <th>{{ __('messages.payment_method.name') }}</th>
+                <th>{{ __('messages.payment_method.code') }}</th>
             </tr>
         </thead>
         <tbody>
@@ -26,14 +26,14 @@
                         <ul class="dropdown-menu" aria-labelledby="actionsDropdown{{ $m->id }}">
                             <li>
                                 <a class="dropdown-item" href="{{ route('financial.payment-methods.edit', [$store->id, $m->id]) }}">
-                                    <i class="bi bi-pencil-fill"></i> @t("Modifier")
+                                    <i class="bi bi-pencil-fill"></i> {{ __('messages.payment_method.edit') }}
                                 </a>
                             </li>
                             <li>
                                 <form method="POST" action="{{ route('financial.payment-methods.destroy', [$store->id, $m->id]) }}">
                                     @csrf @method('DELETE')
-                                    <button class="dropdown-item" onclick="return confirm('@t('Supprimer cette méthode de paiement ?')')">
-                                        <i class="bi bi-trash-fill"></i> @t("Supprimer")
+                                    <button class="dropdown-item" onclick="return confirm('{{ __('messages.payment_method.delete_confirm') }}')">
+                                        <i class="bi bi-trash-fill"></i> {{ __('messages.payment_method.delete') }}
                                     </button>
                                 </form>
                             </li>
@@ -44,7 +44,7 @@
                 <td>{{ $m->code }}</td>
             </tr>
         @empty
-            <tr><td colspan="3" class="text-center">@t("Aucune méthode")</td></tr>
+            <tr><td colspan="3" class="text-center">{{ __('messages.payment_method.no_methods') }}</td></tr>
         @endforelse
         </tbody>
     </table>

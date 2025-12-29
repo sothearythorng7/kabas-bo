@@ -2,20 +2,20 @@
 
 @section('content')
 <div class="container mt-4">
-    <h1 class="crud_title">Vue d'ensemble des factures revendeurs</h1>
+    <h1 class="crud_title">{{ __('messages.reseller_invoice.overview_title') }}</h1>
     <div class="alert alert-warning">
-        Montant total des factures en attente de paiement : <strong>${{ number_format($totalPending, 2) }}</strong>
+        {{ __('messages.reseller_invoice.pending_total') }} : <strong>${{ number_format($totalPending, 2) }}</strong>
     </div>
 
     <ul class="nav nav-tabs mb-3" id="invoiceStatusTab" role="tablist">
         @foreach($statuses as $status)
             <li class="nav-item" role="presentation">
-                <a class="nav-link @if($loop->first) active @endif" 
-                   id="tab-{{ $status }}" 
-                   data-bs-toggle="tab" 
-                   href="#content-{{ $status }}" 
+                <a class="nav-link @if($loop->first) active @endif"
+                   id="tab-{{ $status }}"
+                   data-bs-toggle="tab"
+                   href="#content-{{ $status }}"
                    role="tab">
-                    {{ ucfirst(str_replace('_', ' ', $status)) }}
+                    {{ __('messages.reseller_invoice.status.' . $status) }}
                     <span class="badge bg-secondary">{{ $invoicesByStatus[$status]->total() }}</span>
                 </a>
             </li>
@@ -32,12 +32,12 @@
                         <thead>
                             <tr>
                                 <th></th> <!-- dropdown column -->
-                                <th>Nom</th>
-                                <th>Type</th>
-                                <th>Commande liée</th>
-                                <th>Montant total</th>
-                                <th>Statut</th>
-                                <th>Date de création</th>
+                                <th>{{ __('messages.common.name') }}</th>
+                                <th>{{ __('messages.resellers.type') }}</th>
+                                <th>{{ __('messages.reseller_invoice.linked_order') }}</th>
+                                <th>{{ __('messages.reseller_invoice.total_amount') }}</th>
+                                <th>{{ __('messages.common.status') }}</th>
+                                <th>{{ __('messages.reseller_invoice.created_at') }}</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -51,7 +51,7 @@
                                             <ul class="dropdown-menu" aria-labelledby="actionsDropdown{{ $invoice->id }}">
                                                 <li>
                                                     <a class="dropdown-item" href="{{ route('reseller-invoices.show', $invoice) }}">
-                                                        <i class="bi bi-info-circle"></i> Détails
+                                                        <i class="bi bi-info-circle"></i> {{ __('messages.btn.details') }}
                                                     </a>
                                                 </li>
                                             </ul>
@@ -61,9 +61,9 @@
                                     <td>{{ $invoice->reseller?->type ?? ($invoice->store ? 'store' : '—') }}</td>
                                     <td>
                                         @if($invoice->reseller_stock_delivery_id)
-                                            commande
+                                            {{ __('messages.reseller_invoice.order') }}
                                         @elseif($invoice->sales_report_id)
-                                            rapport de vente
+                                            {{ __('messages.reseller_invoice.sales_report') }}
                                         @else
                                             ---
                                         @endif
@@ -80,14 +80,14 @@
                                             };
                                         @endphp
                                         <span class="badge bg-{{ $badgeClass }}">
-                                            {{ ucfirst(str_replace('_', ' ', $invoice->status)) }}
+                                            {{ __('messages.reseller_invoice.status.' . $invoice->status) }}
                                         </span>
                                     </td>
                                     <td>{{ $invoice->created_at->format('d/m/Y H:i') }}</td>
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="7">Aucune facture pour ce statut.</td>
+                                    <td colspan="7">{{ __('messages.reseller_invoice.no_invoice_for_status') }}</td>
                                 </tr>
                             @endforelse
                         </tbody>
@@ -109,27 +109,27 @@
                                                 <ul class="dropdown-menu" aria-labelledby="actionsDropdownMobile{{ $invoice->id }}">
                                                     <li>
                                                         <a class="dropdown-item" href="{{ route('reseller-invoices.show', $invoice) }}">
-                                                            <i class="bi bi-info-circle"></i> Détails
+                                                            <i class="bi bi-info-circle"></i> {{ __('messages.btn.details') }}
                                                         </a>
                                                     </li>
                                                 </ul>
                                             </div>
                                         </div>
                                         <h5 class="card-title mb-1">{{ $invoice->reseller?->name ?? $invoice->store?->name ?? '—' }}</h5>
-                                        <p class="mb-1"><strong>Type:</strong> {{ $invoice->reseller?->type ?? ($invoice->store ? 'store' : '—') }}</p>
+                                        <p class="mb-1"><strong>{{ __('messages.resellers.type') }}:</strong> {{ $invoice->reseller?->type ?? ($invoice->store ? 'store' : '—') }}</p>
                                         <p class="mb-1">
-                                            <strong>Commande liée:</strong>
+                                            <strong>{{ __('messages.reseller_invoice.linked_order') }}:</strong>
                                             @if($invoice->reseller_stock_delivery_id)
-                                                commande
+                                                {{ __('messages.reseller_invoice.order') }}
                                             @elseif($invoice->sales_report_id)
-                                                rapport de vente
+                                                {{ __('messages.reseller_invoice.sales_report') }}
                                             @else
                                                 ---
                                             @endif
                                         </p>
-                                        <p class="mb-1"><strong>Montant total:</strong> ${{ number_format($invoice->total_amount, 2) }}</p>
+                                        <p class="mb-1"><strong>{{ __('messages.reseller_invoice.total_amount') }}:</strong> ${{ number_format($invoice->total_amount, 2) }}</p>
                                         <p class="mb-1">
-                                            <strong>Statut:</strong>
+                                            <strong>{{ __('messages.common.status') }}:</strong>
                                             @php
                                                 $badgeClass = match($invoice->status) {
                                                     'pending' => 'warning',
@@ -140,17 +140,17 @@
                                                 };
                                             @endphp
                                             <span class="badge bg-{{ $badgeClass }}">
-                                                {{ ucfirst(str_replace('_', ' ', $invoice->status)) }}
+                                                {{ __('messages.reseller_invoice.status.' . $invoice->status) }}
                                             </span>
                                         </p>
-                                        <p class="mb-2"><strong>Créée le:</strong> {{ $invoice->created_at->format('d/m/Y H:i') }}</p>
+                                        <p class="mb-2"><strong>{{ __('messages.reseller_invoice.created_at') }}:</strong> {{ $invoice->created_at->format('d/m/Y H:i') }}</p>
                                     </div>
                                 </div>
                             </div>
                         @empty
                             <div class="col-12">
                                 <div class="alert alert-light text-center">
-                                    Aucune facture pour ce statut.
+                                    {{ __('messages.reseller_invoice.no_invoice_for_status') }}
                                 </div>
                             </div>
                         @endforelse

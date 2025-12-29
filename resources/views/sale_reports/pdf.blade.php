@@ -1,8 +1,8 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="{{ app()->getLocale() }}">
 <head>
     <meta charset="UTF-8">
-    <title>Rapport de ventes #{{ $saleReport->id }}</title>
+    <title>{{ __('messages.sale_report.pdf_title') }} #{{ $saleReport->id }}</title>
     <style>
         body { font-family: DejaVu Sans, sans-serif; font-size: 12px; }
         h1 { font-size: 18px; margin-bottom: 10px; }
@@ -12,17 +12,17 @@
     </style>
 </head>
 <body>
-    <h1>Rapport de ventes #{{ $saleReport->id }}</h1>
-    <p><strong>Fournisseur :</strong> {{ $saleReport->supplier->name }}</p>
-    <p><strong>Magasin :</strong> {{ $saleReport->store->name }}</p>
-    <p><strong>Période :</strong> {{ $saleReport->period_start->format('d/m/Y') }} - {{ $saleReport->period_end->format('d/m/Y') }}</p>
+    <h1>{{ __('messages.sale_report.pdf_title') }} #{{ $saleReport->id }}</h1>
+    <p><strong>{{ __('messages.menu.suppliers') }} :</strong> {{ $saleReport->supplier->name }}</p>
+    <p><strong>{{ __('messages.store.name') }} :</strong> {{ $saleReport->store->name }}</p>
+    <p><strong>{{ __('messages.sale_report.period') }} :</strong> {{ $saleReport->period_start->format('d/m/Y') }} - {{ $saleReport->period_end->format('d/m/Y') }}</p>
 
     <table>
         <thead>
             <tr>
                 <th>EAN</th>
-                <th>Nom du produit</th>
-                <th>Quantité vendue</th>
+                <th>{{ __('messages.product.name') }}</th>
+                <th>{{ __('messages.sale_report.quantity_sold') }}</th>
             </tr>
         </thead>
         <tbody>

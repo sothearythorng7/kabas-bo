@@ -168,7 +168,7 @@
                             </div>
                             <div class="mb-3">
                                 <label class="form-label">{{ __('messages.warehouse_invoices.file_label') }}</label>
-                                <input type="text" name="labels[]" class="form-control" placeholder="Ex: Facture fournisseur X">
+                                <input type="text" name="labels[]" class="form-control" placeholder="{{ __('messages.warehouse_invoices.label_placeholder') }}">
                             </div>
                         </div>
                         <div class="modal-footer">

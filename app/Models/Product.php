@@ -167,6 +167,14 @@ class Product extends Model
         return $this->hasMany(ProductVariation::class, 'product_id');
     }
 
+    /**
+     * Recettes de fabrication pour ce produit
+     */
+    public function recipes()
+    {
+        return $this->hasMany(Recipe::class);
+    }
+
     public function setTranslation(string $field, string $locale, string $value)
     {
         $data = $this->{$field} ?? [];

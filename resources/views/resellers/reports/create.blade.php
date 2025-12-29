@@ -2,7 +2,7 @@
 
 @section('content')
 <div class="container mt-4">
-    <h1>New Sales Report for {{ $reseller->name }}</h1>
+    <h1>{{ __('messages.resellers.new_sales_report') }} {{ $reseller->name }}</h1>
 
     <form action="{{ route('resellers.reports.store', $reseller->id) }}" method="POST">
         @csrf
@@ -10,9 +10,9 @@
         <table class="table">
             <thead>
                 <tr>
-                    <th>@t("messages.product")</th>
-                    <th>@t("Stock Available")</th>
-                    <th>@t("Quantity Sold")</th>
+                    <th>{{ __('messages.product.name') }}</th>
+                    <th>{{ __('messages.stock_movement.quantity') }}</th>
+                    <th>{{ __('messages.resellers.quantity_sold') }}</th>
                 </tr>
             </thead>
             <tbody>
@@ -21,7 +21,7 @@
                         <td>{{ $product->name[app()->getLocale()] ?? reset($product->name) }}</td>
                         <td>{{ $stock[$product->id] ?? 0 }}</td>
                         <td>
-                            <input type="number" name="products[{{ $loop->index }}][quantity]" 
+                            <input type="number" name="products[{{ $loop->index }}][quantity]"
                                    value="0" min="0" class="form-control" style="width:120px;">
                             <input type="hidden" name="products[{{ $loop->index }}][id]" value="{{ $product->id }}">
                         </td>
@@ -30,8 +30,8 @@
             </tbody>
         </table>
 
-        <button type="submit" class="btn btn-success">@t("Save Report")</button>
-        <a href="{{ route('resellers.show', $reseller->id) }}" class="btn btn-secondary">@t("cancel")</a>
+        <button type="submit" class="btn btn-success">{{ __('messages.btn.save') }}</button>
+        <a href="{{ route('resellers.show', $reseller->id) }}" class="btn btn-secondary">{{ __('messages.btn.cancel') }}</a>
     </form>
 </div>
 @endsection

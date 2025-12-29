@@ -2,33 +2,33 @@
 
 @section('content')
 <div class="container mt-4">
-    <h1>@t("Ajouter un paiement fournisseur") - {{ $site->name }}</h1>
+    <h1>{{ __('messages.payments.add_payment') }} - {{ $site->name }}</h1>
 
     <form action="{{ route('stores.payments.store', $site) }}" method="POST" enctype="multipart/form-data">
         @csrf
         <div class="mb-3">
-            <label class="form-label">@t("Fournisseur")</label>
+            <label class="form-label">{{ __('messages.payments.supplier') }}</label>
             <input type="text" class="form-control" name="supplier_name" value="{{ old('supplier_name') }}" required>
         </div>
         <div class="mb-3">
-            <label class="form-label">@t("Référence")</label>
+            <label class="form-label">{{ __('messages.payments.reference') }}</label>
             <input type="text" class="form-control" name="reference" value="{{ old('reference') }}">
         </div>
         <div class="mb-3">
-            <label class="form-label">@t("Montant")</label>
+            <label class="form-label">{{ __('messages.payments.amount') }}</label>
             <input type="number" step="0.01" class="form-control" name="amount" value="{{ old('amount') }}" required>
         </div>
         <div class="mb-3">
-            <label class="form-label">@t("Date échéance")</label>
+            <label class="form-label">{{ __('messages.payments.due_date') }}</label>
             <input type="date" class="form-control" name="due_date" value="{{ old('due_date') }}">
         </div>
         <div class="mb-3">
-            <label class="form-label">@t("Document")</label>
+            <label class="form-label">{{ __('messages.payments.document') }}</label>
             <input type="file" class="form-control" name="document">
         </div>
 
-        <button type="submit" class="btn btn-primary">@t("Ajouter")</button>
-        <a href="{{ route('stores.payments.index', $site) }}" class="btn btn-secondary">@t("Annuler")</a>
+        <button type="submit" class="btn btn-primary">{{ __('messages.btn.add') }}</button>
+        <a href="{{ route('stores.payments.index', $site) }}" class="btn btn-secondary">{{ __('messages.btn.cancel') }}</a>
     </form>
 </div>
 @endsection

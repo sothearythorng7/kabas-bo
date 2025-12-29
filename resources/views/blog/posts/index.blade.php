@@ -2,20 +2,20 @@
 
 @section('content')
 <div class="container mt-4">
-    <h1 class="crud_title">@t('blog_post.title')</h1>
+    <h1 class="crud_title">{{ __('messages.blog_post.title') }}</h1>
 
     <a href="{{ route('blog.posts.create') }}" class="btn btn-success mb-3">
-        <i class="bi bi-plus-circle-fill"></i> @t('blog_post.new_article')
+        <i class="bi bi-plus-circle-fill"></i> {{ __('messages.blog_post.new_article') }}
     </a>
 
     {{-- Filtres --}}
     <form method="GET" action="{{ route('blog.posts.index') }}" class="row g-3 mb-3">
         <div class="col-md-4">
-            <input type="text" name="search" class="form-control" placeholder="@t('blog_post.search_placeholder')" value="{{ request('search') }}">
+            <input type="text" name="search" class="form-control" placeholder="{{ __('messages.blog_post.search_placeholder') }}" value="{{ request('search') }}">
         </div>
         <div class="col-md-3">
             <select name="category" class="form-select">
-                <option value="">@t('blog_post.all_categories')</option>
+                <option value="">{{ __('messages.blog_post.all_categories') }}</option>
                 @foreach($categories as $category)
                     <option value="{{ $category->id }}" {{ request('category') == $category->id ? 'selected' : '' }}>
                         {{ $category->getTranslation('name', 'fr') }}
@@ -25,14 +25,14 @@
         </div>
         <div class="col-md-3">
             <select name="status" class="form-select">
-                <option value="">@t('blog_post.all_statuses')</option>
-                <option value="published" {{ request('status') == 'published' ? 'selected' : '' }}>@t('blog_post.published')</option>
-                <option value="draft" {{ request('status') == 'draft' ? 'selected' : '' }}>@t('blog_post.draft')</option>
+                <option value="">{{ __('messages.blog_post.all_statuses') }}</option>
+                <option value="published" {{ request('status') == 'published' ? 'selected' : '' }}>{{ __('messages.blog_post.published') }}</option>
+                <option value="draft" {{ request('status') == 'draft' ? 'selected' : '' }}>{{ __('messages.blog_post.draft') }}</option>
             </select>
         </div>
         <div class="col-md-2">
             <button type="submit" class="btn btn-primary w-100">
-                <i class="bi bi-search"></i> @t('blog_post.filter')
+                <i class="bi bi-search"></i> {{ __('messages.blog_post.filter') }}
             </button>
         </div>
     </form>
@@ -42,13 +42,13 @@
             <thead>
                 <tr>
                     <th></th>
-                    <th class="text-center">@t('blog_post.id')</th>
-                    <th>@t('blog_post.title_label')</th>
-                    <th>@t('blog_post.category')</th>
-                    <th>@t('blog_post.author')</th>
-                    <th class="text-center">@t('blog_post.status')</th>
-                    <th class="text-center">@t('blog_post.views')</th>
-                    <th>@t('blog_post.date')</th>
+                    <th class="text-center">{{ __('messages.blog_post.id') }}</th>
+                    <th>{{ __('messages.blog_post.title_label') }}</th>
+                    <th>{{ __('messages.blog_post.category') }}</th>
+                    <th>{{ __('messages.blog_post.author') }}</th>
+                    <th class="text-center">{{ __('messages.blog_post.status') }}</th>
+                    <th class="text-center">{{ __('messages.blog_post.views') }}</th>
+                    <th>{{ __('messages.blog_post.date') }}</th>
                 </tr>
             </thead>
             <tbody>
@@ -62,26 +62,26 @@
                             <ul class="dropdown-menu" aria-labelledby="dropdownPost{{ $post->id }}">
                                 <li>
                                     <a class="dropdown-item" href="{{ route('blog.posts.edit', $post) }}">
-                                        <i class="bi bi-pencil-fill"></i> @t('blog_post.edit')
+                                        <i class="bi bi-pencil-fill"></i> {{ __('messages.blog_post.edit') }}
                                     </a>
                                 </li>
                                 <li>
                                     <a class="dropdown-item" href="{{ route('blog.posts.show', $post) }}">
-                                        <i class="bi bi-eye-fill"></i> @t('blog_post.view')
+                                        <i class="bi bi-eye-fill"></i> {{ __('messages.blog_post.view') }}
                                     </a>
                                 </li>
                                 <li>
                                     <a class="dropdown-item" href="{{ $post->publicUrl('fr') }}" target="_blank">
-                                        <i class="bi bi-box-arrow-up-right"></i> @t('Voir sur le site')
+                                        <i class="bi bi-box-arrow-up-right"></i> {{ __('messages.blog_post.view_on_site') }}
                                     </a>
                                 </li>
                                 <li><hr class="dropdown-divider"></li>
                                 <li>
-                                    <form action="{{ route('blog.posts.destroy', $post) }}" method="POST" onsubmit="return confirm('@t('blog_post.delete_confirm')')">
+                                    <form action="{{ route('blog.posts.destroy', $post) }}" method="POST" onsubmit="return confirm('{{ __('messages.blog_post.delete_confirm') }}')">
                                         @csrf
                                         @method('DELETE')
                                         <button class="dropdown-item text-danger" type="submit">
-                                            <i class="bi bi-trash-fill"></i> @t('blog_post.delete')
+                                            <i class="bi bi-trash-fill"></i> {{ __('messages.blog_post.delete') }}
                                         </button>
                                     </form>
                                 </li>
@@ -105,9 +105,9 @@
                     <td>{{ $post->author->name ?? '-' }}</td>
                     <td class="text-center">
                         @if($post->is_published)
-                            <span class="badge bg-success">@t('blog_post.published')</span>
+                            <span class="badge bg-success">{{ __('messages.blog_post.published') }}</span>
                         @else
-                            <span class="badge bg-warning">@t('blog_post.draft')</span>
+                            <span class="badge bg-warning">{{ __('messages.blog_post.draft') }}</span>
                         @endif
                     </td>
                     <td class="text-center">{{ $post->views_count }}</td>

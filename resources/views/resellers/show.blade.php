@@ -26,6 +26,14 @@
             </button>
         </li>
         <li class="nav-item" role="presentation">
+            <button class="nav-link" id="returns-tab" data-bs-toggle="tab" data-bs-target="#returns" type="button" role="tab" aria-controls="returns" aria-selected="false">
+                {{ __('messages.resellers.returns') }}
+                <span class="badge bg-{{ (isset($returns) && $returns->count() > 0) ? 'warning' : 'secondary' }}">
+                    {{ isset($returns) ? $returns->count() : 0 }}
+                </span>
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
             <button class="nav-link" id="reports-tab" data-bs-toggle="tab" data-bs-target="#reports" type="button" role="tab" aria-controls="reports" aria-selected="false">
                 {{ __('messages.resellers.sale_reports') }}
                 <span class="badge bg-{{ ($salesReports instanceof \Illuminate\Pagination\LengthAwarePaginator ? $salesReports->total() : $salesReports->count()) > 0 ? 'primary' : 'secondary' }}">
@@ -124,20 +132,20 @@
                             </div>
                             <div class="modal-body">
                                 <div class="mb-3">
-                                    <label for="name" class="form-label">@t("Nom")</label>
+                                    <label for="name" class="form-label">{{ __('messages.resellers.name') }}</label>
                                     <input type="text" class="form-control" name="name" required>
                                 </div>
                                 <div class="mb-3">
-                                    <label for="email" class="form-label">@t("email")</label>
+                                    <label for="email" class="form-label">{{ __('messages.resellers.email') }}</label>
                                     <input type="email" class="form-control" name="email">
                                 </div>
                                 <div class="mb-3">
-                                    <label for="phone" class="form-label">@t("Téléphone")</label>
+                                    <label for="phone" class="form-label">{{ __('messages.resellers.phone') }}</label>
                                     <input type="text" class="form-control" name="phone">
                                 </div>
                             </div>
                             <div class="modal-footer">
-                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">@t("Fermer")</button>
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ __('messages.btn.close') }}</button>
                                 <button type="submit" class="btn btn-primary">{{ __('messages.btn.save') }}</button>
                             </div>
                         </div>
@@ -154,16 +162,19 @@
             <div class="mb-3">
                 <form action="{{ route('resellers.show', $reseller->id) }}" method="GET" class="row g-2">
                     <input type="hidden" name="tab" value="products">
+                    @if(request('brand_id'))
+                        <input type="hidden" name="brand_id" value="{{ request('brand_id') }}">
+                    @endif
                     <div class="col-md-6">
                         <input type="text" name="q" value="{{ request('q') }}" class="form-control"
-                               placeholder="Rechercher par nom ou EAN">
+                               placeholder="{{ __('messages.stock_value.search_placeholder') }}">
                     </div>
                     <div class="col-md-2">
                         <button type="submit" class="btn btn-primary w-100">
                             <i class="bi bi-search"></i> {{ __('messages.btn.search') }}
                         </button>
                     </div>
-                    @if(request('q'))
+                    @if(request('q') || request('brand_id'))
                     <div class="col-md-2">
                         <a href="{{ route('resellers.show', $reseller->id) }}?tab=products" class="btn btn-secondary w-100">
                             <i class="bi bi-x-circle"></i> {{ __('messages.btn.reset') }}
@@ -177,7 +188,25 @@
                 <thead>
                     <tr>
                         <th>{{ __('messages.product.name') }}</th>
-                        <th>{{ __('messages.product.brand') }}</th>
+                        <th style="min-width:180px;">
+                            <form action="{{ route('resellers.show', $reseller->id) }}" method="GET" id="brandFilterForm">
+                                <input type="hidden" name="tab" value="products">
+                                @if(request('q'))
+                                    <input type="hidden" name="q" value="{{ request('q') }}">
+                                @endif
+                                <select name="brand_id" class="form-select form-select-sm" onchange="this.form.submit()">
+                                    <option value="">{{ __('messages.all_brands') }}</option>
+                                    <option value="none" {{ request('brand_id') === 'none' ? 'selected' : '' }}>
+                                        {{ __('messages.no_brand') }}
+                                    </option>
+                                    @foreach($brands ?? [] as $b)
+                                        <option value="{{ $b->id }}" {{ (string)$b->id === request('brand_id') ? 'selected' : '' }}>
+                                            {{ $b->name }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </form>
+                        </th>
                         <th class="text-center">{{ __('messages.resellers.stock') }}</th>
                         <th class="text-center">{{ __('messages.resellers.stock_alert') }}</th>
                         <th class="text-center">{{ __('messages.btn.actions') }}</th>
@@ -247,7 +276,75 @@
                 </tbody>
             </table>
             @if($products instanceof \Illuminate\Pagination\LengthAwarePaginator)
-                {{ $products->appends(['tab' => 'products', 'q' => request('q')])->links() }}
+                {{ $products->appends(['tab' => 'products', 'q' => request('q'), 'brand_id' => request('brand_id')])->links() }}
+            @endif
+        </div>
+
+        {{-- Onglet Retours --}}
+        <div class="tab-pane fade" id="returns" role="tabpanel" aria-labelledby="returns-tab">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h3>{{ __('messages.resellers.returns') }}</h3>
+                <a href="{{ route('resellers.returns.create', $reseller->id) }}" class="btn btn-success">
+                    <i class="bi bi-box-arrow-left"></i> {{ __('messages.resellers.create_return') }}
+                </a>
+            </div>
+
+            <table class="table table-striped table-hover mt-3">
+                <thead>
+                    <tr>
+                        <th></th>
+                        <th class="text-center">#ID</th>
+                        <th>{{ __('messages.resellers.destination_store') }}</th>
+                        <th class="text-center">{{ __('messages.resellers.total_items') }}</th>
+                        <th>{{ __('messages.resellers.status') }}</th>
+                        <th>{{ __('messages.resellers.created_at') }}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @forelse($returns ?? [] as $return)
+                        @php
+                            $statusClass = match($return->status) {
+                                'draft' => 'warning',
+                                'validated' => 'success',
+                                'cancelled' => 'danger',
+                                default => 'secondary',
+                            };
+                        @endphp
+                        <tr>
+                            <td style="width: 1%; white-space: nowrap;" class="text-start">
+                                <div class="dropdown">
+                                    <button class="btn btn-primary btn-sm dropdown-toggle" type="button" id="dropdownReturn{{ $return->id }}" data-bs-toggle="dropdown" aria-expanded="false">
+                                        <i class="bi bi-three-dots-vertical"></i>
+                                    </button>
+                                    <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="dropdownReturn{{ $return->id }}">
+                                        <li>
+                                            <a class="dropdown-item" href="{{ route('resellers.returns.show', [$reseller->id, $return->id]) }}">
+                                                <i class="bi bi-eye-fill"></i> {{ __('messages.btn.view') }}
+                                            </a>
+                                        </li>
+                                    </ul>
+                                </div>
+                            </td>
+                            <td class="text-center">{{ $return->id }}</td>
+                            <td>{{ $return->destinationStore->name ?? '-' }} ({{ ucfirst($return->destinationStore->type ?? '') }})</td>
+                            <td class="text-center">
+                                <span class="badge bg-primary">{{ $return->items->sum('quantity') }}</span>
+                            </td>
+                            <td>
+                                <span class="badge bg-{{ $statusClass }}">{{ ucfirst($return->status) }}</span>
+                            </td>
+                            <td>{{ $return->created_at->format('d/m/Y H:i') }}</td>
+                        </tr>
+                    @empty
+                        <tr>
+                            <td colspan="6" class="text-center text-muted">{{ __('messages.resellers.no_returns') }}</td>
+                        </tr>
+                    @endforelse
+                </tbody>
+            </table>
+
+            @if(isset($returns) && $returns instanceof \Illuminate\Pagination\LengthAwarePaginator)
+                {{ $returns->appends(['tab' => 'returns'])->links() }}
             @endif
         </div>
 

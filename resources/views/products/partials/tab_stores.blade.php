@@ -16,7 +16,7 @@
                     @csrf
                     @method('PUT')
                     <td><input type="number" min="0" name="stock_quantity" class="form-control form-control-sm" value="{{ $store->pivot->stock_quantity }}"></td>
-                    <td><input type="number" min="0" name="alert_stock_quantity" class="form-control form-control-sm" placeholder="Alert" value="{{ $store->pivot->alert_stock_quantity }}"></td>
+                    <td><input type="number" min="0" name="alert_stock_quantity" class="form-control form-control-sm" placeholder="{{ __('messages.product.stock_alert') }}" value="{{ $store->pivot->alert_stock_quantity }}"></td>
                     <td><button class="btn btn-sm btn-success ms-2"><i class="bi bi-check"></i></button></td>
                 </form>
             </tr>

@@ -49,7 +49,7 @@
         <div class="mb-3" id="store-select" style="display:{{ $user->hasRole('SELLER') ? 'block' : 'none' }};">
             <label>{{ __('messages.user_edit.site') }}</label>
             <select name="store_id" class="form-control" id="store_id">
-                <option value="">Sélectionnez un site</option>
+                <option value="">{{ __('messages.users_extra.select_site') }}</option>
                 @foreach($stores as $store)
                     <option value="{{ $store->id }}" {{ $user->store_id == $store->id ? 'selected' : '' }}>
                         {{ $store->name }}
@@ -61,7 +61,7 @@
         <div class="mb-3">
             <label>{{ __('messages.user_edit.pin_code') }}</label>
             <input type="text" name="pin_code" value="{{ $user->pin_code }}" class="form-control" maxlength="6" pattern="\d{6}" placeholder="000000">
-            <small class="form-text text-muted">Code à 6 chiffres pour l'accès au POS</small>
+            <small class="form-text text-muted">{{ __('messages.users_extra.pin_help') }}</small>
         </div>
 
         <button class="btn btn-success"><i class="bi bi-floppy-fill"></i> {{ __('messages.btn.save') }}</button>

@@ -1,20 +1,20 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="{{ app()->getLocale() }}">
 <head>
     <meta charset="UTF-8">
-    <title>Rapport de ventes #{{ $saleReport->id }}</title>
+    <title>{{ __('messages.sale_reports.title') }} #{{ $saleReport->id }}</title>
 </head>
 <body>
-    <p>Bonjour,</p>
+    <p>{{ __('messages.emails.sale_report.greeting') }}</p>
 
-    <p>Veuillez trouver ci-joint le rapport de ventes <strong>#{{ $saleReport->id }}</strong> 
-       pour la période <strong>{{ $saleReport->period_start->format('d/m/Y') }}</strong> 
+    <p>{{ __('messages.emails.sale_report.intro') }} <strong>#{{ $saleReport->id }}</strong>
+       {{ __('messages.emails.sale_report.period') }} <strong>{{ $saleReport->period_start->format('d/m/Y') }}</strong>
        - <strong>{{ $saleReport->period_end->format('d/m/Y') }}</strong>.</p>
 
-    <p>Magasin concerné : <strong>{{ $saleReport->store->name }}</strong></p>
-    <p>Montant théorique total : <strong>{{ number_format($saleReport->total_amount_theoretical, 2) }} $</strong></p>
+    <p>{{ __('messages.emails.sale_report.store') }} : <strong>{{ $saleReport->store->name }}</strong></p>
+    <p>{{ __('messages.emails.sale_report.total_amount') }} : <strong>{{ number_format($saleReport->total_amount_theoretical, 2) }} $</strong></p>
 
-    <p>Bien cordialement,</p>
-    <p>L’équipe {{ config('app.name') }}</p>
+    <p>{{ __('messages.emails.sale_report.regards') }}</p>
+    <p>{{ __('messages.emails.sale_report.team') }} {{ config('app.name') }}</p>
 </body>
 </html>

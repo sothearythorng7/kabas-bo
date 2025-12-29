@@ -19,11 +19,15 @@
                         <i class="bi bi-list"></i>
                     </button>
 
-                    <!-- Champ de recherche (déplacé ici) -->
-                    <div class="input-group input-group-sm ms-2 flex-grow-1" style="min-width: 120px;">
-                        <input type="text" id="sale-search" class="form-control form-control-sm" placeholder='Search product by name or EAN'>
+                    <!-- Champ de recherche -->
+                    <div class="input-group input-group-sm ms-2" style="flex: 0 1 60%;">
+                        <input type="text" id="sale-search" class="form-control form-control-sm" placeholder='Search...'>
                         <button class="btn btn-outline-secondary" id="btn-reset-search" type="button">&times;</button>
                     </div>
+                    <!-- Bouton Brands -->
+                    <button class="btn btn-sm btn-primary ms-1 d-flex align-items-center justify-content-center" id="btn-brands" type="button" title="Filter by Brand" style="min-width: 80px; padding: 0.25rem 0.5rem;">
+                        <i class="bi bi-tag me-1"></i> Brands
+                    </button>
                 </div>
 
                 <!-- Onglets des ventes -->
@@ -76,8 +80,11 @@
         border-bottom: 2px solid #dee2e6;
     }
 
-    .product-card { cursor: pointer; text-align: center; margin-bottom: 15px; height: 180px; display: flex; flex-direction: column; justify-content: flex-start; align-items: center; overflow: hidden; }
+    .product-card { cursor: pointer; text-align: center; margin-bottom: 15px; height: 180px; display: flex; flex-direction: column; justify-content: flex-start; align-items: center; overflow: hidden; position: relative; padding: 0 4px; }
     .product-card img { width: 100%; height: 120px; object-fit: cover; border-radius: 4px; margin-bottom: 4px; }
+    .product-card .price-badge { position: absolute; top: 5px; right: 5px; background: #198754; color: white; font-size: 0.75rem; font-weight: bold; padding: 2px 6px; border-radius: 4px; z-index: 1; }
+    .product-card .stock-badge { position: absolute; top: 120px; right: 5px; background: #0d6efd; color: white; font-size: 0.7rem; font-weight: bold; padding: 2px 6px; border-radius: 4px; z-index: 1; transform: translateY(-100%); }
+    .product-card small { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; text-overflow: ellipsis; font-size: 0.7rem; line-height: 1.2; max-height: 3.6em; width: 100%; }
     .product-card:hover { transform: scale(1.05); transition: transform 0.1s ease-in-out; }
 
     #category-parents div, #category-children div {
@@ -198,7 +205,7 @@ async function handleForceSync() {
     renderCategoryLists();
     renderCatalog();
 
-    //alert("@t('Catalog synced successfully')");
+    // Catalog synced successfully
   } catch (err) {
     console.error(err);
     alert("Catalog sync failed");
@@ -229,7 +236,7 @@ async function handleForceSync() {
     renderCategoryLists();
     renderCatalog();
 
-    //alert("@t('Catalog synced successfully')");
+    // Catalog synced successfully
   } catch (err) {
     console.error(err);
     alert("Catalog sync failed");
@@ -302,6 +309,8 @@ function renderSalesTabs() {
             totalRemises += disc;
             total -= disc;
         });
+        // Round to 2 decimal places to match validation modal
+        total = Math.round(total * 100) / 100;
 
         const itemsHtml = sale.items.map((item, i) => {
             let unitPriceCalc = item.price.toFixed(2);
@@ -353,10 +362,12 @@ function renderSalesTabs() {
                 `).join('');
             }
 
-            // Check if this is a delivery service item
+            // Check if this is a delivery service item or custom service
             const isDelivery = item.is_delivery || false;
-            const itemIcon = isDelivery ? '<i class="bi bi-truck text-success"></i>' : '';
-            const discountOption = isDelivery ? '' : `
+            const isCustomService = item.is_custom_service || false;
+            const isSpecialItem = isDelivery || isCustomService;
+            const itemIcon = isDelivery ? '<i class="bi bi-truck text-success"></i>' : (isCustomService ? '<i class="bi bi-gear text-primary"></i>' : '');
+            const discountOption = isSpecialItem ? '' : `
                                 <li>
                                     <a class="dropdown-item line-discount" href="#" data-sale="${sale.id}" data-idx="${i}">
                                         <i class="bi bi-percent text-warning"></i> Add Discount
@@ -378,7 +389,7 @@ function renderSalesTabs() {
                             <ul class="dropdown-menu">
                                 <li>
                                     <a class="dropdown-item remove-item" href="#" data-sale="${sale.id}" data-idx="${i}">
-                                        <i class="bi bi-x-circle text-danger"></i> ${isDelivery ? 'Remove Delivery' : 'Remove Product'}
+                                        <i class="bi bi-x-circle text-danger"></i> ${isDelivery ? 'Remove Delivery' : (isCustomService ? 'Remove Service' : 'Remove Product')}
                                     </a>
                                 </li>
                                 ${discountOption}
@@ -402,6 +413,11 @@ function renderSalesTabs() {
                                 <li>
                                     <a class="dropdown-item add-delivery-service" href="#" data-sale="${sale.id}">
                                         <i class="bi bi-truck text-success"></i> Add Delivery Service
+                                    </a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item add-custom-service" href="#" data-sale="${sale.id}">
+                                        <i class="bi bi-gear text-primary"></i> ${window.i18n.Add_custom_service || 'Add Custom Service'}
                                     </a>
                                 </li>
                                 ${!sale.discounts || sale.discounts.length === 0 ? `
@@ -625,13 +641,37 @@ function renderSalesTabs() {
 
         renderSalesTabs(); saveSalesToLocal();
     });
+
+    $(".add-custom-service").off("click").on("click", async function(e) {
+        e.preventDefault();
+        const saleId = $(this).data("sale");
+        const sale = sales.find(s => s.id === saleId);
+        if (!sale) return;
+
+        const customServiceData = await showCustomServiceModal();
+        if (!customServiceData) return;
+
+        // Add custom service as a special item
+        sale.items.push({
+            product_id: null,
+            ean: 'CUSTOM_SERVICE',
+            name: { en: customServiceData.description, fr: customServiceData.description },
+            price: parseFloat(customServiceData.amount),
+            quantity: 1,
+            discounts: [],
+            is_custom_service: true,
+            custom_service_description: customServiceData.description
+        });
+
+        renderSalesTabs(); saveSalesToLocal();
+    });
 }
 
 // ================== Produits / Catalogue (inchangé) ==================
 function addProductToActiveSale(product) {
     const sale = sales.find(s => s.id === activeSaleId);
     if (!sale) return;
-    const existing = sale.items.find(i => i.ean === product.ean);
+    const existing = sale.items.find(i => i.product_id === product.id);
     if (existing) existing.quantity += 1;
     else sale.items.push({ product_id: product.id, ean: product.ean, name: product.name, price: parseFloat(product.price), quantity: 1, discounts: [] });
     renderSalesTabs(); saveSalesToLocal();
@@ -707,9 +747,13 @@ function renderCatalog() {
         const imgUrl = (imgObj && imgObj.url) ? imgObj.url : '{{ config('app.url') }}/images/no_picture.jpg';
 
         const title = (product.name && product.name.en) ? product.name.en : (product.name || product.title || 'Product');
+        const price = parseFloat(product.price || 0).toFixed(2);
+        const stock = product.total_stock || 0;
         $row.append(`
             <div class="col-3">
                 <div class="product-card" data-ean="${product.ean}" data-id="${product.id}">
+                    <span class="price-badge">$${price}</span>
+                    <span class="stock-badge">${stock}</span>
                     <img src="${imgUrl}" alt="${title}">
                     <div><small>${title}</small></div>
                 </div>
@@ -719,9 +763,284 @@ function renderCatalog() {
     $results.append($row);
 }
 
-function performSearch() {
-    currentQuery = $("#sale-search").val().trim();
-    renderCatalog();
+// Debounce timer for search
+let searchDebounceTimer = null;
+
+async function performSearch() {
+    const query = $("#sale-search").val().trim();
+    currentQuery = query;
+
+    // Si la recherche est vide, afficher le catalogue local
+    if (!query) {
+        renderCatalog();
+        return;
+    }
+
+    // Minimum 2 caractères pour la recherche Meilisearch
+    if (query.length < 2) {
+        renderCatalog();
+        return;
+    }
+
+    // Recherche via Meilisearch API
+    const storeId = currentUser?.store_id;
+    if (!storeId) {
+        renderCatalog(); // Fallback local
+        return;
+    }
+
+    try {
+        const response = await fetch(`${APP_BASE_URL}/api/pos/search/${storeId}?q=${encodeURIComponent(query)}`);
+
+        if (!response.ok) {
+            console.warn('Meilisearch search failed, using local fallback');
+            renderCatalog();
+            return;
+        }
+
+        const data = await response.json();
+        renderSearchResults(data.results || []);
+    } catch (error) {
+        console.error('Search error:', error);
+        renderCatalog(); // Fallback to local search
+    }
+}
+
+// Afficher les résultats de recherche Meilisearch
+function renderSearchResults(results) {
+    const $results = $("#search-results");
+    $results.empty();
+
+    if (results.length === 0) {
+        $results.html(`<div class="alert alert-warning">Aucun produit trouvé pour "${currentQuery}"</div>`);
+        return;
+    }
+
+    const $row = $('<div class="row"></div>');
+    results.forEach(product => {
+        const imgUrl = product.image_url || '{{ config('app.url') }}/images/no_picture.jpg';
+        const title = (product.name && (product.name.fr || product.name.en))
+            ? (product.name.fr || product.name.en)
+            : (product.name || 'Product');
+        const price = parseFloat(product.price || 0).toFixed(2);
+        const stock = product.total_stock || 0;
+
+        $row.append(`
+            <div class="col-3">
+                <div class="product-card" data-ean="${product.ean}" data-id="${product.id}">
+                    <span class="price-badge">$${price}</span>
+                    <span class="stock-badge">${stock}</span>
+                    <img src="${imgUrl}" alt="${title}">
+                    <div><small>${title}</small></div>
+                </div>
+            </div>
+        `);
+    });
+    $results.append($row);
+}
+
+// Recherche avec debounce pour éviter trop de requêtes
+function performSearchDebounced() {
+    if (searchDebounceTimer) {
+        clearTimeout(searchDebounceTimer);
+    }
+    searchDebounceTimer = setTimeout(() => {
+        performSearch();
+    }, 300);
+}
+
+// ========= MODAL DES MARQUES =========
+let selectedBrandId = null;
+
+function showBrandsModal() {
+    // Récupérer toutes les marques uniques du catalogue
+    const catalog = (db.table("catalog") && db.table("catalog").data) ? db.table("catalog").data : [];
+    const brandsMap = new Map();
+
+    catalog.forEach(product => {
+        if (product.brand && product.brand.id && product.brand.name) {
+            brandsMap.set(product.brand.id, product.brand.name);
+        }
+    });
+
+    // Convertir en tableau et trier alphabétiquement
+    const brands = Array.from(brandsMap, ([id, name]) => ({ id, name }))
+        .sort((a, b) => a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' }));
+
+    if (brands.length === 0) {
+        alert("No brands available in catalog");
+        return;
+    }
+
+    // Supprimer l'ancienne modal si elle existe
+    $("#brandsModal").remove();
+
+    // Calculer le nombre de colonnes (4 colonnes max)
+    const numColumns = 4;
+    const itemsPerColumn = Math.ceil(brands.length / numColumns);
+
+    // Créer les colonnes de marques
+    let columnsHtml = '<div class="row">';
+    for (let col = 0; col < numColumns; col++) {
+        columnsHtml += '<div class="col-3 brands-column">';
+        const startIdx = col * itemsPerColumn;
+        const endIdx = Math.min(startIdx + itemsPerColumn, brands.length);
+
+        for (let i = startIdx; i < endIdx; i++) {
+            const brand = brands[i];
+            columnsHtml += `
+                <button class="btn btn-outline-primary btn-sm w-100 mb-1 brand-btn text-truncate"
+                        data-brand-id="${brand.id}"
+                        data-brand-name="${brand.name}"
+                        title="${brand.name}">
+                    ${brand.name}
+                </button>
+            `;
+        }
+        columnsHtml += '</div>';
+    }
+    columnsHtml += '</div>';
+
+    const modalHtml = `
+        <div class="modal fade" id="brandsModal" tabindex="-1">
+            <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title"><i class="bi bi-tag"></i> Select a Brand</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <input type="text" id="brand-search-input" class="form-control" placeholder="Search brand...">
+                        </div>
+                        <div id="brands-container">
+                            ${columnsHtml}
+                        </div>
+                        <div class="text-muted mt-2">
+                            <small>${brands.length} brands available</small>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                        <button type="button" class="btn btn-warning" id="btn-clear-brand-filter">
+                            <i class="bi bi-x-circle"></i> Clear Filter
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+
+    $("body").append(modalHtml);
+    const modalEl = document.getElementById("brandsModal");
+    const modal = new bootstrap.Modal(modalEl);
+    modal.show();
+
+    // Recherche dans les marques
+    $("#brand-search-input").on("input", function() {
+        const searchTerm = $(this).val().toLowerCase();
+        $(".brand-btn").each(function() {
+            const brandName = $(this).data("brand-name").toLowerCase();
+            if (brandName.includes(searchTerm)) {
+                $(this).show();
+            } else {
+                $(this).hide();
+            }
+        });
+    });
+
+    // Focus sur le champ de recherche
+    modalEl.addEventListener('shown.bs.modal', function() {
+        $("#brand-search-input").focus();
+    });
+
+    // Clic sur une marque
+    $(".brand-btn").off("click").on("click", function() {
+        const brandId = $(this).data("brand-id");
+        const brandName = $(this).data("brand-name");
+
+        selectedBrandId = brandId;
+        modal.hide();
+
+        // Afficher les produits de cette marque
+        filterByBrand(brandId, brandName);
+    });
+
+    // Effacer le filtre de marque
+    $("#btn-clear-brand-filter").off("click").on("click", function() {
+        selectedBrandId = null;
+        modal.hide();
+        // Réinitialiser la vue
+        selectedPath = [];
+        currentQuery = '';
+        $("#sale-search").val('');
+        renderCategoryLists();
+        renderCatalog();
+    });
+}
+
+function filterByBrand(brandId, brandName) {
+    const catalog = (db.table("catalog") && db.table("catalog").data) ? db.table("catalog").data : [];
+
+    // Filtrer par marque uniquement (ignorer les catégories)
+    const filtered = catalog.filter(p => p.brand && p.brand.id === brandId);
+
+    const $results = $("#search-results");
+    $results.empty();
+
+    if (filtered.length === 0) {
+        $results.html(`<div class="alert alert-warning">No products found for brand "${brandName}"</div>`);
+        return;
+    }
+
+    // Afficher un badge indiquant le filtre actif
+    const $header = $(`
+        <div class="alert alert-info d-flex justify-content-between align-items-center mb-3">
+            <span><i class="bi bi-tag-fill"></i> Brand: <strong>${brandName}</strong> (${filtered.length} products)</span>
+            <button class="btn btn-sm btn-outline-danger" id="btn-clear-brand-inline">
+                <i class="bi bi-x"></i> Clear
+            </button>
+        </div>
+    `);
+
+    $header.find("#btn-clear-brand-inline").on("click", function() {
+        selectedBrandId = null;
+        selectedPath = [];
+        currentQuery = '';
+        $("#sale-search").val('');
+        renderCategoryLists();
+        renderCatalog();
+    });
+
+    $results.append($header);
+
+    const $row = $('<div class="row"></div>');
+    filtered.forEach(product => {
+        const pics = (product.photos && product.photos.length)
+            ? product.photos
+            : (product.images && product.images.length ? product.images : []);
+        const imgObj = pics.length ? (pics.find(i => i.is_primary) || pics[0]) : null;
+        const imgUrl = (imgObj && imgObj.url) ? imgObj.url : '{{ config('app.url') }}/images/no_picture.jpg';
+
+        const title = (product.name && product.name.en) ? product.name.en : (product.name || product.title || 'Product');
+        const price = parseFloat(product.price || 0).toFixed(2);
+        const stock = product.total_stock || 0;
+        $row.append(`
+            <div class="col-3">
+                <div class="product-card" data-ean="${product.ean}" data-id="${product.id}">
+                    <span class="price-badge">$${price}</span>
+                    <span class="stock-badge">${stock}</span>
+                    <img src="${imgUrl}" alt="${title}">
+                    <div><small>${title}</small></div>
+                </div>
+            </div>
+        `);
+    });
+    $results.append($row);
+
+    // Réinitialiser les catégories sélectionnées visuellement
+    selectedPath = [];
+    renderCategoryLists();
 }
 
 // ========= MODAL DE REMISES (GLOBAL & LIGNE) =========
@@ -899,6 +1218,75 @@ function showDeliveryModal() {
     });
 }
 
+// ========= MODAL DE SERVICE PERSONNALISÉ =========
+function showCustomServiceModal() {
+    return new Promise((resolve) => {
+        $("#customServiceModal").remove();
+
+        const modalHtml = `
+            <div class="modal fade" id="customServiceModal" tabindex="-1">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">${window.i18n.Add_custom_service || 'Add Custom Service'}</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="mb-3">
+                                <label for="custom-service-amount-input" class="form-label">${window.i18n.Amount || 'Amount'}</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">$</span>
+                                    <input type="number" class="form-control" id="custom-service-amount-input"
+                                           step="0.01" min="0" placeholder="0.00" required>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label for="custom-service-description-input" class="form-label">${window.i18n.Description || 'Description'}</label>
+                                <textarea class="form-control" id="custom-service-description-input" rows="3"
+                                          placeholder="${window.i18n.Enter_description || 'Enter description...'}" required></textarea>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" id="custom-service-cancel">${window.i18n.Cancel || 'Cancel'}</button>
+                            <button type="button" class="btn btn-primary" id="custom-service-add">${window.i18n.Add || 'Add'}</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        $("body").append(modalHtml);
+        const modalEl = document.getElementById("customServiceModal");
+        const modal = new bootstrap.Modal(modalEl, { backdrop: "static", keyboard: false });
+        modal.show();
+
+        $("#custom-service-cancel").on("click", () => {
+            modal.hide();
+            modalEl.remove();
+            resolve(null);
+        });
+
+        $("#custom-service-add").on("click", () => {
+            const amount = parseFloat($("#custom-service-amount-input").val());
+            const description = $("#custom-service-description-input").val().trim();
+
+            if (!amount || amount <= 0) {
+                alert(window.i18n.Please_enter_valid_amount || "Please enter a valid amount");
+                return;
+            }
+
+            if (!description) {
+                alert(window.i18n.Please_enter_description || "Please enter a description");
+                return;
+            }
+
+            modal.hide();
+            modalEl.remove();
+            resolve({ amount, description });
+        });
+    });
+}
+
 // ================== Catégories (multi-niveaux) ==================
 function renderCategoryLists() {
     const $parents = $("#category-parents").empty();
@@ -996,10 +1384,13 @@ function normalizeCategoryTree(tree) {
 function initDashboard() {
     $("#btn-new-sale").off("click").on("click", addNewSale);
 
-    // Recherche (champ déplacé mais mêmes IDs)
-    $("#sale-search").off("input").on("input", performSearch);
-    $("#sale-search").off("keypress").on("keypress", e => { if (e.key === "Enter") performSearch(); });
-    $("#btn-reset-search").off("click").on("click", () => { $("#sale-search").val(''); currentQuery = ''; renderCatalog(); });
+    // Recherche avec Meilisearch (debounced pour éviter trop de requêtes)
+    $("#sale-search").off("input").on("input", performSearchDebounced);
+    $("#sale-search").off("keypress").on("keypress", e => { if (e.key === "Enter") { e.preventDefault(); performSearch(); } });
+    $("#btn-reset-search").off("click").on("click", () => { $("#sale-search").val(''); currentQuery = ''; selectedBrandId = null; if (searchDebounceTimer) clearTimeout(searchDebounceTimer); renderCatalog(); });
+
+    // Bouton Brands
+    $("#btn-brands").off("click").on("click", showBrandsModal);
 
     // Sync forcée (menu)
     $("#btn-force-sync").off("click").on("click", handleForceSync);
@@ -1017,9 +1408,9 @@ function initDashboard() {
     renderCatalog();
 
     $("#search-results").off("click", ".product-card").on("click", ".product-card", function() {
-        const ean = $(this).data("ean");
+        const productId = $(this).data("id");
         const catalog = db.table("catalog");
-        const product = catalog.data.find(p => p.ean === ean);
+        const product = catalog.data.find(p => p.id === productId);
         if (product) addProductToActiveSale(product);
     });
 }
@@ -1036,31 +1427,59 @@ function showSaleValidationModal(sale) {
         });
         if(sale.discounts) sale.discounts.forEach(d => discountSummary.push({label:d.label, type:d.type, value:d.value}));
 
+        // Calculate total using the same logic as renderSalesTabs
         let total = 0;
         sale.items.forEach(item => {
-            let t = item.price*item.quantity;
-            if(item.discounts)item.discounts.forEach(d=>{
-                if(d.type==='amount') t-=d.value;
-                else if(d.type==='percent') t*=(1-d.value/100);
-            });
-            total+=t;
+            let itemTotal = item.price * item.quantity;
+            let itemDiscountTotal = 0;
+
+            if (Array.isArray(item.discounts)) {
+                item.discounts.forEach(d => {
+                    const value = Number(d.value) || 0;
+                    if (d.scope === 'unit') {
+                        if (d.type === 'amount') itemDiscountTotal += value * item.quantity;
+                        else if (d.type === 'percent') itemDiscountTotal += (item.price * (value / 100)) * item.quantity;
+                    } else if (d.scope === 'line') {
+                        if (d.type === 'amount') itemDiscountTotal += value;
+                        else if (d.type === 'percent') itemDiscountTotal += itemTotal * (value / 100);
+                    }
+                });
+            }
+
+            if (itemDiscountTotal > itemTotal) itemDiscountTotal = itemTotal;
+            total += itemTotal - itemDiscountTotal;
         });
-        if(sale.discounts) sale.discounts.forEach(d=>{
-            if(d.type==='amount') total-=d.value;
-            else if(d.type==='percent') total*=(1-d.value/100);
+
+        if (sale.discounts) sale.discounts.forEach(d => {
+            let disc = 0;
+            if (d.type === 'amount') disc = d.value;
+            else if (d.type === 'percent') disc = total * d.value / 100;
+            total -= disc;
         });
+
+        // Round total to 2 decimal places to avoid floating point issues
+        total = Math.round(total * 100) / 100;
 
         // Split payments state
         let splitPayments = [];
         let remainingAmount = total;
 
         function updateRemainingAmount() {
-            const paid = splitPayments.reduce((sum, p) => sum + p.amount, 0);
-            remainingAmount = total - paid;
+            const paid = Math.round(splitPayments.reduce((sum, p) => sum + p.amount, 0) * 100) / 100;
+            remainingAmount = Math.round((total - paid) * 100) / 100;
             $("#remaining-amount").text(remainingAmount.toFixed(2));
             $("#total-paid").text(paid.toFixed(2));
 
-            if (remainingAmount <= 0) {
+            // Special case: total is 0 (100% discount) - allow validation without payment
+            if (total <= 0.01) {
+                $("#sale-confirm").prop("disabled", false);
+                $("#btn-add-payment").prop("disabled", true);
+                $("#payment-section").hide();
+                return;
+            }
+
+            // Use tolerance for floating point comparison (0.01 = 1 cent tolerance)
+            if (remainingAmount <= 0.01) {
                 $("#sale-confirm").prop("disabled", false);
                 $("#btn-add-payment").prop("disabled", true);
             } else {
@@ -1154,7 +1573,7 @@ function showSaleValidationModal(sale) {
                             </table>
                         </div>
 
-                        <div class="border p-3 mb-3 bg-light">
+                        <div id="payment-section" class="border p-3 mb-3 bg-light">
                             <h6>Add Payment:</h6>
                             <div class="row g-2">
                                 <div class="col-6">
@@ -1171,6 +1590,14 @@ function showSaleValidationModal(sale) {
                                                step="0.01" min="0" max="${total}" value="${total.toFixed(2)}">
                                     </div>
                                 </div>
+                            </div>
+                            <div id="voucher-input-section" class="mt-2 d-none">
+                                <label class="form-label">Voucher Code</label>
+                                <div class="input-group">
+                                    <input type="text" class="form-control" id="voucher-code-input" placeholder="KBA123456789" maxlength="12">
+                                    <button class="btn btn-outline-secondary" type="button" id="btn-validate-voucher-payment">Validate</button>
+                                </div>
+                                <div id="voucher-validation-result" class="mt-1 small"></div>
                             </div>
                             <div class="mt-2 text-end">
                                 <button class="btn btn-primary btn-sm" id="btn-add-payment">
@@ -1192,6 +1619,67 @@ function showSaleValidationModal(sale) {
         const modal = new bootstrap.Modal(modalEl, {backdrop:'static',keyboard:false});
         modal.show();
 
+        // Voucher validation state
+        let validatedVoucher = null;
+
+        // Show/hide voucher input based on payment method
+        $("#payment-method-select").on("change", function() {
+            const method = $(this).val();
+            if (method === "VOUCHER") {
+                $("#voucher-input-section").removeClass("d-none");
+                $("#voucher-code-input").val("");
+                $("#voucher-validation-result").html("");
+                validatedVoucher = null;
+            } else {
+                $("#voucher-input-section").addClass("d-none");
+                validatedVoucher = null;
+            }
+        });
+
+        // Validate voucher button
+        $("#btn-validate-voucher-payment").on("click", async function() {
+            const code = $("#voucher-code-input").val().trim().toUpperCase();
+            if (!code || code.length !== 12) {
+                $("#voucher-validation-result").html('<span class="text-danger">Code must be 12 characters (ex: KBA123456789)</span>');
+                return;
+            }
+
+            const $btn = $(this);
+            $btn.prop("disabled", true).text("Validating...");
+            $("#voucher-validation-result").html('<span class="text-muted">Checking voucher...</span>');
+
+            try {
+                const res = await fetch(`${APP_BASE_URL}/api/pos/voucher/validate?code=${code}`);
+                const data = await res.json();
+
+                if (!data.success) {
+                    $("#voucher-validation-result").html(`<span class="text-danger">${data.error || 'Invalid voucher'}</span>`);
+                    validatedVoucher = null;
+                    return;
+                }
+
+                validatedVoucher = data.voucher;
+                validatedVoucher.code = code;
+
+                // Auto-fill amount with voucher value (or remaining, whichever is smaller)
+                const voucherAmount = Math.min(parseFloat(data.voucher.amount), remainingAmount);
+                $("#payment-amount-input").val(voucherAmount.toFixed(2));
+
+                $("#voucher-validation-result").html(`
+                    <span class="text-success">
+                        <i class="bi bi-check-circle"></i> Valid voucher: $${data.voucher.amount}
+                        (expires: ${data.voucher.expires_at})
+                    </span>
+                `);
+            } catch (err) {
+                console.error(err);
+                $("#voucher-validation-result").html('<span class="text-danger">Connection error</span>');
+                validatedVoucher = null;
+            } finally {
+                $btn.prop("disabled", false).text("Validate");
+            }
+        });
+
         // Add payment button
         $("#btn-add-payment").on("click", function() {
             const paymentType = $("#payment-method-select").val();
@@ -1207,7 +1695,31 @@ function showSaleValidationModal(sale) {
                 return;
             }
 
-            splitPayments.push({ payment_type: paymentType, amount: amount });
+            // Check voucher validation for VOUCHER payment
+            if (paymentType === "VOUCHER") {
+                if (!validatedVoucher) {
+                    alert("Please validate the voucher code first");
+                    return;
+                }
+                if (amount > parseFloat(validatedVoucher.amount)) {
+                    alert(`Voucher value is only $${validatedVoucher.amount}`);
+                    return;
+                }
+            }
+
+            const payment = { payment_type: paymentType, amount: amount };
+            if (paymentType === "VOUCHER" && validatedVoucher) {
+                payment.voucher_code = validatedVoucher.code;
+            }
+
+            splitPayments.push(payment);
+
+            // Reset voucher state after adding
+            if (paymentType === "VOUCHER") {
+                validatedVoucher = null;
+                $("#voucher-code-input").val("");
+                $("#voucher-validation-result").html("");
+            }
 
             renderPaymentsList();
             updateRemainingAmount();
@@ -1225,6 +1737,18 @@ function showSaleValidationModal(sale) {
 
         // Validate button
         $("#sale-confirm").off("click").on("click",()=>{
+            // Special case: total is 0 (100% discount) - no payment needed
+            if (total <= 0.01) {
+                sale.split_payments = [];
+                sale.payment_type = 'FREE';
+                sale.synced = false;
+
+                modal.hide();
+                modalEl.remove();
+                resolve(true);
+                return;
+            }
+
             if (splitPayments.length === 0) {
                 alert("Please add at least one payment");
                 return;

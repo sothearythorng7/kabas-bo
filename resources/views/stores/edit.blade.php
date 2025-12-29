@@ -43,7 +43,7 @@
 
         <div class="mb-3 form-check">
             <input type="checkbox" name="is_reseller" id="is_reseller" class="form-check-input" value="1" {{ old('is_reseller', $store->is_reseller) ? 'checked' : '' }}>
-            <label for="is_reseller" class="form-check-label">Ce magasin est un revendeur (consignation)</label>
+            <label for="is_reseller" class="form-check-label">{{ __('messages.store.is_reseller') }}</label>
         </div>
 
 

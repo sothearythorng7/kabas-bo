@@ -11,9 +11,15 @@ use Illuminate\Support\Facades\View;
 
 class SupplierController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $suppliers = Supplier::with('contacts')->paginate(20);
+        // Exclure les fournisseurs de matières premières (ils sont gérés dans /factory/suppliers)
+        $suppliers = Supplier::with('contacts')
+            ->productSuppliers()
+            ->when($request->filled('search'), fn($q) => $q->where('name', 'like', '%' . $request->search . '%'))
+            ->orderBy('name')
+            ->paginate(20)
+            ->appends($request->only('search'));
         return view('suppliers.index', compact('suppliers'));
     }
 
@@ -45,8 +51,24 @@ public function edit(Supplier $supplier, Request $request)
 {
     $supplier->load(['contacts', 'products.stores', 'products.brand', 'saleReports.store']);
 
-    // Produits paginés
-    $products = $supplier->products()->with(['stores', 'brand'])->paginate(10);
+    // Produits paginés avec nombre par page configurable
+    $perPage = (int) $request->get('per_page', 50);
+    $perPage = in_array($perPage, [50, 100, 200]) ? $perPage : 50;
+
+    // Si recherche textuelle, utiliser Meilisearch via Scout
+    if ($request->filled('product_search')) {
+        $supplierProductIds = $supplier->products()->pluck('products.id')->toArray();
+
+        $searchQuery = Product::search($request->product_search)
+            ->query(function ($builder) use ($supplierProductIds) {
+                $builder->whereIn('id', $supplierProductIds)
+                    ->with(['stores', 'brand']);
+            });
+
+        $products = $searchQuery->paginate($perPage)->appends($request->only(['per_page', 'product_search']));
+    } else {
+        $products = $supplier->products()->with(['stores', 'brand'])->paginate($perPage)->appends($request->only('per_page'));
+    }
 
     // Commandes
     $orders = collect();
@@ -87,7 +109,7 @@ public function edit(Supplier $supplier, Request $request)
             ->with('products');
 
         $totalUnpaidAmount = $unpaidOrdersQuery->get()->sum(fn($order) =>
-            $order->products->sum(fn($p) => ($p->pivot->price_invoiced ?? $p->pivot->purchase_price ?? 0) * ($p->pivot->quantity_ordered ?? 0))
+            $order->products->sum(fn($p) => ($p->pivot->invoice_price ?? $p->pivot->purchase_price ?? 0) * ($p->pivot->quantity_received ?? 0))
         );
 
         $unpaidOrdersCount = $unpaidOrdersQuery->count();

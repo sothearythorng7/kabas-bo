@@ -1,8 +1,8 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="{{ app()->getLocale() }}">
 <head>
     <meta charset="UTF-8">
-    <title>Facture Sales Report #{{ $report->id }}</title>
+    <title>{{ __('messages.reseller_invoice.pdf_title') }} #{{ $report->id }}</title>
     <style>
         body { font-family: 'DejaVu Sans', sans-serif; font-size: 12px; }
         table { width: 100%; border-collapse: collapse; margin-top: 20px; }
@@ -13,17 +13,17 @@
     </style>
 </head>
 <body>
-    <h2>Facture Sales Report #{{ $report->id }}</h2>
-    <p><strong>Revendeur:</strong> {{ $reseller->name }}</p>
-    <p><strong>Date:</strong> {{ $report->created_at->format('d/m/Y') }}</p>
+    <h2>{{ __('messages.reseller_invoice.pdf_title') }} #{{ $report->id }}</h2>
+    <p><strong>{{ __('messages.resellers.reseller') }}:</strong> {{ $reseller->name }}</p>
+    <p><strong>{{ __('messages.common.date') }}:</strong> {{ $report->created_at->format('d/m/Y') }}</p>
 
     <table>
         <thead>
             <tr>
-                <th>Produit</th>
-                <th>Quantité</th>
-                <th>Prix unitaire</th>
-                <th>Total</th>
+                <th>{{ __('messages.product.name') }}</th>
+                <th>{{ __('messages.resellers.quantity') }}</th>
+                <th>{{ __('messages.resellers.unit_price') }}</th>
+                <th>{{ __('messages.common.total') }}</th>
             </tr>
         </thead>
         <tbody>
@@ -38,7 +38,7 @@
         </tbody>
         <tfoot>
             <tr>
-                <td colspan="3" class="total text-right">Total</td>
+                <td colspan="3" class="total text-right">{{ __('messages.common.total') }}</td>
                 <td class="total text-right">{{ number_format($totalValue, 2, ',', ' ') }} $</td>
             </tr>
         </tfoot>

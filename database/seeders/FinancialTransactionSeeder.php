@@ -40,7 +40,7 @@ class FinancialTransactionSeeder extends Seeder
                     'store_id' => $store->id,
                     'account_id' => $account->id,
                     'amount' => $amount,
-                    'currency' => 'EUR',
+                    'currency' => 'USD',
                     'direction' => $direction,
                     'balance_before' => $balanceBefore,
                     'balance_after' => $balanceAfter,

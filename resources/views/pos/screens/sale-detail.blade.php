@@ -825,6 +825,12 @@
                         Expires: ${data.exchange.voucher_generated.expires_at}</p>
                     </div>
                 `;
+
+                // Print voucher ticket automatically
+                if (typeof window.formatVoucherTicketData === 'function' && typeof window.printReceipt === 'function') {
+                    const voucherTicket = window.formatVoucherTicketData(data.exchange.voucher_generated, data.exchange);
+                    window.printReceipt(voucherTicket);
+                }
             }
 
             $("#exchange-success-content").html(successHtml);

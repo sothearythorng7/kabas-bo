@@ -24,11 +24,28 @@ let saleCounter = 1;
 //let categoryTree = {}; // arbre global des catégories
 let currentCategoryPath = []; // chemin courant pour navigation dans l'arbre
 
+// ============================================
+// Génération de codes pour cartes cadeaux
+// ============================================
+function generateGiftCardCode() {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // Pas de 0, O, 1, I pour éviter confusion
+    const segments = [];
+    for (let s = 0; s < 3; s++) {
+        let segment = '';
+        for (let i = 0; i < 4; i++) {
+            segment += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        segments.push(segment);
+    }
+    return 'GIFT-' + segments.join('-');
+}
+
 function calculateAndSaveSale(sale, currentShift) {
     if (!sale || !currentShift) return;
 
     sale.items.forEach(item => {
-        if (!item.product_id && item.id) {
+        // Ne pas assigner product_id pour les gift_box et gift_card
+        if (!item.product_id && item.id && item.type !== 'gift_box' && item.type !== 'gift_card') {
             item.product_id = item.id;
         }
 
@@ -71,19 +88,37 @@ async function syncSalesToBO() {
     const payload = prepareSalesSync();
     if (!payload || !payload.length) return;
 
+    // Log sync start
+    if (window.POSLogger) {
+        POSLogger.info('SYNC_SALES_START', {
+            shift_id: currentShift.id,
+            sales_count: payload.length
+        });
+    }
+
+    const startTime = Date.now();
+
     try {
+        // Add timeout to prevent indefinite blocking
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
+
         const res = await fetch(`${APP_BASE_URL}/api/pos/sales/sync`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'X-CSRF-TOKEN': getCsrfToken(),
-                'Accept': 'application/json',
-                'Content-Type': 'application/json'
+                'Accept': 'application/json'
             },
-            body: JSON.stringify({ shift_id: currentShift.id, sales: payload })
+            body: JSON.stringify({ shift_id: currentShift.id, sales: payload }),
+            signal: controller.signal
         });
 
+        clearTimeout(timeoutId);
+
         const data = await res.json();
+        const duration = Date.now() - startTime;
+
         if (data.status === 'success') {
             // marquer les ventes locales comme synchronisées
             const key = `pos_sales_validated_shift_${currentShift.id}`;
@@ -94,15 +129,121 @@ async function syncSalesToBO() {
             });
             localStorage.setItem(key, JSON.stringify(stored));
             console.log("Sales synchronized:", data.synced_sales);
+
+            if (window.POSLogger) {
+                POSLogger.info('SYNC_SALES_SUCCESS', {
+                    synced_count: data.synced_sales.length,
+                    duration_ms: duration
+                });
+            }
         }
     } catch (err) {
+        const duration = Date.now() - startTime;
         console.error("Sales synchronization error:", err);
+
+        if (window.POSLogger) {
+            POSLogger.error('SYNC_SALES_ERROR', {
+                error: err.message,
+                duration_ms: duration,
+                aborted: err.name === 'AbortError'
+            });
+        }
     }
 }
 
 // auto-sync toutes les 30s
-setInterval(syncSalesToBO, 30000);
+let syncIntervalId = setInterval(syncSalesToBO, 30000);
 
+// ============================================
+// Gestion veille/réveil et détection de gel
+// ============================================
+let lastActivityTime = Date.now();
+let lastHeartbeat = Date.now();
+let isAppFrozen = false;
+let heartbeatIntervalId = null;
+
+// Heartbeat pour détecter les gels (vérifie toutes les 5s)
+function startHeartbeat() {
+    if (heartbeatIntervalId) clearInterval(heartbeatIntervalId);
+    lastHeartbeat = Date.now();
+
+    heartbeatIntervalId = setInterval(() => {
+        const now = Date.now();
+        const timeSinceLastHeartbeat = now - lastHeartbeat;
+
+        // Si plus de 10s entre deux heartbeats, l'app était gelée/en veille
+        if (timeSinceLastHeartbeat > 10000) {
+            console.warn(`[POS] App was frozen/sleeping for ${Math.round(timeSinceLastHeartbeat/1000)}s, recovering...`);
+            handleAppWakeUp();
+        }
+        lastHeartbeat = now;
+    }, 5000);
+}
+
+// Gestion du réveil de l'application
+function handleAppWakeUp() {
+    console.log('[POS] Handling app wake-up...');
+    isAppFrozen = false;
+
+    // Réinitialiser le timer de sync
+    clearInterval(syncIntervalId);
+    syncIntervalId = setInterval(syncSalesToBO, 30000);
+
+    // Forcer une sync immédiate
+    setTimeout(() => {
+        syncSalesToBO();
+    }, 1000);
+
+    // Rafraîchir l'UI si nécessaire
+    if (typeof renderSalesTabs === 'function') {
+        try {
+            renderSalesTabs();
+        } catch (e) {
+            console.error('[POS] Error refreshing UI after wake:', e);
+        }
+    }
+
+    // Notification visuelle optionnelle
+    const $indicator = $('#sync-status');
+    if ($indicator.length) {
+        $indicator.removeClass('text-danger').addClass('text-warning');
+        setTimeout(() => $indicator.removeClass('text-warning'), 2000);
+    }
+}
+
+// Gestionnaire de changement de visibilité (onglet actif/inactif, veille)
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+        console.log('[POS] App became visible');
+        const timeSinceActivity = Date.now() - lastActivityTime;
+
+        // Si inactif depuis plus de 30s, considérer comme réveil
+        if (timeSinceActivity > 30000) {
+            handleAppWakeUp();
+        }
+        lastActivityTime = Date.now();
+    } else {
+        console.log('[POS] App became hidden');
+        lastActivityTime = Date.now();
+    }
+});
+
+// Détecter l'activité utilisateur pour réinitialiser le timer
+['touchstart', 'click', 'keydown'].forEach(eventType => {
+    document.addEventListener(eventType, () => {
+        lastActivityTime = Date.now();
+
+        // Si l'app était considérée comme gelée, la réveiller
+        if (isAppFrozen) {
+            handleAppWakeUp();
+        }
+    }, { passive: true });
+});
+
+// Démarrer le heartbeat
+startHeartbeat();
+
+// ============================================
 
 function prepareSalesSync() {
     if (!currentShift) {
@@ -127,13 +268,18 @@ function prepareSalesSync() {
         split_payments: sale.split_payments || null,
         items: sale.items.map(item => ({
             product_id: item.product_id,
+            original_id: item.original_id || null,
+            type: item.type || 'product', // "product", "gift_box", "gift_card"
             name: item.name || null,
             ean: item.ean || null,
             price: item.price,
             quantity: item.quantity,
             discounts: item.discounts || [],
             is_delivery: item.is_delivery || false,
-            delivery_address: item.delivery_address || null
+            delivery_address: item.delivery_address || null,
+            is_custom_service: item.is_custom_service || false,
+            custom_service_description: item.custom_service_description || null,
+            generated_code: item.generated_code || null // Code carte cadeau généré côté client
         })),
         discounts: sale.discounts || [],
         total: calculateSaleTotal(sale)
@@ -648,21 +794,100 @@ function initShiftend() {
 // --------------------
 // Recherche produit dans dashboard
 // --------------------
+// Ajouter un produit/coffret/carte cadeau au panier (ou augmenter la quantité si déjà présent)
+function addProductToCart(product, qty = 1) {
+    // S'assurer qu'une vente active existe
+    if (!sales.find(s => s.id === activeSaleId)) {
+        addNewSale();
+    }
+    const targetSale = sales.find(s => s.id === activeSaleId);
+
+    // Pour les cartes cadeaux, chaque unité doit avoir son propre code unique
+    // On ajoute donc une ligne par carte cadeau
+    if (product.type === 'gift_card') {
+        for (let i = 0; i < qty; i++) {
+            const giftCardCode = generateGiftCardCode();
+            targetSale.items.push({
+                id: product.id + '_' + Date.now() + '_' + i, // ID unique pour chaque ligne
+                product_id: null,
+                original_id: product.original_id || null,
+                type: 'gift_card',
+                name: product.name,
+                ean: product.ean || null,
+                price: parseFloat(product.price),
+                quantity: 1, // Toujours 1 par ligne pour les gift cards
+                discount: 0,
+                generated_code: giftCardCode // Code généré côté client
+            });
+        }
+    } else {
+        // Chercher si le produit est déjà dans le panier (par id unique)
+        const existingItem = targetSale.items.find(item => item.id === product.id);
+
+        if (existingItem) {
+            // Augmenter la quantité
+            existingItem.quantity += qty;
+        } else {
+            // Ajouter le nouveau produit/coffret
+            targetSale.items.push({
+                id: product.id,
+                product_id: product.type === 'product' ? product.id : null, // Seulement pour les vrais produits
+                original_id: product.original_id || null,
+                type: product.type || 'product',
+                name: product.name,
+                ean: product.ean || null,
+                price: parseFloat(product.price),
+                quantity: qty,
+                discount: 0
+            });
+        }
+    }
+
+    renderSalesTabs();
+    saveSalesToLocal();
+}
+
 async function performSearchAndShowModal(query) {
+    alert("ok - script v2");
     if (!query) return;
     const catalog = db.table("catalog");
-    const results = catalog.search ? catalog.search(query) : (
-        catalog.data.filter(p =>
-            (p.ean && p.ean.toLowerCase().includes(query.toLowerCase())) ||
-            (p.name && p.name.en && p.name.en.toLowerCase().includes(query.toLowerCase()))
-        )
-    );
+    const q = query.trim().toLowerCase();
+
+    // Détecte si c'est un code EAN (8-13 chiffres)
+    const isEanQuery = /^\d{8,13}$/.test(q);
+
+    let results;
+    if (isEanQuery) {
+        // Normaliser l'EAN scanné en ajoutant des zéros à gauche pour atteindre 13 caractères
+        const normalizedQuery = q.padStart(13, '0');
+        // Correspondance exacte pour les codes EAN (comparaison normalisée)
+        results = catalog.data.filter(p => {
+            if (!p.ean) return false;
+            const normalizedEan = p.ean.toLowerCase().padStart(13, '0');
+            return normalizedEan === normalizedQuery;
+        });
+    } else {
+        // Recherche partielle pour les noms
+        results = catalog.data.filter(p =>
+            (p.ean && p.ean.toLowerCase().includes(q)) ||
+            (p.name && p.name.en && p.name.en.toLowerCase().includes(q))
+        );
+    }
 
     if (!results.length) {
         alert("No products found");
         return;
     }
 
+    // Si un seul résultat, ajouter directement au panier
+    if (results.length === 1) {
+        const product = results[0];
+        addProductToCart(product, 1);
+        $("#sale-search").val("").focus();
+        return;
+    }
+
+    // Plusieurs résultats : afficher le modal de sélection
     $("#productSelectModal").remove();
 
     const modalHtml = `
@@ -692,19 +917,7 @@ async function performSearchAndShowModal(query) {
 
         const qty = await showNumericModal(`Quantity for ${product.name.en}`);
         if (qty > 0) {
-            const sale = sales.find(s => s.id === activeSaleId);
-            if (!sale) addNewSale();
-            const targetSale = sales.find(s => s.id === activeSaleId);
-            targetSale.items.push({
-                product_id: product.id,
-                id: product.id,
-                name: product.name,
-                price: parseFloat(product.price),
-                quantity: qty,
-                discount: 0
-            });
-            renderSalesTabs();
-            saveSalesToLocal();
+            addProductToCart(product, qty);
         }
 
         $("#sale-search").val("").focus();
@@ -1248,50 +1461,18 @@ function showSaleDetail(saleId, returnScreen = "sales-history") {
 }
 
 // Reprint sale receipt from journal
-function reprintSale(sale) {
-    let lines = [], total = 0;
-
-    sale.items.forEach(item => {
-        const name = (typeof item.name === "object" && item.name.en) ? item.name.en : item.name;
-        const qty = item.quantity;
-        const unitPrice = item.price;
-        let lineTotal = unitPrice * qty;
-
-        let itemDiscountTotal = 0;
-        if (Array.isArray(item.discounts)) {
-            item.discounts.forEach(d => {
-                const value = Number(d.value) || 0;
-                if (d.scope === 'unit') {
-                    if (d.type === 'amount') itemDiscountTotal += value * qty;
-                    else if (d.type === 'percent') itemDiscountTotal += unitPrice * (value / 100) * qty;
-                } else if (d.scope === 'line') {
-                    if (d.type === 'amount') itemDiscountTotal += value;
-                    else if (d.type === 'percent') itemDiscountTotal += lineTotal * (value / 100);
-                }
-            });
-        }
-        if (itemDiscountTotal > lineTotal) itemDiscountTotal = lineTotal;
-        lineTotal -= itemDiscountTotal;
-        total += lineTotal;
-
-        lines.push({ name, qty, unitPrice, lineTotal, discounts: item.discounts || [] });
-    });
-
-    const globalDiscounts = sale.discounts || [];
-
-    $.ajax({
-        url: "https://192.168.1.50:5000/print",
-        method: "POST",
-        contentType: "application/json",
-        data: JSON.stringify({ sale: { items: lines, discounts: globalDiscounts, ticket_number: sale.ticket_number, total: sale.total || total } }),
-        success: function() {
+async function reprintSale(sale) {
+    // Utilise les fonctions globales définies dans dashboard.blade.php
+    if (typeof formatTicketData === 'function' && typeof printReceipt === 'function') {
+        const ticketData = formatTicketData(sale);
+        const success = await printReceipt(ticketData);
+        if (success) {
             alert("Receipt reprinted successfully!");
-        },
-        error: function(err) {
-            console.error(err);
-            alert("Error printing receipt!");
         }
-    });
+    } else {
+        console.error('Print functions not available');
+        alert("Error: Print functions not loaded");
+    }
 }
 
 

@@ -64,6 +64,7 @@ class ProductionController extends Controller
             'quantity_produced' => 'required|integer|min:1',
             'produced_at' => 'required|date',
             'batch_number' => 'nullable|string|max:255',
+            'unit_price' => 'nullable|numeric|min:0',
             'notes' => 'nullable|string',
             'consumptions' => 'required|array',
             'consumptions.*.raw_material_id' => 'required|exists:raw_materials,id',
@@ -119,7 +120,7 @@ class ProductionController extends Controller
                 'product_id' => $recipe->product_id,
                 'store_id' => $warehouse->id,
                 'quantity' => $data['quantity_produced'],
-                'unit_price' => 0, // Pas de calcul de coût pour le moment
+                'unit_price' => $data['unit_price'] ?? $recipe->product->price ?? 0,
                 'source_production_id' => $production->id,
             ]);
         });

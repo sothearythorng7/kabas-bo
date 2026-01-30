@@ -13,9 +13,11 @@
 
     <!-- CSS spécifique POS -->
     @php
-        $posVersion = filemtime(public_path('js/pos/app.js'));
+        // Force cache bust - utilise timestamp actuel
+        $posVersion = time();
     @endphp
     <link href="{{ asset('css/pos/main.css') }}?v={{ $posVersion }}" rel="stylesheet">
+    <link href="{{ asset('css/pos/virtual-keyboard.css') }}?v={{ $posVersion }}" rel="stylesheet">
 
     @stack('styles')
 </head>
@@ -41,6 +43,11 @@
              style="width:0; max-width:30%; overflow:auto; z-index:1050; transition: width 0.3s;">
             <div class="d-flex justify-content-end p-2 border-bottom">
                 <button class="btn btn-sm btn-outline-dark" id="btn-close-menu"><i class="bi bi-x-lg"></i></button>
+            </div>
+            <!-- Expected Cash Display -->
+            <div id="expected-cash-display" class="p-3 bg-dark text-white text-center" style="display: none;">
+                <div class="small text-white-50">{{ __('messages.pos.expected_cash') }}</div>
+                <div class="fs-3 fw-bold" id="expected-cash-amount">$0.00</div>
             </div>
             <div class="p-3">
                 <button id="btn-go-dashboard" class="btn btn-dark w-100 mb-2">
@@ -116,12 +123,34 @@
     <script src="{{ asset('js/pos/tables/CatalogTable.js') }}?v={{ $posVersion }}"></script>
     <script src="{{ asset('js/pos/tables/PaymentsTable.js') }}?v={{ $posVersion }}"></script>
 
+    <!-- Remote Logger (must load before app.js to track all events) -->
+    <script src="{{ asset('js/pos/remote-logger.js') }}?v={{ $posVersion }}"></script>
+
     <!-- App -->
     <script>
         // Base URL for API calls
         const APP_BASE_URL = '{{ config('app.url') }}';
     </script>
     <script src="{{ asset('js/pos/app.js') }}?v={{ $posVersion }}"></script>
+
+    <!-- Virtual Keyboard -->
+    <script src="{{ asset('js/pos/virtual-keyboard.js') }}?v={{ $posVersion }}"></script>
+    <script>
+        // Initialiser le clavier virtuel une fois le DOM pret
+        $(function() {
+            window.virtualKeyboard = new POSVirtualKeyboard({
+                // Selecteur des inputs a activer
+                inputSelector: 'input[type="text"], input[type="search"], input[type="number"], input[type="tel"], input[type="email"], textarea',
+                // Exclure les inputs readonly et ceux avec data-no-keyboard
+                excludeSelector: '[data-no-keyboard], [readonly], .pin-btn, .change-user-pin-btn, .shift-num-btn, .cash-num',
+                // Pas de backdrop sombre
+                showBackdrop: false,
+                // Masquer le clavier apres Enter
+                autoHideOnEnter: true
+            });
+            console.log('Virtual Keyboard initialized');
+        });
+    </script>
 
 <script>
 // --- GLOBALES --- //
@@ -304,6 +333,10 @@ function restoreCategoryTreeFromLocal(storeId) {
             if (isLoginVisible() || !hasActiveShift() || isShiftStartVisible()) return;
             $menu.css("width", "30%");
             $overlay.show();
+            // Update expected cash display
+            if (typeof window.updateExpectedCashDisplay === "function") {
+                window.updateExpectedCashDisplay();
+            }
         });
 
         $(document).on("click", "#btn-go-dashboard", function() {
@@ -399,6 +432,71 @@ function restoreCategoryTreeFromLocal(storeId) {
         localStorage.removeItem(getCashOutKey(shiftId));
       };
 
+      // Calculate and display expected cash in drawer
+      window.updateExpectedCashDisplay = function() {
+        if (!window.currentShift || !window.currentShift.id) {
+          $("#expected-cash-display").hide();
+          return;
+        }
+
+        // Opening cash
+        const openingCash = parseFloat(window.currentShift.opening_cash) || 0;
+
+        // Cash In/Out
+        const cashIn = window.getShiftCashIn();
+        const cashOut = window.getShiftCashOut();
+
+        // Cash sales from localStorage
+        let cashSales = 0;
+        const salesKey = `pos_sales_shift_${window.currentShift.id}`;
+        const validatedKey = `pos_sales_validated_shift_${window.currentShift.id}`;
+
+        // Helper function to extract cash amount from a sale
+        const getCashFromSale = (sale) => {
+          let cash = 0;
+          const paymentType = (sale.payment_type || '').toLowerCase();
+
+          // Check if it's a split payment
+          if (sale.split_payments && Array.isArray(sale.split_payments) && sale.split_payments.length > 0) {
+            // Iterate through split payments and sum cash portions
+            sale.split_payments.forEach(payment => {
+              const method = (payment.payment_type || payment.method || '').toLowerCase();
+              if (method === 'cash' || method === 'espèces') {
+                cash += parseFloat(payment.amount) || 0;
+              }
+            });
+          } else if (paymentType === 'cash' || paymentType === 'espèces') {
+            // Full amount is cash
+            cash = parseFloat(sale.total) || 0;
+          }
+
+          return cash;
+        };
+
+        try {
+          // Current sales (not yet synced)
+          const currentSales = JSON.parse(localStorage.getItem(salesKey) || "[]");
+          currentSales.forEach(sale => {
+            cashSales += getCashFromSale(sale);
+          });
+
+          // Validated sales (already synced)
+          const validatedSales = JSON.parse(localStorage.getItem(validatedKey) || "[]");
+          validatedSales.forEach(sale => {
+            cashSales += getCashFromSale(sale);
+          });
+        } catch (e) {
+          console.error("Error calculating cash sales:", e);
+        }
+
+        // Calculate expected cash
+        const expectedCash = openingCash + cashSales + cashIn - cashOut;
+
+        // Update display
+        $("#expected-cash-amount").text("$" + expectedCash.toFixed(2));
+        $("#expected-cash-display").show();
+      };
+
       // Construit le pavé numérique une fois
       function ensureCashPadBuilt() {
         const $pad = $("#cashDialogPad");
@@ -456,6 +554,10 @@ function restoreCategoryTreeFromLocal(storeId) {
             localStorage.setItem(storageKey, String(next));
             modal.hide();
             alert(`${title}: $${amount.toFixed(2)} — Shift Total: $${next.toFixed(2)}`);
+            // Update expected cash display
+            if (typeof window.updateExpectedCashDisplay === "function") {
+              window.updateExpectedCashDisplay();
+            }
           } catch (e) {
             console.error("localStorage error:", e);
             alert("Error saving!");

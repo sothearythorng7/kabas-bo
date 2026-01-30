@@ -106,12 +106,9 @@
                                 <li><a class="dropdown-item" href="{{ route('financial.general-invoices.edit', [$store->id, $invoice->id]) }}">{{ __('messages.general_invoices.edit') }}</a></li>
                                 @if($invoice->status !== 'paid')
                                     <li>
-                                        <form method="POST" action="{{ route('financial.general-invoices.mark-as-paid', [$store->id, $invoice->id]) }}" class="m-0 p-0">
-                                            @csrf
-                                            <button class="dropdown-item text-success" onclick="return confirm('{{ __('messages.general_invoices.confirm_mark_paid') }}')">
-                                                <i class="bi bi-check-circle"></i> {{ __('messages.general_invoices.mark_as_paid') }}
-                                            </button>
-                                        </form>
+                                        <button type="button" class="dropdown-item text-success" data-bs-toggle="modal" data-bs-target="#markAsPaidModal-{{ $invoice->id }}">
+                                            <i class="bi bi-check-circle"></i> {{ __('messages.general_invoices.mark_as_paid') }}
+                                        </button>
                                     </li>
                                 @endif
                                 <li>
@@ -232,6 +229,58 @@
                     </form>
                 </div>
             </div>
+        </div>
+    </div>
+    @endif
+@endforeach
+
+{{-- Modales de paiement pour chaque facture générale --}}
+@foreach($invoices as $invoice)
+    @if($invoice->type === 'general' && $invoice->status !== 'paid')
+    <div class="modal fade" id="markAsPaidModal-{{ $invoice->id }}" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered" style="max-width: 450px;">
+            <form action="{{ route('financial.general-invoices.mark-as-paid', [$store->id, $invoice->id]) }}" method="POST" enctype="multipart/form-data">
+                @csrf
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">{{ __('messages.general_invoices.mark_as_paid') }}</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p class="mb-3"><strong>{{ $invoice->label }}</strong></p>
+                        <div class="mb-3">
+                            <label class="form-label">
+                                {{ __('messages.Amount paid') }} : <strong>${{ number_format($invoice->amount, 2) }}</strong>
+                            </label>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">{{ __('messages.general_invoices.payment_date') }} <span class="text-danger">*</span></label>
+                            <input type="date" name="payment_date" class="form-control" value="{{ now()->format('Y-m-d') }}" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">{{ __('messages.Méthode de paiement') }} <span class="text-danger">*</span></label>
+                            <select name="payment_method_id" class="form-select" required>
+                                @foreach($paymentMethods as $method)
+                                    <option value="{{ $method->id }}">{{ $method->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">{{ __('messages.Payment reference') }}</label>
+                            <input type="text" name="payment_reference" class="form-control" placeholder="{{ __('messages.optional') }}">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">{{ __('messages.general_invoices.payment_proof') }}</label>
+                            <input type="file" name="payment_proof" class="form-control" accept=".pdf,.jpg,.jpeg,.png">
+                            <small class="text-muted">{{ __('messages.general_invoices.payment_proof_hint') }}</small>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ __('messages.btn.cancel') }}</button>
+                        <button type="submit" class="btn btn-success">{{ __('messages.Confirm payment') }}</button>
+                    </div>
+                </div>
+            </form>
         </div>
     </div>
     @endif

@@ -17,6 +17,7 @@ class RawMaterialStockBatch extends Model
         'expires_at',
         'batch_number',
         'notes',
+        'source_supplier_order_id',
     ];
 
     protected $casts = [

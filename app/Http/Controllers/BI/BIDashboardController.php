@@ -10,6 +10,7 @@ use App\Models\Store;
 use App\Models\Reseller;
 use App\Models\ResellerSalesReport;
 use App\Models\StockBatch;
+use App\Models\Shift;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
@@ -19,8 +20,18 @@ class BIDashboardController extends Controller
     public function index(Request $request)
     {
         $period = $request->get('period', 'month');
-        $startDate = $this->getStartDate($period);
-        $endDate = Carbon::now();
+
+        if ($period === 'custom') {
+            $startDate = $request->get('start_date')
+                ? Carbon::parse($request->get('start_date'))->startOfDay()
+                : Carbon::now()->startOfMonth();
+            $endDate = $request->get('end_date')
+                ? Carbon::parse($request->get('end_date'))->endOfDay()
+                : Carbon::now()->endOfDay();
+        } else {
+            $startDate = $this->getStartDate($period);
+            $endDate = Carbon::now();
+        }
 
         // Récupérer les magasins
         $stores = Store::all();
@@ -112,6 +123,55 @@ class BIDashboardController extends Controller
             $stockValueByStore[$store->id] = $this->calculateStockValue($store->id);
         }
 
+        // === VALEUR DU STOCK DES REVENDEURS CONSIGNMENT ===
+        $consignmentResellersStock = $this->getConsignmentResellersStockValue();
+
+        // === WALK-IN ET TAUX DE TRANSFORMATION ===
+        // On ne compte que les shifts avec visitors_count renseigné et > 0
+        $shiftsWithVisitors = Shift::whereBetween('started_at', [$startDate, $endDate])
+            ->whereNotNull('visitors_count')
+            ->where('visitors_count', '>', 0)
+            ->pluck('id');
+
+        $totalWalkIns = Shift::whereIn('id', $shiftsWithVisitors)->sum('visitors_count');
+
+        // Nombre de jours avec des shifts ayant visitors_count
+        $daysWithShifts = Shift::whereIn('id', $shiftsWithVisitors)
+            ->selectRaw('DATE(started_at) as date')
+            ->distinct()
+            ->count();
+        $averageWalkInPerDay = $daysWithShifts > 0 ? $totalWalkIns / $daysWithShifts : 0;
+
+        // Taux de transformation: ventes des shifts avec visitors / visiteurs
+        $salesFromShiftsWithVisitors = Sale::whereIn('shift_id', $shiftsWithVisitors)->count();
+        $conversionRate = $totalWalkIns > 0 ? ($salesFromShiftsWithVisitors / $totalWalkIns) * 100 : 0;
+
+        // Par magasin
+        $walkInsByStore = [];
+        $conversionRateByStore = [];
+        $averageWalkInPerDayByStore = [];
+        foreach ($stores as $store) {
+            $storeShiftsWithVisitors = Shift::where('store_id', $store->id)
+                ->whereBetween('started_at', [$startDate, $endDate])
+                ->whereNotNull('visitors_count')
+                ->where('visitors_count', '>', 0)
+                ->pluck('id');
+
+            $storeWalkIns = Shift::whereIn('id', $storeShiftsWithVisitors)->sum('visitors_count');
+            $walkInsByStore[$store->id] = $storeWalkIns;
+
+            // Jours avec shifts pour ce magasin
+            $storeDaysWithShifts = Shift::whereIn('id', $storeShiftsWithVisitors)
+                ->selectRaw('DATE(started_at) as date')
+                ->distinct()
+                ->count();
+            $averageWalkInPerDayByStore[$store->id] = $storeDaysWithShifts > 0 ? $storeWalkIns / $storeDaysWithShifts : 0;
+
+            // Ventes UNIQUEMENT des shifts avec visitors_count renseigné
+            $storeSalesFromShiftsWithVisitors = Sale::whereIn('shift_id', $storeShiftsWithVisitors)->count();
+            $conversionRateByStore[$store->id] = $storeWalkIns > 0 ? ($storeSalesFromShiftsWithVisitors / $storeWalkIns) * 100 : 0;
+        }
+
         return view('bi.dashboard', compact(
             'stores',
             'period',
@@ -137,7 +197,14 @@ class BIDashboardController extends Controller
             'salesGrowth',
             'paymentDistribution',
             'stockValue',
-            'stockValueByStore'
+            'stockValueByStore',
+            'consignmentResellersStock',
+            'totalWalkIns',
+            'averageWalkInPerDay',
+            'conversionRate',
+            'walkInsByStore',
+            'conversionRateByStore',
+            'averageWalkInPerDayByStore'
         ));
     }
 
@@ -379,5 +446,53 @@ class BIDashboardController extends Controller
 
         // Utiliser unit_price (prix d'achat) au lieu du prix de vente
         return $query->sum(DB::raw('quantity * unit_price'));
+    }
+
+    private function getConsignmentResellersStockValue(): array
+    {
+        // Récupérer tous les revendeurs de type consignment
+        $consignmentResellers = Reseller::where('type', 'consignment')->get();
+
+        $result = [];
+        $totalValue = 0;
+
+        foreach ($consignmentResellers as $reseller) {
+            // Récupérer les batches avec les produits pour calculer la valeur
+            $batches = StockBatch::where('reseller_id', $reseller->id)
+                ->where('quantity', '>', 0)
+                ->with('product')
+                ->get();
+
+            // Calculer la valeur du stock en utilisant price_btob si unit_price est 0
+            $stockValue = $batches->sum(function($batch) {
+                $price = $batch->unit_price > 0
+                    ? $batch->unit_price
+                    : ($batch->product->price_btob ?? $batch->product->price ?? 0);
+                return $batch->quantity * $price;
+            });
+
+            // Nombre de produits différents
+            $productCount = $batches->pluck('product_id')->unique()->count();
+
+            // Quantité totale
+            $totalQuantity = $batches->sum('quantity');
+
+            $result[] = [
+                'reseller' => $reseller,
+                'stock_value' => $stockValue,
+                'product_count' => $productCount,
+                'total_quantity' => $totalQuantity,
+            ];
+
+            $totalValue += $stockValue;
+        }
+
+        // Trier par valeur de stock décroissante
+        usort($result, fn($a, $b) => $b['stock_value'] <=> $a['stock_value']);
+
+        return [
+            'resellers' => $result,
+            'total_value' => $totalValue,
+        ];
     }
 }

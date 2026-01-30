@@ -68,10 +68,16 @@
                             <a href="{{ route('supplier-orders.invoiceReception', [$supplier, $order]) }}" class="btn btn-secondary">
                                 <i class="bi bi-receipt"></i> {{ __('messages.order.invoice_reception') }}
                             </a>
+                            <button type="button" class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#editQuantitiesModal">
+                                <i class="bi bi-pencil-square"></i> {{ __('messages.supplier_order.edit_received_quantities') }}
+                            </button>
                         @elseif($order->status === 'received')
                             <a href="{{ route('supplier-orders.pdf', [$supplier, $order]) }}" class="btn btn-primary">
                                 <i class="bi bi-file-earmark-pdf-fill"></i> PDF
                             </a>
+                            <button type="button" class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#editQuantitiesModal">
+                                <i class="bi bi-pencil-square"></i> {{ __('messages.supplier_order.edit_received_quantities') }}
+                            </button>
 
                             @if($supplier->isBuyer() && !$order->is_paid)
                                 <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#markAsPaidModal-{{ $order->id }}">
@@ -80,8 +86,8 @@
 
                                 {{-- Modal Mark as Paid --}}
                                 <div class="modal fade" id="markAsPaidModal-{{ $order->id }}" tabindex="-1" aria-hidden="true">
-                                    <div class="modal-dialog modal-dialog-centered" style="max-width: 400px;">
-                                        <form action="{{ route('supplier-orders.markAsPaid', [$supplier, $order]) }}" method="POST">
+                                    <div class="modal-dialog modal-dialog-centered" style="max-width: 450px;">
+                                        <form action="{{ route('supplier-orders.markAsPaid', [$supplier, $order]) }}" method="POST" enctype="multipart/form-data">
                                             @csrf
                                             <div class="modal-content">
                                                 <div class="modal-header">
@@ -95,7 +101,11 @@
                                                         </label>
                                                     </div>
                                                     <div class="mb-3">
-                                                        <label class="form-label">{{ __('messages.Méthode de paiement') }}</label>
+                                                        <label class="form-label">{{ __('messages.general_invoices.payment_date') }} <span class="text-danger">*</span></label>
+                                                        <input type="date" name="payment_date" class="form-control form-control-sm" value="{{ now()->format('Y-m-d') }}" required>
+                                                    </div>
+                                                    <div class="mb-3">
+                                                        <label class="form-label">{{ __('messages.Méthode de paiement') }} <span class="text-danger">*</span></label>
                                                         <select name="payment_method_id" class="form-select form-select-sm" required>
                                                             @foreach($paymentMethods as $method)
                                                                 <option value="{{ $method->id }}">{{ $method->name }}</option>
@@ -105,6 +115,11 @@
                                                     <div class="mb-3">
                                                         <label class="form-label">{{ __('messages.Payment reference') }}</label>
                                                         <input type="text" name="payment_reference" class="form-control form-control-sm">
+                                                    </div>
+                                                    <div class="mb-3">
+                                                        <label class="form-label">{{ __('messages.general_invoices.payment_proof') }}</label>
+                                                        <input type="file" name="payment_proof" class="form-control form-control-sm" accept=".pdf,.jpg,.jpeg,.png">
+                                                        <small class="text-muted">{{ __('messages.general_invoices.payment_proof_hint') }}</small>
                                                     </div>
                                                 </div>
                                                 <div class="modal-footer">
@@ -402,6 +417,70 @@
                     <i class="bi bi-arrow-left me-1"></i> {{ __('messages.btn.cancel') }}
                 </button>
             </div>
+        </div>
+    </div>
+</div>
+@endif
+
+{{-- Modal: Edit Received Quantities --}}
+@if(in_array($order->status, ['received', 'waiting_invoice']))
+<div class="modal fade" id="editQuantitiesModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content border-warning">
+            <form action="{{ route('supplier-orders.updateReceivedQuantities', [$supplier, $order]) }}" method="POST">
+                @csrf
+                @method('PUT')
+                <div class="modal-header bg-warning text-dark">
+                    <h5 class="modal-title">
+                        <i class="bi bi-pencil-square me-2"></i>
+                        {{ __('messages.supplier_order.edit_received_quantities') }}
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-info mb-3">
+                        <i class="bi bi-info-circle-fill me-2"></i>
+                        {{ __('messages.supplier_order.edit_quantities_warning') }}
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>EAN</th>
+                                    <th>{{ __('messages.product.name') }}</th>
+                                    <th class="text-center">{{ __('messages.quantity ordered') }}</th>
+                                    <th class="text-center">{{ __('messages.supplier_order.received_quantity') }}</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach($order->products as $product)
+                                    <tr>
+                                        <td><small class="text-muted">{{ $product->ean }}</small></td>
+                                        <td>{{ $product->name[app()->getLocale()] ?? reset($product->name) }}</td>
+                                        <td class="text-center">{{ $product->pivot->quantity_ordered }}</td>
+                                        <td style="width: 120px;">
+                                            <input type="number"
+                                                   name="products[{{ $product->id }}]"
+                                                   class="form-control form-control-sm text-center"
+                                                   value="{{ $product->pivot->quantity_received ?? 0 }}"
+                                                   min="0"
+                                                   required>
+                                        </td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="bi bi-x-circle me-1"></i> {{ __('messages.btn.cancel') }}
+                    </button>
+                    <button type="submit" class="btn btn-warning">
+                        <i class="bi bi-check-circle me-1"></i> {{ __('messages.btn.save') }}
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
 </div>

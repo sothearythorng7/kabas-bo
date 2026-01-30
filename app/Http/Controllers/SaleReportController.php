@@ -85,6 +85,21 @@ class SaleReportController extends Controller
         // Récupérer les ventes POS pour ce magasin et cette période
         $posSalesQuantities = $this->getPosSalesQuantities($store->id, $period_start, $period_end, $productIds);
 
+        // Récupérer les refills pendant la période
+        $refillQuantities = $this->getRefillQuantities($supplier->id, $store->id, $period_start, $period_end);
+
+        // Récupérer le stock actuel par produit
+        $currentStockQuantities = $this->getCurrentStockQuantities($store->id, $productIds);
+
+        // Calculer le stock initial (old_stock = stock_actuel + ventes - refills)
+        $oldStockQuantities = [];
+        foreach ($productIds as $productId) {
+            $currentStock = $currentStockQuantities[$productId] ?? 0;
+            $sales = $posSalesQuantities[$productId] ?? 0;
+            $refills = $refillQuantities[$productId] ?? 0;
+            $oldStockQuantities[$productId] = max(0, $currentStock + $sales - $refills);
+        }
+
         $hasPosSales = array_sum($posSalesQuantities) > 0;
 
         return view('sale_reports.create', compact(
@@ -94,6 +109,9 @@ class SaleReportController extends Controller
             'period_end',
             'products',
             'posSalesQuantities',
+            'refillQuantities',
+            'currentStockQuantities',
+            'oldStockQuantities',
             'hasPosSales'
         ));
     }
@@ -123,6 +141,51 @@ class SaleReportController extends Controller
         return $quantities;
     }
 
+    /**
+     * Récupère les quantités reçues via Refill pour une période et un magasin donnés
+     */
+    private function getRefillQuantities(int $supplierId, int $storeId, string $periodStart, string $periodEnd): array
+    {
+        $quantities = [];
+
+        $refills = \App\Models\Refill::where('supplier_id', $supplierId)
+            ->where('destination_store_id', $storeId)
+            ->whereDate('created_at', '>=', $periodStart)
+            ->whereDate('created_at', '<=', $periodEnd)
+            ->with('products')
+            ->get();
+
+        foreach ($refills as $refill) {
+            foreach ($refill->products as $product) {
+                $productId = $product->id;
+                $qty = $product->pivot->quantity_received ?? 0;
+                $quantities[$productId] = ($quantities[$productId] ?? 0) + $qty;
+            }
+        }
+
+        return $quantities;
+    }
+
+    /**
+     * Récupère le stock actuel par produit pour un magasin
+     */
+    private function getCurrentStockQuantities(int $storeId, array $productIds): array
+    {
+        $quantities = [];
+
+        $stocks = \App\Models\StockBatch::whereIn('product_id', $productIds)
+            ->where('store_id', $storeId)
+            ->selectRaw('product_id, SUM(quantity) as total_quantity')
+            ->groupBy('product_id')
+            ->get();
+
+        foreach ($stocks as $stock) {
+            $quantities[$stock->product_id] = (int) $stock->total_quantity;
+        }
+
+        return $quantities;
+    }
+
     public function store(Request $request, Supplier $supplier)
     {
         $request->validate([
@@ -130,29 +193,46 @@ class SaleReportController extends Controller
             'period_start' => 'required|date',
             'report_date' => 'required|date|after_or_equal:period_start',
             'products' => 'required|array',
-            'products.*.quantity_sold' => 'required|integer|min:0',
+            'products.*.old_stock' => 'required|integer|min:0',
+            'products.*.refill' => 'required|integer|min:0',
+            'products.*.stock_on_hand' => 'required|integer|min:0',
+            'products.*.quantity_sold' => 'nullable|integer|min:0',
         ]);
 
         $period_start = $request->period_start;
         $period_end = $request->report_date;
 
-        $total = 0;
+        $totalPayAmount = 0;
+        $totalSaleAmount = 0;
         $items = [];
 
         foreach ($request->products as $productId => $data) {
-            $quantity = $data['quantity_sold'] ?? 0;
-            if ($quantity > 0) {
+            $oldStock = $data['old_stock'] ?? 0;
+            $refill = $data['refill'] ?? 0;
+            $stockOnHand = $data['stock_on_hand'] ?? 0;
+            // Utiliser quantity_sold du POS si fourni, sinon calculer
+            $quantitySold = isset($data['quantity_sold']) && $data['quantity_sold'] > 0
+                ? (int) $data['quantity_sold']
+                : $oldStock + $refill - $stockOnHand;
+
+            if ($quantitySold > 0) {
                 $product = $supplier->products()->where('products.id', $productId)->first();
-                $unitPrice = $product->pivot->purchase_price ?? 0;
+                $unitPrice = $product->pivot->purchase_price ?? 0; // Cost price
+                $sellingPrice = $product->price * $quantitySold; // Total selling price
 
                 $items[] = [
                     'product_id' => $productId,
-                    'quantity_sold' => $quantity,
+                    'old_stock' => $oldStock,
+                    'refill' => $refill,
+                    'stock_on_hand' => $stockOnHand,
+                    'quantity_sold' => $quantitySold,
                     'unit_price' => $unitPrice,
-                    'total' => $unitPrice * $quantity,
+                    'selling_price' => $sellingPrice,
+                    'total' => $unitPrice * $quantitySold,
                 ];
 
-                $total += $unitPrice * $quantity;
+                $totalPayAmount += $unitPrice * $quantitySold;
+                $totalSaleAmount += $sellingPrice;
             }
         }
 
@@ -168,7 +248,7 @@ class SaleReportController extends Controller
             'period_end' => $period_end,
             'status' => 'waiting_invoice',
             'is_paid' => false,
-            'total_amount_theoretical' => $total,
+            'total_amount_theoretical' => $totalPayAmount,
         ]);
 
         foreach ($items as $item) {
@@ -178,7 +258,7 @@ class SaleReportController extends Controller
         // Génération du PDF
         $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('sale_reports.pdf', [
             'saleReport' => $saleReport->load('items.product', 'supplier', 'store')
-        ]);
+        ])->setPaper('a4', 'landscape');
 
         // Format: SUPPLIER_NAME_DDMMYYYY_DDMMYYYY.pdf
         $supplierName = Str::slug($supplier->name, '_');
@@ -357,5 +437,27 @@ class SaleReportController extends Controller
     {
         $saleReport->load('items.product');
         return view('sale_reports.show', compact('supplier', 'saleReport'));
+    }
+
+    public function regeneratePdf(Supplier $supplier, SaleReport $saleReport)
+    {
+        $saleReport->load('items.product', 'supplier', 'store');
+
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('sale_reports.pdf', [
+            'saleReport' => $saleReport
+        ])->setPaper('a4', 'landscape');
+
+        $supplierName = Str::slug($saleReport->supplier->name, '_');
+        $dateStart = $saleReport->period_start->format('dmY');
+        $dateEnd = $saleReport->period_end->format('dmY');
+        $filename = strtoupper("{$supplierName}_{$dateStart}_{$dateEnd}") . '.pdf';
+
+        $path = "sale_reports/{$filename}";
+        \Storage::disk('public')->put($path, $pdf->output());
+
+        $saleReport->update(['report_file_path' => $path]);
+
+        return redirect()->route('sale-reports.show', [$supplier, $saleReport])
+            ->with('success', 'PDF regenerated successfully.');
     }
 }

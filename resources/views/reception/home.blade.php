@@ -34,6 +34,14 @@
             @endif
         </a>
 
+        <a href="{{ route('reception.factory-orders') }}" class="btn btn-primary btn-lg">
+            <span class="btn-icon">🏭</span>
+            <span>{{ __('messages.reception.factory_orders') }}</span>
+            @if($pendingFactoryOrdersCount > 0)
+                <span class="badge badge-warning">{{ $pendingFactoryOrdersCount }}</span>
+            @endif
+        </a>
+
         <a href="{{ route('reception.transfers') }}" class="btn btn-primary btn-lg">
             <span class="btn-icon">🚚</span>
             <span>{{ __('messages.reception.stock_transfers') }}</span>

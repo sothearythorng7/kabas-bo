@@ -236,7 +236,9 @@ class SupplierOrderController extends Controller
 
     public function generatePdf(Supplier $supplier, SupplierOrder $order)
     {
-        $pdf = Pdf::loadView('supplier_orders.pdf', compact('supplier', 'order'));
+        $order->load('products.brand', 'rawMaterials');
+        $pdf = Pdf::loadView('supplier_orders.pdf', compact('supplier', 'order'))
+            ->setPaper('a4', 'landscape');
         return $pdf->download("commande_{$order->id}.pdf");
     }
 
@@ -554,15 +556,28 @@ class SupplierOrderController extends Controller
     }
 
 
-    public function markPaid(Supplier $supplier, SupplierOrder $order)
+    public function markPaid(Request $request, Supplier $supplier, SupplierOrder $order)
     {
-        // Récupération du store de destination
-        $storeId = $order->destination_store_id;
+        $request->validate([
+            'payment_date' => 'required|date',
+            'payment_method_id' => 'required|exists:financial_payment_methods,id',
+            'payment_reference' => 'nullable|string|max:255',
+            'payment_proof' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:10240',
+        ]);
+
+        // Upload de la preuve de paiement si fournie
+        $paymentProofPath = null;
+        if ($request->hasFile('payment_proof')) {
+            $paymentProofPath = $request->file('payment_proof')->store('payment_proofs', 'public');
+        }
+
+        // Récupération du store de destination (warehouse par défaut pour les matières premières)
+        $storeId = $order->destination_store_id
+            ?? Store::where('type', 'warehouse')->first()?->id;
 
         // Montant facturé
-        //$amount = $order->products->sum(fn($p) => ($p->pivot->price_invoiced ?? $p->pivot->purchase_price ?? 0) * ($p->pivot->quantity_ordered ?? 0));
         $amount = $order->invoicedAmount();
-        
+
         // Récupérer le compte 401
         $account = \App\Models\FinancialAccount::where('code', '401')->firstOrFail();
 
@@ -583,10 +598,10 @@ class SupplierOrderController extends Controller
             'balance_before' => $balanceBefore,
             'balance_after' => $balanceAfter,
             'label' => 'Paiement commande fournisseur : ' . $supplier->name,
-            'description' => "Paiement de la commande #{$order->id} pour {$supplier->name}",
+            'description' => $request->payment_reference ?? "Paiement de la commande #{$order->id} pour {$supplier->name}",
             'status' => 'validated',
-            'transaction_date' => now(),
-            'payment_method_id' => 1, // tu peux mettre la méthode par défaut si nécessaire
+            'transaction_date' => $request->payment_date,
+            'payment_method_id' => $request->payment_method_id,
             'user_id' => auth()->id(),
             'external_reference' => route('supplier-orders.show', [$supplier, $order]),
         ]);
@@ -600,8 +615,21 @@ class SupplierOrderController extends Controller
             ]);
         }
 
+        // Ajouter la preuve de paiement comme pièce jointe si elle existe
+        if ($paymentProofPath) {
+            $transaction->attachments()->create([
+                'path' => $paymentProofPath,
+                'file_type' => $request->file('payment_proof')->getMimeType(),
+                'uploaded_by' => auth()->id(),
+            ]);
+        }
+
         // Mettre à jour le statut de paiement de la commande
-        $order->update(['is_paid' => true]);
+        $order->update([
+            'is_paid' => true,
+            'paid_at' => $request->payment_date,
+            'payment_proof' => $paymentProofPath,
+        ]);
 
         return redirect()->back()->with('success', __('messages.supplier_order.marked_paid'));
     }
@@ -636,5 +664,106 @@ class SupplierOrderController extends Controller
 
         return redirect()->route('supplier-orders.show', [$supplier, $order])
             ->with('success', __('messages.supplier_order.reverted_to_pending'));
+    }
+
+    /**
+     * Update received quantities for a received order
+     * This also updates the corresponding stock batches
+     */
+    public function updateReceivedQuantities(Request $request, Supplier $supplier, SupplierOrder $order)
+    {
+        // Only allow for received or waiting_invoice orders
+        if (!in_array($order->status, ['received', 'waiting_invoice'])) {
+            return redirect()->back()->with('error', __('messages.supplier_order.cannot_update_quantities'));
+        }
+
+        $request->validate([
+            'products' => 'required|array',
+            'products.*' => 'required|integer|min:0',
+        ]);
+
+        $store = Store::find($order->destination_store_id);
+        if (!$store) {
+            return redirect()->back()->with('error', __('messages.supplier_order.store_not_found'));
+        }
+
+        $order->load('products');
+
+        foreach ($request->input('products', []) as $productId => $newQuantity) {
+            $newQuantity = (int) $newQuantity;
+
+            $product = $order->products->find($productId);
+            if (!$product) continue;
+
+            $oldQuantity = (int) ($product->pivot->quantity_received ?? 0);
+            $delta = $newQuantity - $oldQuantity;
+
+            // Skip if no change
+            if ($delta === 0) continue;
+
+            // Update the pivot table
+            $order->products()->updateExistingPivot($productId, [
+                'quantity_received' => $newQuantity,
+            ]);
+
+            // Find the stock batch for this order and product
+            $batch = StockBatch::where('source_supplier_order_id', $order->id)
+                ->where('product_id', $productId)
+                ->first();
+
+            if ($batch) {
+                // Update batch quantity
+                $newBatchQuantity = $batch->quantity + $delta;
+
+                // Prevent negative stock
+                if ($newBatchQuantity < 0) {
+                    return redirect()->back()->with('error',
+                        __('messages.supplier_order.insufficient_stock', ['product' => $product->name[app()->getLocale()] ?? reset($product->name)])
+                    );
+                }
+
+                $batch->update(['quantity' => $newBatchQuantity]);
+
+                // Create stock transaction for audit trail
+                StockTransaction::create([
+                    'stock_batch_id'    => $batch->id,
+                    'store_id'          => $store->id,
+                    'product_id'        => $productId,
+                    'type'              => $delta > 0 ? 'in' : 'out',
+                    'quantity'          => abs($delta),
+                    'reason'            => 'reception_correction',
+                    'supplier_id'       => $supplier->id,
+                    'supplier_order_id' => $order->id,
+                ]);
+            } else {
+                // If no batch exists and we're adding quantity, create one
+                if ($newQuantity > 0) {
+                    $unitPrice = $product->pivot->invoice_price ?? $product->pivot->purchase_price ?? 0;
+
+                    $batch = StockBatch::create([
+                        'product_id'               => $productId,
+                        'store_id'                 => $store->id,
+                        'reseller_id'              => null,
+                        'quantity'                 => $newQuantity,
+                        'unit_price'               => $unitPrice,
+                        'source_supplier_order_id' => $order->id,
+                    ]);
+
+                    StockTransaction::create([
+                        'stock_batch_id'    => $batch->id,
+                        'store_id'          => $store->id,
+                        'product_id'        => $productId,
+                        'type'              => 'in',
+                        'quantity'          => $newQuantity,
+                        'reason'            => 'reception_correction',
+                        'supplier_id'       => $supplier->id,
+                        'supplier_order_id' => $order->id,
+                    ]);
+                }
+            }
+        }
+
+        return redirect()->route('supplier-orders.show', [$supplier, $order])
+            ->with('success', __('messages.supplier_order.quantities_updated'));
     }
 }

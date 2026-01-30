@@ -86,6 +86,9 @@ class DashboardController extends Controller
         // Produits sans catégorie
         $productsWithoutCategories = Product::whereDoesntHave('categories')->count();
 
+        // Produits inactifs
+        $inactiveProducts = Product::where('is_active', false)->count();
+
         // C.A. du jour sélectionné par magasin
         $startOfDay = $selectedDate->copy()->startOfDay();
         $endOfDay = $selectedDate->copy()->endOfDay();
@@ -172,6 +175,7 @@ class DashboardController extends Controller
             'productsOutOfStock',
             'productsWithFakeOrEmptyEan',
             'productsWithoutCategories',
+            'inactiveProducts',
             'revenueSiemReapDaily',
             'salesCountSiemReapDaily',
             'revenueSiemReapMonthly',
@@ -228,6 +232,10 @@ class DashboardController extends Controller
 
             case 'no_category':
                 $query->whereDoesntHave('categories');
+                break;
+
+            case 'inactive':
+                $query->where('is_active', false);
                 break;
 
             case 'all':
@@ -287,6 +295,11 @@ class DashboardController extends Controller
                 $issues[] = 'no_category';
             }
 
+            // Vérifier si le produit est inactif
+            if (!$product->is_active) {
+                $issues[] = 'inactive';
+            }
+
             $product->issues = $issues;
             return $product;
         });
@@ -322,7 +335,7 @@ class DashboardController extends Controller
                 // Calculer les réductions au niveau article
                 if (!empty($item->discounts)) {
                     foreach ($item->discounts as $discount) {
-                        if (($discount['type'] ?? '') === 'percentage') {
+                        if (($discount['type'] ?? '') === 'percent') {
                             $saleItemDiscounts += $itemTotal * (($discount['value'] ?? 0) / 100);
                         } else {
                             $saleItemDiscounts += ($discount['value'] ?? 0);
@@ -336,7 +349,7 @@ class DashboardController extends Controller
             if (!empty($sale->discounts)) {
                 $subtotal = $saleBeforeDiscount - $saleItemDiscounts;
                 foreach ($sale->discounts as $discount) {
-                    if (($discount['type'] ?? '') === 'percentage') {
+                    if (($discount['type'] ?? '') === 'percent') {
                         $saleDiscounts += $subtotal * (($discount['value'] ?? 0) / 100);
                     } else {
                         $saleDiscounts += ($discount['value'] ?? 0);

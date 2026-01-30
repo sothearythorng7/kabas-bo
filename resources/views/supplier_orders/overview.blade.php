@@ -221,8 +221,8 @@
                                     </tr>
                                     {{-- Modal Mark as Paid --}}
                                     <div class="modal fade" id="markAsPaidModal-{{ $order->id }}" tabindex="-1" aria-hidden="true">
-                                        <div class="modal-dialog modal-dialog-centered" style="max-width: 400px;">
-                                            <form action="{{ route('supplier-orders.markAsPaid', [$order->supplier, $order]) }}" method="POST">
+                                        <div class="modal-dialog modal-dialog-centered" style="max-width: 450px;">
+                                            <form action="{{ route('supplier-orders.markAsPaid', [$order->supplier, $order]) }}" method="POST" enctype="multipart/form-data">
                                                 @csrf
                                                 <div class="modal-content">
                                                     <div class="modal-header">
@@ -232,12 +232,16 @@
                                                     <div class="modal-body">
                                                         <div class="mb-3">
                                                             <label class="form-label">
-                                                                {{ __('messages.Amount paid') }} : 
+                                                                {{ __('messages.Amount paid') }} :
                                                                 <strong>${{ $order->invoicedAmount() }}</strong>
                                                             </label>
                                                         </div>
                                                         <div class="mb-3">
-                                                            <label class="form-label">{{ __('messages.Methodes_de_paiement') }}</label>
+                                                            <label class="form-label">{{ __('messages.general_invoices.payment_date') }} <span class="text-danger">*</span></label>
+                                                            <input type="date" name="payment_date" class="form-control form-control-sm" value="{{ now()->format('Y-m-d') }}" required>
+                                                        </div>
+                                                        <div class="mb-3">
+                                                            <label class="form-label">{{ __('messages.Méthode de paiement') }} <span class="text-danger">*</span></label>
                                                             <select name="payment_method_id" class="form-select form-select-sm" required>
                                                                 @foreach($paymentMethods as $method)
                                                                     <option value="{{ $method->id }}">{{ $method->name }}</option>
@@ -247,6 +251,11 @@
                                                         <div class="mb-3">
                                                             <label class="form-label">{{ __('messages.Payment reference') }}</label>
                                                             <input type="text" name="payment_reference" class="form-control form-control-sm">
+                                                        </div>
+                                                        <div class="mb-3">
+                                                            <label class="form-label">{{ __('messages.general_invoices.payment_proof') }}</label>
+                                                            <input type="file" name="payment_proof" class="form-control form-control-sm" accept=".pdf,.jpg,.jpeg,.png">
+                                                            <small class="text-muted">{{ __('messages.general_invoices.payment_proof_hint') }}</small>
                                                         </div>
                                                     </div>
                                                     <div class="modal-footer">
@@ -302,6 +311,7 @@
                             <thead>
                                 <tr>
                                     <th></th>
+                                    <th>{{ __('messages.supplier.name') }}</th>
                                     <th>{{ __('messages.store.name') }}</th>
                                     <th>{{ __('messages.Periode') }}</th>
                                     <th>{{ __('messages.Theoretical amount') }}</th>
@@ -342,6 +352,7 @@
                                             </div>
                                         </td>
 
+                                        <td>{{ $report->supplier->name }}</td>
                                         <td>{{ $report->store->name }}</td>
                                         <td>{{ $report->period_start->format('d/m/Y') }} - {{ $report->period_end->format('d/m/Y') }}</td>
                                         <td>${{ number_format($report->total_amount_theoretical, 2) }}</td>
@@ -359,8 +370,8 @@
 
                                     {{-- Modal Mark as Paid Sale Report --}}
                                     <div class="modal fade" id="markAsPaidModalSR-{{ $report->id }}" tabindex="-1" aria-hidden="true">
-                                        <div class="modal-dialog modal-dialog-centered" style="max-width: 400px;">
-                                            <form action="{{ route('sale-reports.markAsPaid', [$report->supplier, $report]) }}" method="POST">
+                                        <div class="modal-dialog modal-dialog-centered" style="max-width: 450px;">
+                                            <form action="{{ route('sale-reports.markAsPaid', [$report->supplier, $report]) }}" method="POST" enctype="multipart/form-data">
                                                 @csrf
                                                 <div class="modal-content">
                                                     <div class="modal-header">
@@ -370,11 +381,14 @@
                                                     <div class="modal-body">
                                                         <div class="mb-3">
                                                             <label class="form-label">{{ __('messages.Amount paid') }} : <strong>${{ $report->total_amount_invoiced }}</strong></label>
-                                                           
                                                         </div>
                                                         <div class="mb-3">
-                                                            <label class="form-label">{{ __('messages.Methodes_de_paiement') }}</label>
-                                                            <select name="payment_method_id" class="form-select" required>
+                                                            <label class="form-label">{{ __('messages.general_invoices.payment_date') }} <span class="text-danger">*</span></label>
+                                                            <input type="date" name="payment_date" class="form-control form-control-sm" value="{{ now()->format('Y-m-d') }}" required>
+                                                        </div>
+                                                        <div class="mb-3">
+                                                            <label class="form-label">{{ __('messages.Méthode de paiement') }} <span class="text-danger">*</span></label>
+                                                            <select name="payment_method_id" class="form-select form-select-sm" required>
                                                                 @foreach($paymentMethods as $method)
                                                                     <option value="{{ $method->id }}">{{ $method->name }}</option>
                                                                 @endforeach
@@ -382,12 +396,17 @@
                                                         </div>
                                                         <div class="mb-3">
                                                             <label class="form-label">{{ __('messages.Payment reference') }}</label>
-                                                            <input type="text" name="payment_reference" class="form-control">
+                                                            <input type="text" name="payment_reference" class="form-control form-control-sm">
+                                                        </div>
+                                                        <div class="mb-3">
+                                                            <label class="form-label">{{ __('messages.general_invoices.payment_proof') }}</label>
+                                                            <input type="file" name="payment_proof" class="form-control form-control-sm" accept=".pdf,.jpg,.jpeg,.png">
+                                                            <small class="text-muted">{{ __('messages.general_invoices.payment_proof_hint') }}</small>
                                                         </div>
                                                     </div>
                                                     <div class="modal-footer">
-                                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ __('messages.btn.cancel') }}</button>
-                                                        <button type="submit" class="btn btn-success">{{ __('messages.Confirm payment') }}</button>
+                                                        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">{{ __('messages.btn.cancel') }}</button>
+                                                        <button type="submit" class="btn btn-success btn-sm">{{ __('messages.Confirm payment') }}</button>
                                                     </div>
                                                 </div>
                                             </form>

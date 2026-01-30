@@ -15,6 +15,9 @@ use App\Models\StockBatch;
 use App\Models\StockTransaction;
 use App\Models\FinancialAccount;
 use App\Models\FinancialTransaction;
+use App\Models\GiftBox;
+use App\Models\GiftCard;
+use App\Models\GiftCardCode;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -109,7 +112,9 @@ class SyncController extends Controller
             'sales.*.split_payments.*.voucher_code' => 'nullable|string',
             'sales.*.voucher_code' => 'nullable|string',
             'sales.*.items' => 'required|array|min:1',
-            'sales.*.items.*.product_id' => 'nullable|exists:products,id',
+            'sales.*.items.*.product_id' => 'nullable',
+            'sales.*.items.*.original_id' => 'nullable|integer',
+            'sales.*.items.*.type' => 'nullable|string|in:product,gift_box,gift_card',
             'sales.*.items.*.quantity' => 'required|integer|min:1',
             'sales.*.items.*.price' => 'required|numeric',
             'sales.*.items.*.discounts' => 'nullable|array',
@@ -117,6 +122,7 @@ class SyncController extends Controller
             'sales.*.items.*.delivery_address' => 'nullable|string',
             'sales.*.items.*.is_custom_service' => 'nullable|boolean',
             'sales.*.items.*.custom_service_description' => 'nullable|string',
+            'sales.*.items.*.generated_code' => 'nullable|string|max:20', // Code carte cadeau généré côté client
         ]);
 
         $shift   = Shift::findOrFail($data['shift_id']);
@@ -146,46 +152,21 @@ class SyncController extends Controller
 
             foreach ($data['sales'] as $saleData) {
                 $calculatedTotal = $this->calculateSaleTotal($saleData);
+                $posLocalId = (string) $saleData['id'];
 
                 // Protection anti-doublon: vérifier si cette vente a déjà été synchronisée
-                // On cherche une vente avec le même shift_id, même total, créée dans les 2 dernières minutes
-                // puis on compare les product_ids des items
-                $itemProductIds = collect($saleData['items'])
-                    ->pluck('product_id')
-                    ->filter()
-                    ->sort()
-                    ->values()
-                    ->toJson();
-
-                $potentialDuplicates = Sale::with('items:id,sale_id,product_id')
-                    ->where('shift_id', $shift->id)
-                    ->where('total', $calculatedTotal)
-                    ->where('created_at', '>=', now()->subMinutes(2))
-                    ->get();
-
-                $existingSale = $potentialDuplicates->first(function ($sale) use ($itemProductIds, $saleData) {
-                    // Vérifier que le nombre d'items correspond
-                    if ($sale->items->count() !== count($saleData['items'])) {
-                        return false;
-                    }
-                    // Comparer les product_ids triés
-                    $saleProductIds = $sale->items
-                        ->pluck('product_id')
-                        ->filter()
-                        ->sort()
-                        ->values()
-                        ->toJson();
-                    return $saleProductIds === $itemProductIds;
-                });
+                // via l'identifiant unique généré côté POS
+                $existingSale = Sale::where('shift_id', $shift->id)
+                    ->where('pos_local_id', $posLocalId)
+                    ->first();
 
                 if ($existingSale) {
-                    Log::info("Doublon détecté - vente ignorée", [
+                    Log::info("Doublon détecté via pos_local_id - vente ignorée", [
                         'existing_sale_id' => $existingSale->id,
                         'shift_id' => $shift->id,
-                        'total' => $calculatedTotal,
-                        'pos_local_id' => $saleData['id'],
+                        'pos_local_id' => $posLocalId,
                     ]);
-                    $syncedSales[] = $saleData['id']; // On retourne quand même l'ID pour que le POS marque la vente comme synchronisée
+                    $syncedSales[] = $saleData['id'];
                     continue;
                 }
 
@@ -193,6 +174,7 @@ class SyncController extends Controller
                 $sale = Sale::create([
                     'shift_id'   => $shift->id,
                     'store_id'   => $storeId,
+                    'pos_local_id' => $posLocalId,
                     'payment_type' => $saleData['payment_type'],
                     'total'        => $calculatedTotal,
                     'discounts'    => $saleData['discounts'] ?? [],
@@ -201,14 +183,28 @@ class SyncController extends Controller
                 ]);
 
                 // 2) Items + décrément FIFO + transaction stock
+                $generatedGiftCardCodes = [];
+
                 foreach ($saleData['items'] as $itemData) {
                     // Check if this is a delivery service item or custom service
                     $isDelivery = $itemData['is_delivery'] ?? false;
                     $isCustomService = $itemData['is_custom_service'] ?? false;
+                    $itemType = $itemData['type'] ?? 'product';
+                    $originalId = $itemData['original_id'] ?? null;
 
-                    SaleItem::create([
+                    // Protection: nettoyer product_id corrompu pour gift_box/gift_card
+                    // (cas où le frontend envoie 'giftcard_1' ou 'giftbox_1' comme product_id)
+                    if (isset($itemData['product_id']) && is_string($itemData['product_id'])) {
+                        if (str_starts_with($itemData['product_id'], 'giftcard_') ||
+                            str_starts_with($itemData['product_id'], 'giftbox_')) {
+                            $itemData['product_id'] = null;
+                        }
+                    }
+
+                    // Préparer les données du SaleItem
+                    $saleItemData = [
                         'sale_id'   => $sale->id,
-                        'product_id'=> $itemData['product_id'],
+                        'item_type' => $itemType,
                         'quantity'  => $itemData['quantity'],
                         'price'     => $itemData['price'],
                         'discounts' => $itemData['discounts'] ?? [],
@@ -216,53 +212,109 @@ class SyncController extends Controller
                         'delivery_address' => $isDelivery ? ($itemData['delivery_address'] ?? null) : null,
                         'is_custom_service' => $isCustomService,
                         'custom_service_description' => $isCustomService ? ($itemData['custom_service_description'] ?? null) : null,
-                    ]);
+                    ];
 
-                    // Skip stock management for delivery and custom service items
-                    if ($isDelivery || $isCustomService) {
-                        continue;
-                    }
+                    // Gérer selon le type d'article
+                    if ($itemType === 'gift_box') {
+                        // Coffret cadeau
+                        $saleItemData['gift_box_id'] = $originalId;
+                        $saleItemData['product_id'] = null;
 
-                    // Décrémentation FIFO et mouvements de stock
-                    $remainingQty = $itemData['quantity'];
+                        SaleItem::create($saleItemData);
+                        // Pas de décrémentation de stock pour les coffrets (stock virtuel)
 
-                    $batches = StockBatch::where('store_id', $storeId)
-                        ->where('product_id', $itemData['product_id'])
-                        ->where('quantity', '>', 0)
-                        ->orderBy('created_at', 'asc')
-                        ->lockForUpdate() // éviter les courses
-                        ->get();
+                    } elseif ($itemType === 'gift_card') {
+                        // Carte cadeau - utiliser le code fourni par le client ou en générer un
+                        $saleItemData['gift_card_id'] = $originalId;
+                        $saleItemData['product_id'] = null;
 
-                    foreach ($batches as $batch) {
-                        if ($remainingQty <= 0) break;
+                        // Créer un code cadeau pour chaque unité vendue
+                        for ($i = 0; $i < $itemData['quantity']; $i++) {
+                            $codeData = [
+                                'gift_card_id' => $originalId,
+                                'original_amount' => $itemData['price'],
+                                'remaining_amount' => $itemData['price'],
+                                'is_active' => true,
+                            ];
 
-                        $deduct = min($batch->quantity, $remainingQty);
-                        if ($deduct <= 0) continue;
+                            // Utiliser le code fourni par le client s'il existe
+                            // (pour les nouvelles ventes avec code pré-généré)
+                            if (!empty($itemData['generated_code'])) {
+                                $codeData['code'] = $itemData['generated_code'];
+                            }
 
-                        // update quantités
-                        $batch->decrement('quantity', $deduct);
+                            $giftCardCode = GiftCardCode::create($codeData);
+                            $generatedGiftCardCodes[] = $giftCardCode;
 
-                        StockTransaction::create([
-                            'stock_batch_id' => $batch->id,
-                            'store_id'       => $storeId,
-                            'product_id'     => $itemData['product_id'],
-                            'type'           => 'out',
-                            'quantity'       => $deduct,
-                            'reason'         => 'sale',
-                            'sale_id'        => $sale->id,
-                            'shift_id'       => $shift->id,
+                            // Pour le premier code, on l'associe au SaleItem
+                            if ($i === 0) {
+                                $saleItemData['generated_gift_card_code_id'] = $giftCardCode->id;
+                            }
+                        }
+
+                        SaleItem::create($saleItemData);
+                        // Pas de décrémentation de stock pour les cartes cadeau
+
+                        Log::info("Gift card codes created for sale", [
+                            'sale_id' => $sale->id,
+                            'gift_card_id' => $originalId,
+                            'quantity' => $itemData['quantity'],
+                            'codes' => collect($generatedGiftCardCodes)->pluck('code')->toArray(),
+                            'client_provided_code' => $itemData['generated_code'] ?? null,
                         ]);
 
-                        $remainingQty -= $deduct;
-                    }
+                    } else {
+                        // Produit standard
+                        $saleItemData['product_id'] = $itemData['product_id'];
 
-                    if ($remainingQty > 0) {
-                        Log::warning("Stock insuffisant pour la vente", [
-                            'store_id'   => $storeId,
-                            'product_id' => $itemData['product_id'],
-                            'missing'    => $remainingQty,
-                            'sale_id'    => $sale->id,
-                        ]);
+                        SaleItem::create($saleItemData);
+
+                        // Skip stock management for delivery and custom service items
+                        if ($isDelivery || $isCustomService) {
+                            continue;
+                        }
+
+                        // Décrémentation FIFO et mouvements de stock
+                        $remainingQty = $itemData['quantity'];
+
+                        $batches = StockBatch::where('store_id', $storeId)
+                            ->where('product_id', $itemData['product_id'])
+                            ->where('quantity', '>', 0)
+                            ->orderBy('created_at', 'asc')
+                            ->lockForUpdate() // éviter les courses
+                            ->get();
+
+                        foreach ($batches as $batch) {
+                            if ($remainingQty <= 0) break;
+
+                            $deduct = min($batch->quantity, $remainingQty);
+                            if ($deduct <= 0) continue;
+
+                            // update quantités
+                            $batch->decrement('quantity', $deduct);
+
+                            StockTransaction::create([
+                                'stock_batch_id' => $batch->id,
+                                'store_id'       => $storeId,
+                                'product_id'     => $itemData['product_id'],
+                                'type'           => 'out',
+                                'quantity'       => $deduct,
+                                'reason'         => 'sale',
+                                'sale_id'        => $sale->id,
+                                'shift_id'       => $shift->id,
+                            ]);
+
+                            $remainingQty -= $deduct;
+                        }
+
+                        if ($remainingQty > 0) {
+                            Log::warning("Stock insuffisant pour la vente", [
+                                'store_id'   => $storeId,
+                                'product_id' => $itemData['product_id'],
+                                'missing'    => $remainingQty,
+                                'sale_id'    => $sale->id,
+                            ]);
+                        }
                     }
                 }
 
@@ -420,10 +472,11 @@ class SyncController extends Controller
                       ->orderBy('sort_order');
                 },
                 'primaryImage:id,product_id,path,is_primary,sort_order',
+                'barcodes:id,product_id,barcode,type,is_primary',
             ])
             ->get();
 
-        // 3) Mapper sans changer la structure JSON
+        // 3) Mapper les produits
         $productsJson = $products->map(function ($product) use ($defaultPhoto, $publicBase, $stockByProduct) {
             // Catégories
             $categories = $product->categories->map(function ($cat) {
@@ -458,9 +511,20 @@ class SyncController extends Controller
                 ]];
             }
 
+            // Barcodes (tous les codes-barres du produit)
+            $barcodes = $product->barcodes->map(function ($bc) {
+                return [
+                    'barcode' => $bc->barcode,
+                    'type' => $bc->type,
+                    'is_primary' => $bc->is_primary,
+                ];
+            })->values()->all();
+
             return [
                 'id'          => $product->id,
+                'type'        => 'product',
                 'ean'         => $product->ean,
+                'barcodes'    => $barcodes,
                 'name'        => $product->name,
                 'description' => $product->description,
                 'slugs'       => $product->slugs,
@@ -476,7 +540,131 @@ class SyncController extends Controller
             ];
         });
 
-        // 4) Arborescence des catégories en 1 passe (même structure que l’ancienne)
+        // 4) Charger les GiftBoxes actives
+        $giftBoxes = GiftBox::query()
+            ->select(['id', 'ean', 'name', 'description', 'slugs', 'price', 'price_btob', 'brand_id', 'is_active'])
+            ->where('is_active', true)
+            ->with([
+                'brand:id,name',
+                'categories:id,parent_id',
+                'categories.parent:id,parent_id',
+                'categories.translations:id,category_id,locale,name',
+                'images' => function ($q) {
+                    $q->select('id', 'gift_box_id', 'path', 'is_primary', 'sort_order')
+                      ->orderByDesc('is_primary')
+                      ->orderBy('sort_order');
+                },
+                'primaryImage:id,gift_box_id,path,is_primary,sort_order',
+            ])
+            ->get();
+
+        $giftBoxesJson = $giftBoxes->map(function ($giftBox) use ($defaultPhoto, $publicBase) {
+            // Catégories
+            $categories = $giftBox->categories->map(function ($cat) {
+                $name = optional($cat->translation())->name ?? ('Cat' . $cat->id);
+                return [
+                    'id'        => $cat->id,
+                    'name'      => $name,
+                    'slug'      => $cat->slug('en') ?? null,
+                    'parent_id' => $cat->parent?->id ?? 0,
+                ];
+            });
+
+            // Photos
+            if ($giftBox->images->count()) {
+                $photos = $giftBox->images->map(function ($img) use ($publicBase) {
+                    $path = ltrim($img->path ?? '', '/');
+                    return [
+                        'id'         => $img->id,
+                        'path'       => $path ?: null,
+                        'url'        => $path ? ($publicBase . '/' . $path) : null,
+                        'is_primary' => (bool) ($img->is_primary ?? false),
+                        'sort_order' => (int) ($img->sort_order ?? 0),
+                    ];
+                })->values()->all();
+            } else {
+                $photos = [[
+                    'id'         => 0,
+                    'path'       => null,
+                    'url'        => $defaultPhoto,
+                    'is_primary' => true,
+                    'sort_order' => 0,
+                ]];
+            }
+
+            return [
+                'id'          => 'giftbox_' . $giftBox->id,
+                'original_id' => $giftBox->id,
+                'type'        => 'gift_box',
+                'ean'         => $giftBox->ean,
+                'name'        => $giftBox->name,
+                'description' => $giftBox->description,
+                'slugs'       => $giftBox->slugs,
+                'price'       => $giftBox->price,
+                'price_btob'  => $giftBox->price_btob,
+                'brand'       => $giftBox->brand ? [
+                    'id'   => $giftBox->brand->id,
+                    'name' => $giftBox->brand->name,
+                ] : null,
+                'categories'  => $categories,
+                'photos'      => $photos,
+                'total_stock' => 999, // Stock virtuel illimité pour les coffrets
+            ];
+        });
+
+        // 5) Charger les GiftCards actives
+        $giftCards = GiftCard::query()
+            ->select(['id', 'name', 'description', 'amount', 'is_active'])
+            ->where('is_active', true)
+            ->with([
+                'categories:id,parent_id',
+                'categories.parent:id,parent_id',
+                'categories.translations:id,category_id,locale,name',
+            ])
+            ->get();
+
+        $giftCardsJson = $giftCards->map(function ($giftCard) use ($defaultPhoto) {
+            // Catégories
+            $categories = $giftCard->categories->map(function ($cat) {
+                $name = optional($cat->translation())->name ?? ('Cat' . $cat->id);
+                return [
+                    'id'        => $cat->id,
+                    'name'      => $name,
+                    'slug'      => $cat->slug('en') ?? null,
+                    'parent_id' => $cat->parent?->id ?? 0,
+                ];
+            });
+
+            return [
+                'id'          => 'giftcard_' . $giftCard->id,
+                'original_id' => $giftCard->id,
+                'type'        => 'gift_card',
+                'ean'         => null,
+                'name'        => $giftCard->name,
+                'description' => $giftCard->description,
+                'slugs'       => null,
+                'price'       => $giftCard->amount,
+                'price_btob'  => null,
+                'brand'       => null,
+                'categories'  => $categories,
+                'photos'      => [[
+                    'id'         => 0,
+                    'path'       => null,
+                    'url'        => 'https://thedropstore.com/cdn/shop/products/GIFT_CARD_600_1024x.jpg?v=1582014610',
+                    'is_primary' => true,
+                    'sort_order' => 0,
+                ]],
+                'total_stock' => 999, // Stock virtuel illimité pour les cartes cadeau
+            ];
+        });
+
+        // 6) Fusionner tous les articles
+        $allItems = $productsJson
+            ->concat($giftBoxesJson)
+            ->concat($giftCardsJson)
+            ->values();
+
+        // 7) Arborescence des catégories en 1 passe
         $categoriesTree = $this->categoryTreeFast();
 
         return response()->json([
@@ -485,7 +673,7 @@ class SyncController extends Controller
                 'name' => $store->name,
             ],
             'paymentsMethod' => FinancialPaymentMethod::select('id','code','name')->get(),
-            'products'       => $productsJson,
+            'products'       => $allItems,
             'category_tree'  => $categoriesTree,
         ]);
     }
@@ -575,7 +763,7 @@ class SyncController extends Controller
     }
 
     /**
-     * Recherche de produits via Meilisearch pour le POS
+     * Recherche de produits, coffrets et cartes cadeaux via Meilisearch pour le POS
      */
     public function search(Request $request, $storeId)
     {
@@ -585,6 +773,13 @@ class SyncController extends Controller
 
         $query = $request->input('q');
         $limit = $request->input('limit', 20);
+
+        // Préparer les variantes de recherche (avec et sans 0 initial pour EAN-13)
+        $searchVariants = [$query];
+        if (preg_match('/^\d{12}$/', $query)) {
+            // Si 12 chiffres, essayer avec un 0 devant (EAN-13 tronqué par le scanner)
+            $searchVariants[] = '0' . $query;
+        }
 
         // URL de fallback si un produit n'a pas de photo
         $defaultPhoto = url('images/no_picture.jpg');
@@ -599,31 +794,47 @@ class SyncController extends Controller
 
         // Recherche via Meilisearch si disponible
         if (Config::get('scout.driver') === 'meilisearch') {
-            $products = Product::search($query)
+            // Essayer toutes les variantes avec Meilisearch
+            $products = collect();
+            foreach ($searchVariants as $variant) {
+                $results = Product::search($variant)
+                    ->take($limit)
+                    ->get();
+                $products = $products->merge($results);
+            }
+            $products = $products->unique('id')
                 ->take($limit)
-                ->get()
-                ->load(['brand:id,name', 'primaryImage:id,product_id,path']);
+                ->load(['brand:id,name', 'primaryImage:id,product_id,path', 'barcodes:id,product_id,barcode']);
         } else {
-            // Fallback SQL
+            // Fallback SQL - chercher dans ean, name ET product_barcodes
             $products = Product::query()
-                ->where(function ($q) use ($query) {
-                    $q->where('ean', 'like', "%{$query}%")
-                      ->orWhere('name->fr', 'like', "%{$query}%")
-                      ->orWhere('name->en', 'like', "%{$query}%");
+                ->where(function ($q) use ($searchVariants) {
+                    foreach ($searchVariants as $variant) {
+                        $q->orWhere('ean', 'like', "%{$variant}%");
+                    }
+                    $q->orWhere('name->fr', 'like', "%{$searchVariants[0]}%")
+                      ->orWhere('name->en', 'like', "%{$searchVariants[0]}%")
+                      ->orWhereHas('barcodes', function ($bq) use ($searchVariants) {
+                          foreach ($searchVariants as $variant) {
+                              $bq->orWhere('barcode', 'like', "%{$variant}%");
+                          }
+                      });
                 })
-                ->with(['brand:id,name', 'primaryImage:id,product_id,path'])
+                ->with(['brand:id,name', 'primaryImage:id,product_id,path', 'barcodes:id,product_id,barcode'])
                 ->limit($limit)
                 ->get();
         }
 
-        // Formater la réponse
-        $results = $products->map(function ($product) use ($defaultPhoto, $publicBase, $stockByProduct) {
+        // Formater les produits
+        $productResults = $products->map(function ($product) use ($defaultPhoto, $publicBase, $stockByProduct) {
             $imagePath = $product->primaryImage?->path;
             $imageUrl = $imagePath ? ($publicBase . '/' . ltrim($imagePath, '/')) : $defaultPhoto;
 
             return [
                 'id'          => $product->id,
+                'type'        => 'product',
                 'ean'         => $product->ean,
+                'barcodes'    => $product->barcodes->pluck('barcode')->toArray(),
                 'name'        => $product->name,
                 'price'       => $product->price,
                 'brand'       => $product->brand ? [
@@ -634,6 +845,69 @@ class SyncController extends Controller
                 'total_stock' => (int) ($stockByProduct[$product->id] ?? 0),
             ];
         });
+
+        // Recherche dans les GiftBoxes
+        $giftBoxes = GiftBox::query()
+            ->where('is_active', true)
+            ->where(function ($q) use ($query) {
+                $q->where('ean', 'like', "%{$query}%")
+                  ->orWhere('name->fr', 'like', "%{$query}%")
+                  ->orWhere('name->en', 'like', "%{$query}%");
+            })
+            ->with(['brand:id,name', 'primaryImage:id,gift_box_id,path'])
+            ->limit($limit)
+            ->get();
+
+        $giftBoxResults = $giftBoxes->map(function ($giftBox) use ($defaultPhoto, $publicBase) {
+            $imagePath = $giftBox->primaryImage?->path;
+            $imageUrl = $imagePath ? ($publicBase . '/' . ltrim($imagePath, '/')) : $defaultPhoto;
+
+            return [
+                'id'          => 'giftbox_' . $giftBox->id,
+                'original_id' => $giftBox->id,
+                'type'        => 'gift_box',
+                'ean'         => $giftBox->ean,
+                'name'        => $giftBox->name,
+                'price'       => $giftBox->price,
+                'brand'       => $giftBox->brand ? [
+                    'id'   => $giftBox->brand->id,
+                    'name' => $giftBox->brand->name,
+                ] : null,
+                'image_url'   => $imageUrl,
+                'total_stock' => 999,
+            ];
+        });
+
+        // Recherche dans les GiftCards
+        $giftCards = GiftCard::query()
+            ->where('is_active', true)
+            ->where(function ($q) use ($query) {
+                $q->where('name->fr', 'like', "%{$query}%")
+                  ->orWhere('name->en', 'like', "%{$query}%");
+            })
+            ->limit($limit)
+            ->get();
+
+        $giftCardResults = $giftCards->map(function ($giftCard) {
+            return [
+                'id'          => 'giftcard_' . $giftCard->id,
+                'original_id' => $giftCard->id,
+                'type'        => 'gift_card',
+                'ean'         => null,
+                'name'        => $giftCard->name,
+                'price'       => $giftCard->amount,
+                'brand'       => null,
+                'image_url'   => 'https://thedropstore.com/cdn/shop/products/GIFT_CARD_600_1024x.jpg?v=1582014610',
+                'total_stock' => 999,
+            ];
+        });
+
+        // Fusionner tous les résultats
+        $results = $productResults
+            ->concat($giftBoxResults)
+            ->concat($giftCardResults)
+            ->take($limit)
+            ->values();
 
         return response()->json([
             'query'   => $query,

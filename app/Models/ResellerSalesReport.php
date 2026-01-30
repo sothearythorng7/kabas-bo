@@ -8,12 +8,22 @@ use Illuminate\Database\Eloquent\Model;
 class ResellerSalesReport extends Model
 {
     protected $fillable = [
-        'reseller_id','store_id',
+        'reseller_id', 'store_id', 'start_date', 'end_date',
+    ];
+
+    protected $casts = [
+        'start_date' => 'date',
+        'end_date' => 'date',
     ];
 
     public function reseller()
     {
         return $this->belongsTo(Reseller::class);
+    }
+
+    public function store()
+    {
+        return $this->belongsTo(Store::class);
     }
 
     public function items()

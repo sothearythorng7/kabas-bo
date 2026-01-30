@@ -553,9 +553,65 @@ public function update(Request $request, Product $product)
         return back()->with('success', __('messages.product.primary_photo_updated'))->withFragment('tab-photos');
     }
 
+    /**
+     * Store a new barcode for a product
+     */
+    public function storeBarcode(Request $request, Product $product)
+    {
+        $request->validate([
+            'barcode' => 'required|string|max:50|unique:product_barcodes,barcode',
+            'type' => 'required|string|in:ean13,ean8,upc,internal',
+            'is_primary' => 'nullable|boolean',
+        ]);
+
+        $barcode = $product->barcodes()->create([
+            'barcode' => $request->barcode,
+            'type' => $request->type,
+            'is_primary' => $request->boolean('is_primary'),
+        ]);
+
+        // Si c'est le premier barcode ou s'il est défini comme principal
+        if ($request->boolean('is_primary') || $product->barcodes()->count() === 1) {
+            $barcode->setAsPrimary();
+        }
+
+        return back()->with('success', __('messages.product.barcode_added') ?? 'Code-barre ajouté')->withFragment('tab-barcodes');
+    }
+
+    /**
+     * Set a barcode as primary
+     */
+    public function setPrimaryBarcode(Product $product, \App\Models\ProductBarcode $barcode)
+    {
+        if ($barcode->product_id !== $product->id) {
+            abort(404);
+        }
+
+        $barcode->setAsPrimary();
+
+        return back()->with('success', __('messages.product.barcode_set_primary') ?? 'Code-barre défini comme principal')->withFragment('tab-barcodes');
+    }
+
+    /**
+     * Delete a barcode
+     */
+    public function destroyBarcode(Product $product, \App\Models\ProductBarcode $barcode)
+    {
+        if ($barcode->product_id !== $product->id) {
+            abort(404);
+        }
+
+        if ($barcode->is_primary) {
+            return back()->with('error', __('messages.product.cannot_delete_primary_barcode') ?? 'Impossible de supprimer le code-barre principal')->withFragment('tab-barcodes');
+        }
+
+        $barcode->delete();
+
+        return back()->with('success', __('messages.product.barcode_deleted') ?? 'Code-barre supprimé')->withFragment('tab-barcodes');
+    }
 
     public function variationsIndex(Product $product)
-{
+    {
     $product->load(['variations.linkedProduct', 'variations.type', 'variations.value']);
     $types = \App\Models\VariationType::orderBy('name')->get();
     return view('products.variations', compact('product', 'types'));

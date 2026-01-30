@@ -19,6 +19,7 @@ class GeneralInvoice extends Model
         'amount',
         'due_date',
         'payment_date',
+        'payment_proof',
         'status',
         'attachment',
         'note',

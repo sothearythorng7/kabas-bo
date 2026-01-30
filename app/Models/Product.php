@@ -77,6 +77,44 @@ class Product extends Model
     public function images()     { return $this->hasMany(ProductImage::class)->orderBy('sort_order'); }
     public function primaryImage(){ return $this->hasOne(ProductImage::class)->where('is_primary', true); }
 
+    // Relation vers les codes-barres
+    public function barcodes()    { return $this->hasMany(ProductBarcode::class); }
+    public function primaryBarcode() { return $this->hasOne(ProductBarcode::class)->where('is_primary', true); }
+
+    /**
+     * Ajouter un code-barre au produit
+     */
+    public function addBarcode(string $barcode, string $type = 'ean13', bool $isPrimary = false): ProductBarcode
+    {
+        $productBarcode = $this->barcodes()->create([
+            'barcode' => $barcode,
+            'type' => $type,
+            'is_primary' => $isPrimary,
+        ]);
+
+        if ($isPrimary) {
+            $productBarcode->setAsPrimary();
+        }
+
+        return $productBarcode;
+    }
+
+    /**
+     * Trouver un produit par n'importe quel barcode
+     */
+    public static function findByBarcode(string $barcode): ?self
+    {
+        // Chercher d'abord dans product_barcodes
+        $product = ProductBarcode::findProductByBarcode($barcode);
+
+        // Fallback sur la colonne ean pour rétrocompatibilité
+        if (!$product) {
+            $product = static::where('ean', $barcode)->first();
+        }
+
+        return $product;
+    }
+
     // Relation vers les livraisons
     public function resellerDeliveries()
     {
@@ -212,6 +250,7 @@ class Product extends Model
         return [
             'id' => $this->id,
             'ean' => $this->ean,
+            'barcodes' => $this->barcodes->pluck('barcode')->toArray(),
 
             // Produit - multilingue (FR/EN)
             'name_fr' => $this->name['fr'] ?? '',

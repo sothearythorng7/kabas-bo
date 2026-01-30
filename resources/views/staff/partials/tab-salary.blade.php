@@ -1,0 +1,383 @@
+@php
+    $stores = \App\Models\Store::orderBy('name')->get();
+@endphp
+
+<div class="row">
+    {{-- Net Payroll Calculator --}}
+    <div class="col-12 mb-3">
+        <div class="card border-primary">
+            <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="bi bi-calculator"></i> {{ __('messages.staff.net_to_pay') }}</h5>
+                <div>
+                    <input type="month" id="payroll_month" class="form-control form-control-sm d-inline-block" style="width: auto;"
+                           value="{{ $payrollData['month'] }}"
+                           onchange="window.location.href='{{ route('staff.show', $user) }}?tab=salary&payroll_month=' + this.value">
+                </div>
+            </div>
+            <div class="card-body">
+                @if($user->currentSalary)
+                    @php
+                        $alreadyPaid = $user->salaryPayments->contains('period', $payrollData['month']);
+                    @endphp
+
+                    <div class="row align-items-center">
+                        <div class="col-md-7">
+                            <table class="table table-sm table-borderless mb-0">
+                                <tr>
+                                    <td class="text-muted">{{ __('messages.staff.base_salary') }}</td>
+                                    <td class="text-end fw-bold">{{ number_format($payrollData['base_salary'], 2) }} {{ $payrollData['currency'] }}</td>
+                                </tr>
+                                <tr>
+                                    <td class="text-muted">
+                                        {{ __('messages.staff.unjustified_absences') }}
+                                        <span class="badge bg-danger">{{ $payrollData['unjustified_days'] }} {{ __('messages.staff.days_abbr') }}</span>
+                                        <span class="text-muted">×</span>
+                                        <input type="number" id="daily_rate" class="form-control form-control-sm d-inline-block" style="width: 100px;"
+                                               value="{{ $payrollData['suggested_daily_rate'] }}" step="0.01" min="0">
+                                    </td>
+                                    <td class="text-end text-danger" id="deduction_absences">
+                                        - {{ number_format($payrollData['unjustified_days'] * $payrollData['suggested_daily_rate'], 2) }} {{ $payrollData['currency'] }}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td class="text-muted">{{ __('messages.staff.advances_deduction') }}</td>
+                                    <td class="text-end text-danger" id="deduction_advances">
+                                        - {{ number_format($payrollData['advances_total'], 2) }} {{ $payrollData['currency'] }}
+                                    </td>
+                                </tr>
+                                <tr class="border-top">
+                                    <td class="fw-bold fs-5">{{ __('messages.staff.net_to_pay') }}</td>
+                                    <td class="text-end fw-bold fs-4 text-success" id="net_salary">
+                                        {{ number_format($payrollData['base_salary'] - ($payrollData['unjustified_days'] * $payrollData['suggested_daily_rate']) - $payrollData['advances_total'], 2) }} {{ $payrollData['currency'] }}
+                                    </td>
+                                </tr>
+                            </table>
+                        </div>
+                        <div class="col-md-5 text-center border-start">
+                            @if($alreadyPaid)
+                                <div class="text-success mb-2">
+                                    <i class="bi bi-check-circle-fill fs-1"></i>
+                                </div>
+                                <div class="fw-bold text-success">{{ __('messages.staff.already_paid') }}</div>
+                            @else
+                                <button type="button" class="btn btn-success btn-lg" data-bs-toggle="modal" data-bs-target="#validatePaymentModal">
+                                    <i class="bi bi-check-circle"></i> {{ __('messages.staff.validate_payment') }}
+                                </button>
+                                <div class="text-muted small mt-2">{{ __('messages.staff.suggested_daily_rate') }}: {{ number_format($payrollData['suggested_daily_rate'], 2) }}</div>
+                            @endif
+                        </div>
+                    </div>
+
+                    {{-- Modal de validation --}}
+                    @if(!$alreadyPaid)
+                    <div class="modal fade" id="validatePaymentModal" tabindex="-1">
+                        <div class="modal-dialog">
+                            <form action="{{ route('staff.payments.store', $user) }}" method="POST" id="paymentForm">
+                                @csrf
+                                <input type="hidden" name="period" value="{{ $payrollData['month'] }}">
+                                <input type="hidden" name="base_salary" value="{{ $payrollData['base_salary'] }}">
+                                <input type="hidden" name="currency" value="{{ $payrollData['currency'] }}">
+                                <input type="hidden" name="unjustified_days" value="{{ $payrollData['unjustified_days'] }}">
+                                <input type="hidden" name="daily_rate" id="form_daily_rate" value="{{ $payrollData['suggested_daily_rate'] }}">
+                                <input type="hidden" name="advances_deduction" value="{{ $payrollData['advances_total'] }}">
+                                <input type="hidden" name="net_amount" id="form_net_amount" value="{{ $payrollData['base_salary'] - ($payrollData['unjustified_days'] * $payrollData['suggested_daily_rate']) - $payrollData['advances_total'] }}">
+
+                                <div class="modal-content">
+                                    <div class="modal-header bg-success text-white">
+                                        <h5 class="modal-title">{{ __('messages.staff.validate_payment') }} - {{ \Carbon\Carbon::parse($payrollData['month'] . '-01')->translatedFormat('F Y') }}</h5>
+                                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                                    </div>
+                                    <div class="modal-body">
+                                        <div class="alert alert-info">
+                                            <div class="d-flex justify-content-between">
+                                                <span>{{ __('messages.staff.net_to_pay') }}:</span>
+                                                <strong id="modal_net_amount">{{ number_format($payrollData['base_salary'] - ($payrollData['unjustified_days'] * $payrollData['suggested_daily_rate']) - $payrollData['advances_total'], 2) }} {{ $payrollData['currency'] }}</strong>
+                                            </div>
+                                        </div>
+
+                                        <div class="mb-3">
+                                            <label for="payment_store" class="form-label">{{ __('messages.staff.payment_from_store') }} *</label>
+                                            <select class="form-select" id="payment_store" name="store_id" required>
+                                                @foreach($stores as $store)
+                                                    <option value="{{ $store->id }}">{{ $store->name }}</option>
+                                                @endforeach
+                                            </select>
+                                        </div>
+
+                                        <div class="mb-3">
+                                            <label for="payment_notes" class="form-label">{{ __('messages.staff.notes') }}</label>
+                                            <textarea class="form-control" id="payment_notes" name="notes" rows="2"></textarea>
+                                        </div>
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ __('messages.btn.cancel') }}</button>
+                                        <button type="submit" class="btn btn-success">
+                                            <i class="bi bi-check-circle"></i> {{ __('messages.staff.confirm_payment') }}
+                                        </button>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                    @endif
+                @else
+                    <p class="text-muted text-center mb-0">{{ __('messages.staff.no_salary_defined') }}</p>
+                @endif
+            </div>
+        </div>
+    </div>
+
+    {{-- Current Salary & Form --}}
+    <div class="col-md-4">
+        {{-- Current Salary --}}
+        <div class="card mb-3">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0">{{ __('messages.staff.current_salary') }}</h5>
+            </div>
+            <div class="card-body text-center">
+                @if($user->currentSalary)
+                    <h2 class="mb-0">{{ number_format($user->currentSalary->base_salary, 2) }} {{ $user->currentSalary->currency }}</h2>
+                    <small class="text-muted">{{ __('messages.staff.effective_from') }}: {{ $user->currentSalary->effective_from->format('d/m/Y') }}</small>
+                @else
+                    <p class="text-muted mb-0">{{ __('messages.staff.no_salary_defined') }}</p>
+                @endif
+            </div>
+        </div>
+
+        {{-- Set Salary Form --}}
+        <div class="card mb-3">
+            <div class="card-header">
+                <h5 class="mb-0">{{ __('messages.staff.set_salary') }}</h5>
+            </div>
+            <div class="card-body">
+                <form action="{{ route('staff.salary.update', $user) }}" method="POST">
+                    @csrf
+                    <div class="mb-3">
+                        <label for="base_salary" class="form-label">{{ __('messages.staff.base_salary') }} *</label>
+                        <input type="number" step="0.01" class="form-control" id="base_salary" name="base_salary"
+                               value="{{ old('base_salary', $user->currentSalary?->base_salary) }}" required min="0">
+                    </div>
+                    <div class="mb-3">
+                        <label for="currency" class="form-label">{{ __('messages.staff.currency') }} *</label>
+                        <select class="form-select" id="currency" name="currency" required>
+                            <option value="USD" {{ old('currency', $user->currentSalary?->currency) === 'USD' ? 'selected' : '' }}>USD</option>
+                            <option value="EUR" {{ old('currency', $user->currentSalary?->currency) === 'EUR' ? 'selected' : '' }}>EUR</option>
+                            <option value="XAF" {{ old('currency', $user->currentSalary?->currency) === 'XAF' ? 'selected' : '' }}>XAF</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="effective_from" class="form-label">{{ __('messages.staff.effective_from') }} *</label>
+                        <input type="date" class="form-control" id="effective_from" name="effective_from"
+                               value="{{ old('effective_from', now()->format('Y-m-d')) }}" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="bi bi-save"></i> {{ __('messages.btn.save') }}
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        {{-- Request Advance Form --}}
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">{{ __('messages.staff.request_advance') }}</h5>
+            </div>
+            <div class="card-body">
+                <form action="{{ route('staff.advances.store', $user) }}" method="POST">
+                    @csrf
+                    <div class="mb-3">
+                        <label for="amount" class="form-label">{{ __('messages.staff.amount') }} *</label>
+                        <input type="number" step="0.01" class="form-control" id="amount" name="amount" required min="0.01">
+                    </div>
+                    <div class="mb-3">
+                        <label for="reason" class="form-label">{{ __('messages.staff.reason') }}</label>
+                        <textarea class="form-control" id="reason" name="reason" rows="2"></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-warning w-100">
+                        <i class="bi bi-plus-circle"></i> {{ __('messages.staff.create_advance') }}
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    {{-- Salary History & Advances --}}
+    <div class="col-md-8">
+        {{-- Pending Advances Total --}}
+        @if($pendingAdvancesTotal > 0)
+            <div class="alert alert-info">
+                <i class="bi bi-info-circle"></i>
+                {{ __('messages.staff.total_approved_advances') }}: <strong>{{ number_format($pendingAdvancesTotal, 2) }} USD</strong>
+            </div>
+        @endif
+
+        {{-- Salary History --}}
+        <div class="card mb-3">
+            <div class="card-header">
+                <h5 class="mb-0">{{ __('messages.staff.salary_history') }}</h5>
+            </div>
+            <div class="card-body">
+                @if($user->salaries->isEmpty())
+                    <p class="text-muted text-center">{{ __('messages.staff.no_salary_history') }}</p>
+                @else
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>{{ __('messages.staff.effective_from') }}</th>
+                                    <th class="text-end">{{ __('messages.staff.amount') }}</th>
+                                    <th>{{ __('messages.staff.created_by') }}</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach($user->salaries->take(5) as $salary)
+                                    <tr>
+                                        <td>{{ $salary->effective_from->format('d/m/Y') }}</td>
+                                        <td class="text-end">{{ number_format($salary->base_salary, 2) }} {{ $salary->currency }}</td>
+                                        <td>{{ $salary->creator->name ?? '-' }}</td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                @endif
+            </div>
+        </div>
+
+        {{-- Advances List --}}
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">{{ __('messages.staff.advances') }}</h5>
+            </div>
+            <div class="card-body">
+                @if($user->salaryAdvances->isEmpty())
+                    <p class="text-muted text-center">{{ __('messages.staff.no_advances') }}</p>
+                @else
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>{{ __('messages.staff.date') }}</th>
+                                    <th class="text-end">{{ __('messages.staff.amount') }}</th>
+                                    <th>{{ __('messages.staff.reason') }}</th>
+                                    <th>{{ __('messages.staff.status') }}</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach($user->salaryAdvances as $advance)
+                                    <tr>
+                                        <td>{{ $advance->requested_at->format('d/m/Y H:i') }}</td>
+                                        <td class="text-end"><strong>{{ number_format($advance->amount, 2) }}</strong></td>
+                                        <td>{{ Str::limit($advance->reason, 30) ?? '-' }}</td>
+                                        <td>
+                                            <span class="badge bg-{{ $advance->getStatusBadgeClass() }}">
+                                                {{ $advance->getStatusLabel() }}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            @if($advance->status === 'pending')
+                                                <button type="button" class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#approveAdvanceModal{{ $advance->id }}">
+                                                    <i class="bi bi-check"></i>
+                                                </button>
+                                                <form action="{{ route('staff.advances.approve', $advance) }}" method="POST" class="d-inline">
+                                                    @csrf
+                                                    <input type="hidden" name="action" value="reject">
+                                                    <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('{{ __('messages.staff.confirm_reject') }}')">
+                                                        <i class="bi bi-x"></i>
+                                                    </button>
+                                                </form>
+
+                                                {{-- Approve Modal --}}
+                                                <div class="modal fade" id="approveAdvanceModal{{ $advance->id }}" tabindex="-1">
+                                                    <div class="modal-dialog">
+                                                        <form action="{{ route('staff.advances.approve', $advance) }}" method="POST">
+                                                            @csrf
+                                                            <input type="hidden" name="action" value="approve">
+                                                            <div class="modal-content">
+                                                                <div class="modal-header">
+                                                                    <h5 class="modal-title">{{ __('messages.staff.approve_advance') }}</h5>
+                                                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                                                </div>
+                                                                <div class="modal-body">
+                                                                    <p>{{ __('messages.staff.approve_advance_amount') }}: <strong>{{ number_format($advance->amount, 2) }}</strong></p>
+                                                                    <div class="mb-3">
+                                                                        <label for="store_id" class="form-label">{{ __('messages.staff.select_store') }} *</label>
+                                                                        <select class="form-select" name="store_id" required>
+                                                                            @foreach($stores as $store)
+                                                                                <option value="{{ $store->id }}">{{ $store->name }}</option>
+                                                                            @endforeach
+                                                                        </select>
+                                                                        <small class="text-muted">{{ __('messages.staff.store_for_transaction') }}</small>
+                                                                    </div>
+                                                                </div>
+                                                                <div class="modal-footer">
+                                                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ __('messages.btn.cancel') }}</button>
+                                                                    <button type="submit" class="btn btn-success">{{ __('messages.btn.approve') }}</button>
+                                                                </div>
+                                                            </div>
+                                                        </form>
+                                                    </div>
+                                                </div>
+                                            @else
+                                                @if($advance->approver)
+                                                    <small class="text-muted">{{ $advance->approver->name }}</small>
+                                                @endif
+                                            @endif
+                                        </td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                @endif
+            </div>
+        </div>
+    </div>
+</div>
+
+@if($user->currentSalary)
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const dailyRateInput = document.getElementById('daily_rate');
+    const baseSalary = {{ $payrollData['base_salary'] }};
+    const unjustifiedDays = {{ $payrollData['unjustified_days'] }};
+    const advancesTotal = {{ $payrollData['advances_total'] }};
+    const currency = '{{ $payrollData['currency'] }}';
+
+    function formatNumber(num) {
+        return num.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    function recalculate() {
+        const dailyRate = parseFloat(dailyRateInput.value) || 0;
+        const deductionAbsences = unjustifiedDays * dailyRate;
+        const netSalary = baseSalary - deductionAbsences - advancesTotal;
+
+        document.getElementById('deduction_absences').textContent = '- ' + formatNumber(deductionAbsences) + ' ' + currency;
+        document.getElementById('net_salary').textContent = formatNumber(netSalary) + ' ' + currency;
+
+        // Update hidden form fields for payment
+        const formDailyRate = document.getElementById('form_daily_rate');
+        const formNetAmount = document.getElementById('form_net_amount');
+        const modalNetAmount = document.getElementById('modal_net_amount');
+
+        if (formDailyRate) formDailyRate.value = dailyRate.toFixed(2);
+        if (formNetAmount) formNetAmount.value = netSalary.toFixed(2);
+        if (modalNetAmount) modalNetAmount.textContent = formatNumber(netSalary) + ' ' + currency;
+
+        // Change color based on positive/negative
+        const netElement = document.getElementById('net_salary');
+        if (netSalary < 0) {
+            netElement.classList.remove('text-success');
+            netElement.classList.add('text-danger');
+        } else {
+            netElement.classList.remove('text-danger');
+            netElement.classList.add('text-success');
+        }
+    }
+
+    dailyRateInput.addEventListener('input', recalculate);
+});
+</script>
+@endif

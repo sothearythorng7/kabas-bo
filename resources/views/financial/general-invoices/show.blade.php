@@ -73,8 +73,8 @@
 {{-- Modal Mark as Paid --}}
 @if($generalInvoice->status === 'pending')
 <div class="modal fade" id="markAsPaidModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered" style="max-width: 400px;">
-        <form action="{{ route('financial.general-invoices.mark-as-paid', [$store->id, $generalInvoice->id]) }}" method="POST">
+    <div class="modal-dialog modal-dialog-centered" style="max-width: 450px;">
+        <form action="{{ route('financial.general-invoices.mark-as-paid', [$store->id, $generalInvoice->id]) }}" method="POST" enctype="multipart/form-data">
             @csrf
             <div class="modal-content">
                 <div class="modal-header">
@@ -88,7 +88,11 @@
                         </label>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">{{ __('messages.Méthode de paiement') }}</label>
+                        <label class="form-label">{{ __('messages.general_invoices.payment_date') }} <span class="text-danger">*</span></label>
+                        <input type="date" name="payment_date" class="form-control" value="{{ now()->format('Y-m-d') }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">{{ __('messages.Méthode de paiement') }} <span class="text-danger">*</span></label>
                         <select name="payment_method_id" class="form-select" required>
                             @foreach($paymentMethods as $method)
                                 <option value="{{ $method->id }}">{{ $method->name }}</option>
@@ -98,6 +102,11 @@
                     <div class="mb-3">
                         <label class="form-label">{{ __('messages.Payment reference') }}</label>
                         <input type="text" name="payment_reference" class="form-control" placeholder="{{ __('messages.optional') }}">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">{{ __('messages.general_invoices.payment_proof') }}</label>
+                        <input type="file" name="payment_proof" class="form-control" accept=".pdf,.jpg,.jpeg,.png">
+                        <small class="text-muted">{{ __('messages.general_invoices.payment_proof_hint') }}</small>
                     </div>
                 </div>
                 <div class="modal-footer">

@@ -7,6 +7,17 @@
     <form action="{{ route('resellers.reports.store', $reseller->id) }}" method="POST">
         @csrf
 
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <label for="start_date" class="form-label">{{ __('messages.resellers.period_start') }}</label>
+                <input type="date" name="start_date" id="start_date" class="form-control" required>
+            </div>
+            <div class="col-md-6">
+                <label for="end_date" class="form-label">{{ __('messages.resellers.period_end') }}</label>
+                <input type="date" name="end_date" id="end_date" class="form-control" required>
+            </div>
+        </div>
+
         <table class="table">
             <thead>
                 <tr>

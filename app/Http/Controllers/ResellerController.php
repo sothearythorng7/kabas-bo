@@ -5,9 +5,13 @@ namespace App\Http\Controllers;
 use App\Models\Brand;
 use App\Models\Reseller;
 use App\Models\ResellerStockReturn;
+use App\Models\ResellerStockDelivery;
+use App\Models\ResellerSalesReport;
+use App\Models\ResellerInvoice;
 use Illuminate\Http\Request;
 use App\Models\Product;
 use App\Models\ResellerSalesReportAnomaly;
+use App\Models\ResellerProductPrice;
 use App\Models\Store;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
@@ -18,6 +22,37 @@ class ResellerController extends Controller
     {
         // Récupération des resellers et shops
         $allResellers = Reseller::allWithShops();
+
+        // Récupérer les comptages de livraisons par statut pour tous les resellers
+        $deliveryCountsByReseller = ResellerStockDelivery::select('reseller_id', 'status', DB::raw('COUNT(*) as count'))
+            ->whereNotNull('reseller_id')
+            ->groupBy('reseller_id', 'status')
+            ->get()
+            ->groupBy('reseller_id')
+            ->map(function ($items) {
+                return $items->pluck('count', 'status')->toArray();
+            });
+
+        // Récupérer les comptages de livraisons par statut pour les shops
+        $deliveryCountsByStore = ResellerStockDelivery::select('store_id', 'status', DB::raw('COUNT(*) as count'))
+            ->whereNotNull('store_id')
+            ->groupBy('store_id', 'status')
+            ->get()
+            ->groupBy('store_id')
+            ->map(function ($items) {
+                return $items->pluck('count', 'status')->toArray();
+            });
+
+        // Ajouter les comptages à chaque reseller
+        $allResellers = $allResellers->map(function ($reseller) use ($deliveryCountsByReseller, $deliveryCountsByStore) {
+            if (property_exists($reseller, 'is_shop') && $reseller->is_shop) {
+                $storeId = $reseller->store->id;
+                $reseller->delivery_counts = $deliveryCountsByStore[$storeId] ?? [];
+            } else {
+                $reseller->delivery_counts = $deliveryCountsByReseller[$reseller->id] ?? [];
+            }
+            return $reseller;
+        });
 
         // Pagination manuelle
         $page = request()->get('page', 1);
@@ -32,7 +67,80 @@ class ResellerController extends Controller
             ['path' => request()->url(), 'query' => request()->query()]
         );
 
-        return view('resellers.index', compact('resellers'));
+        // Passer les statuts disponibles à la vue
+        $deliveryStatuses = ResellerStockDelivery::STATUS_OPTIONS;
+
+        return view('resellers.index', compact('resellers', 'deliveryStatuses'));
+    }
+
+    public function overview()
+    {
+        // Récupérer tous les revendeurs (y compris shops)
+        $allResellers = Reseller::allWithShops();
+
+        // === LIVRAISONS ===
+        $pendingDeliveries = ResellerStockDelivery::whereIn('status', ['draft', 'ready_to_ship'])
+            ->with(['reseller', 'store', 'products'])
+            ->latest()
+            ->get();
+
+        $shippedDeliveries = ResellerStockDelivery::where('status', 'shipped')
+            ->with(['reseller', 'store', 'products'])
+            ->latest()
+            ->limit(20)
+            ->get();
+
+        // === RAPPORTS DE VENTES ===
+        // Rapports en attente (pas encore de facture)
+        $pendingReports = ResellerSalesReport::doesntHave('invoice')
+            ->with(['reseller', 'store', 'items'])
+            ->latest()
+            ->get();
+
+        // Rapports traités (avec facture)
+        $processedReports = ResellerSalesReport::has('invoice')
+            ->with(['reseller', 'store', 'items', 'invoice'])
+            ->latest()
+            ->limit(20)
+            ->get();
+
+        // === FACTURES ===
+        // Factures en attente de paiement
+        $unpaidInvoices = ResellerInvoice::whereIn('status', ['unpaid', 'partially_paid'])
+            ->with(['reseller', 'store', 'resellerStockDelivery', 'salesReport', 'payments'])
+            ->latest()
+            ->get();
+
+        // Factures payées (récentes)
+        $paidInvoices = ResellerInvoice::where('status', 'paid')
+            ->with(['reseller', 'store', 'resellerStockDelivery', 'salesReport'])
+            ->latest()
+            ->limit(20)
+            ->get();
+
+        // === STATISTIQUES ===
+        $stats = [
+            'total_resellers' => $allResellers->count(),
+            'pending_deliveries' => $pendingDeliveries->count(),
+            'shipped_deliveries' => $shippedDeliveries->count(),
+            'pending_reports' => $pendingReports->count(),
+            'unpaid_invoices' => $unpaidInvoices->count(),
+            'unpaid_amount' => $unpaidInvoices->sum(function ($invoice) {
+                $paid = $invoice->payments->sum('amount');
+                return $invoice->total_amount - $paid;
+            }),
+        ];
+
+        return view('resellers.overview', compact(
+            'allResellers',
+            'pendingDeliveries',
+            'shippedDeliveries',
+            'pendingReports',
+            'processedReports',
+            'unpaidInvoices',
+            'paidInvoices',
+            'stats'
+        ));
     }
 
     public function create()
@@ -310,8 +418,13 @@ public function show(Request $request, $id)
         ->latest()
         ->paginate(10);
 
+    // Récupérer les prix B2B personnalisés pour ce revendeur
+    $resellerPrices = ResellerProductPrice::where('reseller_id', $reseller->id)
+        ->pluck('price', 'product_id')
+        ->toArray();
+
     return view('resellers.show', compact(
-        'reseller','products','deliveries','stock','salesReports','anomalies','alertStocks','returns','brands'
+        'reseller','products','deliveries','stock','salesReports','anomalies','alertStocks','returns','brands','resellerPrices'
     ));
 }
 
@@ -386,6 +499,29 @@ public function show(Request $request, $id)
         }
 
         return redirect()->back()->withErrors('Mise à jour de stock non supportée pour ce type de revendeur');
+    }
+
+    /**
+     * Update B2B price for a specific product for this reseller
+     */
+    public function updateProductPrice(Request $request, $id)
+    {
+        // Vérifier que ce n'est pas un shop
+        if (str_starts_with($id, 'shop-')) {
+            return redirect()->back()->withErrors('Les tarifs B2B personnalisés ne sont pas disponibles pour les shops.');
+        }
+
+        $reseller = Reseller::findOrFail($id);
+
+        $request->validate([
+            'product_id' => 'required|exists:products,id',
+            'price' => 'required|numeric|min:0',
+        ]);
+
+        ResellerProductPrice::setPriceFor($reseller->id, $request->product_id, $request->price);
+
+        return redirect()->route('resellers.show', $id . '?tab=products')
+            ->with('success', __('messages.resellers.price_updated'));
     }
 
     public function edit(Reseller $reseller)

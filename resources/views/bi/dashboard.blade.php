@@ -3,17 +3,46 @@
 @section('content')
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h1 class="mt-4">{{ __('messages.bi.title') }}</h1>
-    <form method="GET" class="d-flex align-items-center gap-2">
+    <form method="GET" class="d-flex align-items-center gap-2 flex-wrap">
         <label for="period" class="form-label mb-0">{{ __('messages.bi.period') }}:</label>
-        <select name="period" id="period" class="form-select form-select-sm" style="width: auto;" onchange="this.form.submit()">
+        <select name="period" id="period" class="form-select form-select-sm" style="width: auto;" onchange="toggleCustomDates(this); if(this.value !== 'custom') this.form.submit();">
             <option value="week" {{ $period === 'week' ? 'selected' : '' }}>{{ __('messages.bi.week') }}</option>
             <option value="month" {{ $period === 'month' ? 'selected' : '' }}>{{ __('messages.bi.month') }}</option>
             <option value="quarter" {{ $period === 'quarter' ? 'selected' : '' }}>{{ __('messages.bi.quarter') }}</option>
             <option value="year" {{ $period === 'year' ? 'selected' : '' }}>{{ __('messages.bi.year') }}</option>
             <option value="all" {{ $period === 'all' ? 'selected' : '' }}>{{ __('messages.bi.all_time') }}</option>
+            <option value="custom" {{ $period === 'custom' ? 'selected' : '' }}>{{ __('messages.bi.custom') }}</option>
         </select>
+        @if($period === 'custom')
+        <div id="custom-dates" class="d-flex align-items-center gap-2">
+            <input type="date" name="start_date" class="form-control form-control-sm" value="{{ request('start_date', $startDate->format('Y-m-d')) }}">
+            <span>→</span>
+            <input type="date" name="end_date" class="form-control form-control-sm" value="{{ request('end_date', $endDate->format('Y-m-d')) }}">
+            <button type="submit" class="btn btn-primary btn-sm">{{ __('messages.bi.apply') }}</button>
+        </div>
+        @else
+        <div id="custom-dates" class="align-items-center gap-2" style="display: none;">
+            <input type="date" name="start_date" class="form-control form-control-sm" value="{{ now()->startOfMonth()->format('Y-m-d') }}">
+            <span>→</span>
+            <input type="date" name="end_date" class="form-control form-control-sm" value="{{ now()->format('Y-m-d') }}">
+            <button type="submit" class="btn btn-primary btn-sm">{{ __('messages.bi.apply') }}</button>
+        </div>
+        @endif
     </form>
 </div>
+
+<script>
+function toggleCustomDates(select) {
+    const customDates = document.getElementById('custom-dates');
+    if (select.value === 'custom') {
+        customDates.style.display = 'flex';
+        customDates.classList.add('d-flex');
+    } else {
+        customDates.style.display = 'none';
+        customDates.classList.remove('d-flex');
+    }
+}
+</script>
 
 {{-- KPI Cards Row --}}
 <div class="row mb-4">
@@ -92,6 +121,65 @@
             </div>
         </div>
     </div>
+</div>
+
+{{-- Walk-In & Conversion Rate KPI Cards --}}
+<div class="row mb-4">
+    {{-- Average Walk-In per Day --}}
+    <div class="col-md-3">
+        <div class="card border-left-secondary shadow h-100 py-2">
+            <div class="card-body">
+                <div class="text-xs font-weight-bold text-secondary text-uppercase mb-1">
+                    {{ __('messages.bi.avg_walk_in_per_day') }}
+                </div>
+                <div class="h4 mb-0 font-weight-bold text-gray-800">
+                    {{ number_format($averageWalkInPerDay, 1) }}
+                </div>
+                <div class="mt-2 text-muted small">
+                    {{ number_format($totalWalkIns) }} {{ __('messages.bi.total_visitors') }}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {{-- Conversion Rate --}}
+    <div class="col-md-3">
+        <div class="card border-left-danger shadow h-100 py-2">
+            <div class="card-body">
+                <div class="text-xs font-weight-bold text-danger text-uppercase mb-1">
+                    {{ __('messages.bi.conversion_rate') }}
+                </div>
+                <div class="h4 mb-0 font-weight-bold text-gray-800">
+                    {{ number_format($conversionRate, 1) }}%
+                </div>
+                <div class="mt-2 text-muted small">
+                    {{ number_format($totalSales) }} / {{ number_format($totalWalkIns) }} {{ __('messages.bi.visitors') }}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {{-- Walk-in per Store (exclude warehouse) --}}
+    @php $retailStores = $stores->where('type', '!=', 'warehouse'); @endphp
+    @foreach($retailStores as $store)
+    <div class="col-md-{{ 6 / $retailStores->count() }}">
+        <div class="card border-left-dark shadow h-100 py-2">
+            <div class="card-body">
+                <div class="text-xs font-weight-bold text-dark text-uppercase mb-1">
+                    {{ $store->name }}
+                </div>
+                <div class="h5 mb-0 font-weight-bold text-gray-800">
+                    <i class="bi bi-people"></i> {{ number_format($averageWalkInPerDayByStore[$store->id] ?? 0, 1) }}/{{ __('messages.bi.day') }}
+                </div>
+                <div class="mt-2 small">
+                    <span class="badge {{ ($conversionRateByStore[$store->id] ?? 0) >= 50 ? 'bg-success' : (($conversionRateByStore[$store->id] ?? 0) >= 30 ? 'bg-warning' : 'bg-danger') }}">
+                        {{ number_format($conversionRateByStore[$store->id] ?? 0, 1) }}% {{ __('messages.bi.conversion') }}
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+    @endforeach
 </div>
 
 {{-- Revenue by Store --}}
@@ -466,6 +554,78 @@
                     </div>
                     @endforeach
                 </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{{-- Consignment Resellers Stock Value --}}
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card shadow">
+            <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                <h6 class="m-0 font-weight-bold text-primary">
+                    <i class="bi bi-people"></i> {{ __('messages.bi.consignment_resellers_stock') }}
+                </h6>
+                <span class="badge bg-primary fs-6">${{ number_format($consignmentResellersStock['total_value'], 2) }}</span>
+            </div>
+            <div class="card-body">
+                @if(count($consignmentResellersStock['resellers']) > 0)
+                <div class="table-responsive">
+                    <table class="table table-bordered table-hover">
+                        <thead class="table-light">
+                            <tr>
+                                <th>#</th>
+                                <th>{{ __('messages.bi.reseller') }}</th>
+                                <th class="text-end">{{ __('messages.bi.products_count') }}</th>
+                                <th class="text-end">{{ __('messages.bi.total_quantity') }}</th>
+                                <th class="text-end">{{ __('messages.bi.stock_value') }}</th>
+                                <th class="text-end">{{ __('messages.bi.percentage') }}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach($consignmentResellersStock['resellers'] as $index => $item)
+                            <tr>
+                                <td>{{ $index + 1 }}</td>
+                                <td>
+                                    <a href="{{ route('resellers.show', $item['reseller']->id) }}">
+                                        {{ $item['reseller']->name }}
+                                    </a>
+                                </td>
+                                <td class="text-end">{{ number_format($item['product_count']) }}</td>
+                                <td class="text-end">{{ number_format($item['total_quantity']) }}</td>
+                                <td class="text-end font-weight-bold">${{ number_format($item['stock_value'], 2) }}</td>
+                                <td class="text-end">
+                                    @if($consignmentResellersStock['total_value'] > 0)
+                                        <div class="progress" style="height: 20px;">
+                                            @php $percentage = ($item['stock_value'] / $consignmentResellersStock['total_value']) * 100; @endphp
+                                            <div class="progress-bar bg-primary" role="progressbar" style="width: {{ $percentage }}%">
+                                                {{ number_format($percentage, 1) }}%
+                                            </div>
+                                        </div>
+                                    @else
+                                        0%
+                                    @endif
+                                </td>
+                            </tr>
+                            @endforeach
+                        </tbody>
+                        <tfoot class="table-light">
+                            <tr>
+                                <th colspan="2">{{ __('messages.bi.total') }}</th>
+                                <th class="text-end">{{ number_format(array_sum(array_column($consignmentResellersStock['resellers'], 'product_count'))) }}</th>
+                                <th class="text-end">{{ number_format(array_sum(array_column($consignmentResellersStock['resellers'], 'total_quantity'))) }}</th>
+                                <th class="text-end">${{ number_format($consignmentResellersStock['total_value'], 2) }}</th>
+                                <th class="text-end">100%</th>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+                @else
+                <div class="alert alert-info mb-0">
+                    <i class="bi bi-info-circle"></i> {{ __('messages.bi.no_consignment_resellers') }}
+                </div>
+                @endif
             </div>
         </div>
     </div>

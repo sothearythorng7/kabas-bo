@@ -18,6 +18,7 @@
                             <option value="no_description_en" {{ $issueType === 'no_description_en' ? 'selected' : '' }}>{{ __('messages.dashboard_issues.no_description_en') }}</option>
                             <option value="fake_or_empty_ean" {{ $issueType === 'fake_or_empty_ean' ? 'selected' : '' }}>{{ __('messages.dashboard_issues.fake_or_empty_ean') }}</option>
                             <option value="no_category" {{ $issueType === 'no_category' ? 'selected' : '' }}>{{ __('messages.dashboard_issues.no_category') }}</option>
+                            <option value="inactive" {{ $issueType === 'inactive' ? 'selected' : '' }}>{{ __('messages.dashboard_issues.inactive') }}</option>
                         </select>
                     </div>
                     <div class="col-md-4">
@@ -78,6 +79,10 @@
                                     <span class="badge bg-primary mb-1">
                                         <i class="bi bi-bookmarks"></i> {{ __('messages.dashboard_issues.no_category') }}
                                     </span><br>
+                                @elseif($issue === 'inactive')
+                                    <span class="badge bg-secondary mb-1">
+                                        <i class="bi bi-toggle-off"></i> {{ __('messages.dashboard_issues.inactive') }}
+                                    </span><br>
                                 @endif
                             @endforeach
                         </td>
@@ -122,6 +127,10 @@
                             @elseif($issue === 'no_category')
                                 <span class="badge bg-primary mb-1">
                                     <i class="bi bi-bookmarks"></i> {{ __('messages.dashboard_issues.no_category') }}
+                                </span><br>
+                            @elseif($issue === 'inactive')
+                                <span class="badge bg-secondary mb-1">
+                                    <i class="bi bi-toggle-off"></i> {{ __('messages.dashboard_issues.inactive') }}
                                 </span><br>
                             @endif
                         @endforeach

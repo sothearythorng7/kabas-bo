@@ -9,8 +9,12 @@ class SaleReportItem extends Model
     protected $fillable = [
         'sale_report_id',
         'product_id',
+        'old_stock',
+        'refill',
+        'stock_on_hand',
         'quantity_sold',
         'unit_price',
+        'selling_price',
         'total',
     ];
 

@@ -70,6 +70,13 @@
                 </span>
             </button>
         </li>
+        @if($supplier->type === 'buyer')
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="sales-tab" data-bs-toggle="tab" data-bs-target="#sales" type="button" role="tab" aria-controls="sales" aria-selected="false">
+                {{ __('messages.supplier.sales') }}
+            </button>
+        </li>
+        @endif
     </ul>
 
     <div class="tab-content mt-3" id="supplierTabsContent">
@@ -744,6 +751,86 @@
 
             {{ $orders instanceof \Illuminate\Pagination\LengthAwarePaginator ? $orders->appends(request()->query())->links() : '' }}
         </div>
+
+        {{-- Onglet Ventes (uniquement pour buyers) --}}
+        @if($supplier->type === 'buyer')
+        <div class="tab-pane fade" id="sales" role="tabpanel" aria-labelledby="sales-tab">
+            {{-- Formulaire de filtres --}}
+            <form method="GET" action="{{ route('suppliers.edit', $supplier) }}#sales" class="mb-4">
+                <div class="row g-3 align-items-end">
+                    <div class="col-md-3">
+                        <label for="sales_start_date" class="form-label">{{ __('messages.supplier.date_start') }}</label>
+                        <input type="date" class="form-control" id="sales_start_date" name="sales_start_date" value="{{ $salesStartDate }}">
+                    </div>
+                    <div class="col-md-3">
+                        <label for="sales_end_date" class="form-label">{{ __('messages.supplier.date_end') }}</label>
+                        <input type="date" class="form-control" id="sales_end_date" name="sales_end_date" value="{{ $salesEndDate }}">
+                    </div>
+                    <div class="col-md-3">
+                        <label for="sales_store_id" class="form-label">{{ __('messages.supplier.store_name') }}</label>
+                        <select class="form-select" id="sales_store_id" name="sales_store_id">
+                            <option value="">{{ __('messages.supplier.all_stores') }}</option>
+                            @foreach($salesStores as $store)
+                                <option value="{{ $store->id }}" @selected($salesStoreId == $store->id)>{{ $store->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="col-md-3 d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-search"></i> {{ __('messages.btn.search') }}
+                        </button>
+                        <a href="{{ route('suppliers.export-sales', $supplier) }}?sales_start_date={{ $salesStartDate }}&sales_end_date={{ $salesEndDate }}{{ $salesStoreId ? '&sales_store_id=' . $salesStoreId : '' }}" class="btn btn-success">
+                            <i class="bi bi-file-earmark-excel"></i> {{ __('messages.btn.export') }}
+                        </a>
+                    </div>
+                </div>
+            </form>
+
+            {{-- Totaux globaux --}}
+            <div class="alert alert-info mb-3">
+                <div class="row">
+                    <div class="col-md-6">
+                        <strong>{{ __('messages.supplier.total_quantity_sold') }}:</strong> {{ number_format($salesTotals['total_quantity']) }}
+                    </div>
+                    <div class="col-md-6">
+                        <strong>{{ __('messages.supplier.total_revenue') }}:</strong> ${{ number_format($salesTotals['total_revenue'], 2) }}
+                    </div>
+                </div>
+            </div>
+
+            {{-- Tableau des ventes --}}
+            @if($salesData && $salesData->count() > 0)
+                <table class="table table-striped table-hover">
+                    <thead>
+                        <tr>
+                            <th>EAN</th>
+                            <th>{{ __('messages.product.name') }}</th>
+                            <th class="text-end">{{ __('messages.supplier.quantity_sold') }}</th>
+                            <th class="text-end">{{ __('messages.supplier.unit_price_avg') }}</th>
+                            <th class="text-end">Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach($salesData as $item)
+                            <tr>
+                                <td>{{ $item->product->ean ?? '-' }}</td>
+                                <td>{{ $item->product->name[app()->getLocale()] ?? reset($item->product->name) }}</td>
+                                <td class="text-end">{{ number_format($item->total_quantity) }}</td>
+                                <td class="text-end">${{ $item->total_quantity > 0 ? number_format($item->total_revenue / $item->total_quantity, 2) : '0.00' }}</td>
+                                <td class="text-end">${{ number_format($item->total_revenue, 2) }}</td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+
+                {{ $salesData->links() }}
+            @else
+                <div class="alert alert-warning">
+                    {{ __('messages.supplier.no_sales_found') }}
+                </div>
+            @endif
+        </div>
+        @endif
     </div>
 </div>
 

@@ -10,6 +10,7 @@
             'reseller_id',
             'status',
             'shipping_cost',
+            'delivery_note',
             'delivered_at',
             'store_id',
         ];

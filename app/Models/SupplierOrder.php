@@ -8,7 +8,11 @@ use App\Models\SupplierOrderInvoiceLine;
 
 class SupplierOrder extends Model
 {
-    protected $fillable = ['supplier_id', 'status', 'destination_store_id', 'is_paid', 'order_type', 'invoice_file'];
+    protected $fillable = ['supplier_id', 'status', 'destination_store_id', 'is_paid', 'paid_at', 'payment_proof', 'order_type', 'invoice_file'];
+
+    protected $casts = [
+        'paid_at' => 'date',
+    ];
 
     const ORDER_TYPE_PRODUCT = 'product';
     const ORDER_TYPE_RAW_MATERIAL = 'raw_material';
@@ -100,13 +104,9 @@ class SupplierOrder extends Model
                 ->value('total') ?? 0;
         }
 
-        return DB::table('supplier_order_product as sop')
-            ->join('stock_batches as sb', function ($join) {
-                $join->on('sb.product_id', '=', 'sop.product_id')
-                    ->whereColumn('sb.source_supplier_order_id', 'sop.supplier_order_id');
-            })
-            ->where('sop.supplier_order_id', $this->id)
-            ->selectRaw('SUM(sop.quantity_received * sb.unit_price) as total')
+        return DB::table('supplier_order_product')
+            ->where('supplier_order_id', $this->id)
+            ->selectRaw('SUM(quantity_received * COALESCE(invoice_price, purchase_price)) as total')
             ->value('total') ?? 0;
     }
 

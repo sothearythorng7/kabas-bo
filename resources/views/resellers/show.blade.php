@@ -209,6 +209,9 @@
                         </th>
                         <th class="text-center">{{ __('messages.resellers.stock') }}</th>
                         <th class="text-center">{{ __('messages.resellers.stock_alert') }}</th>
+                        @if(!($reseller->is_shop ?? false))
+                        <th class="text-center">{{ __('messages.product.price_btob') }}</th>
+                        @endif
                         <th class="text-center">{{ __('messages.btn.actions') }}</th>
                     </tr>
                 </thead>
@@ -217,6 +220,8 @@
                         @php
                             $currentStock = $stock[$product->id] ?? 0;
                             $alertThreshold = $alertStocks[$product->id] ?? 0;
+                            $customPrice = isset($resellerPrices) ? ($resellerPrices[$product->id] ?? null) : null;
+                            $defaultPrice = $product->price_btob ?? $product->price;
                         @endphp
                         <tr>
                             <td>{{ $product->name[app()->getLocale()] ?? reset($product->name) }}</td>
@@ -227,14 +232,30 @@
                                 </span>
                             </td>
                             <td class="text-center">{{ $alertThreshold }}</td>
+                            @if(!($reseller->is_shop ?? false))
                             <td class="text-center">
+                                @if($customPrice !== null)
+                                    {{ number_format($customPrice, 2) }} $
+                                @else
+                                    <span class="text-muted">{{ number_format($defaultPrice, 2) }} $</span>
+                                @endif
+                            </td>
+                            @endif
+                            <td class="text-center">
+                                @if($reseller->is_shop ?? false)
                                 <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#editStockModal{{ $product->id }}">
                                     <i class="bi bi-pencil-fill"></i>
                                 </button>
+                                @else
+                                <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#editPriceModal{{ $product->id }}">
+                                    <i class="bi bi-pencil-fill"></i>
+                                </button>
+                                @endif
                             </td>
                         </tr>
 
-                        {{-- Modal pour éditer le stock --}}
+                        @if($reseller->is_shop ?? false)
+                        {{-- Modal pour éditer le stock (shops uniquement) --}}
                         <div class="modal fade" id="editStockModal{{ $product->id }}" tabindex="-1" aria-hidden="true">
                             <div class="modal-dialog modal-dialog-scrollable">
                                 <form action="{{ route('resellers.update-stock', $reseller->id) }}" method="POST">
@@ -272,6 +293,39 @@
                                 </form>
                             </div>
                         </div>
+                        @else
+                        {{-- Modal pour éditer le prix B2B (revendeurs non-shop) --}}
+                        <div class="modal fade" id="editPriceModal{{ $product->id }}" tabindex="-1" aria-hidden="true">
+                            <div class="modal-dialog">
+                                <form action="{{ route('resellers.update-price', $reseller->id) }}" method="POST">
+                                    @csrf
+                                    <input type="hidden" name="product_id" value="{{ $product->id }}">
+                                    <div class="modal-content">
+                                        <div class="modal-header">
+                                            <h5 class="modal-title">{{ __('messages.resellers.edit_price') }}: {{ $product->name[app()->getLocale()] ?? reset($product->name) }}</h5>
+                                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                        </div>
+                                        <div class="modal-body">
+                                            <div class="mb-3">
+                                                <label class="form-label">{{ __('messages.product.price_default') }}</label>
+                                                <input type="text" class="form-control" value="{{ number_format($defaultPrice, 2) }} $" disabled>
+                                                <small class="text-muted">{{ __('messages.resellers.default_price_note') }}</small>
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="form-label">{{ __('messages.product.price_btob') }}</label>
+                                                <input type="number" step="0.01" name="price" class="form-control"
+                                                       value="{{ $customPrice ?? $defaultPrice }}" required min="0">
+                                            </div>
+                                        </div>
+                                        <div class="modal-footer">
+                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ __('messages.btn.cancel') }}</button>
+                                            <button type="submit" class="btn btn-primary">{{ __('messages.btn.save') }}</button>
+                                        </div>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                        @endif
                     @endforeach
                 </tbody>
             </table>
@@ -362,7 +416,7 @@
                     <tr>
                         <th></th> {{-- Dropdown --}}
                         <th class="text-center">ID</th>
-                        <th>{{ __('messages.resellers.created_at') }}</th>
+                        <th>{{ __('messages.resellers.period') }}</th>
                         <th class="text-center">{{ __('messages.resellers.total_items') }}</th>
                         <th class="text-center">{{ __('messages.resellers.total_amount') }}</th>
                         <th>{{ __('messages.resellers.invoice_status') }}</th>
@@ -392,7 +446,13 @@
                                 </div>
                             </td>
                             <td class="text-center">{{ $report->id }}</td>
-                            <td>{{ $report->created_at->format('d/m/Y') }}</td>
+                            <td>
+                                @if($report->start_date && $report->end_date)
+                                    {{ $report->start_date->format('d/m/Y') }} - {{ $report->end_date->format('d/m/Y') }}
+                                @else
+                                    {{ $report->created_at->format('d/m/Y') }}
+                                @endif
+                            </td>
                             <td class="text-center">{{ $report->items->sum('quantity_sold') }}</td>
                             <td class="text-center">{{ $invoice ? number_format($invoice->total_amount, 2, ',', ' ') . ' $' : '-' }}</td>
                             <td>

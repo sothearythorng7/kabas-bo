@@ -32,7 +32,7 @@ class ResellerSalesReportController extends Controller
             return $shop;
         }
 
-        return Reseller::findOrFail($resellerId);
+        return Reseller::with('contacts')->findOrFail($resellerId);
     }
 
     /**
@@ -78,6 +78,8 @@ class ResellerSalesReportController extends Controller
         }
 
         $validated = $request->validate([
+            'start_date' => 'required|date',
+            'end_date' => 'required|date|after_or_equal:start_date',
             'products' => 'required|array',
             'products.*.id' => 'required|exists:products,id',
             'products.*.quantity' => 'required|integer|min:0',
@@ -88,6 +90,8 @@ class ResellerSalesReportController extends Controller
             $report = ResellerSalesReport::create([
                 'reseller_id' => $isShop ? null : $reseller->id,
                 'store_id' => $isShop ? $reseller->id : null,
+                'start_date' => $validated['start_date'],
+                'end_date' => $validated['end_date'],
             ]);
 
             $productsData = Product::whereIn('id', collect($validated['products'])->pluck('id'))->get()->keyBy('id');

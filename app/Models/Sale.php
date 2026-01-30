@@ -11,7 +11,7 @@ class Sale extends Model
     use HasFactory;
 
     protected $fillable = [
-        'shift_id', 'store_id', 'payment_type', 'total', 'discounts', 'split_payments',
+        'shift_id', 'store_id', 'pos_local_id', 'payment_type', 'total', 'discounts', 'split_payments',
         'synced_at', 'financial_transaction_id'
     ];
 

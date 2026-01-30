@@ -137,10 +137,430 @@
 
 @push('scripts')
 <script>
+// ================== CONFIGURATION IMPRIMANTE ==================
+const PRINTER_CONFIG = {
+    url: "http://localhost:8888",
+    stores: {
+        1: { // Phnom Penh (ajuster l'ID si nécessaire)
+            prefix: "PP",
+            name: "Phnom Penh",
+            address: "#65 STREET 178, Phnom Penh 12302",
+            phone: "015 656 122"
+        },
+        2: { // Siem Reap (ajuster l'ID si nécessaire)
+            prefix: "SR",
+            name: "Siem Reap",
+            address: "200 Pokambor Ave, Krong Siem Reap",
+            phone: "016 606 133"
+        }
+    },
+    footer: "Thank you for your visit!"
+};
+
+/**
+ * Récupère la configuration du magasin actuel
+ */
+function getStoreConfig() {
+    const storeId = currentUser?.store_id;
+    return PRINTER_CONFIG.stores[storeId] || PRINTER_CONFIG.stores[1]; // Fallback sur Phnom Penh
+}
+
+/**
+ * Génère le numéro de ticket au format PREFIX-YYYYMMDD-XXX
+ * @param {Object} sale - Objet vente
+ * @returns {string} - Numéro de ticket formaté
+ */
+function generateTicketNumber(sale) {
+    const storeConfig = getStoreConfig();
+    const prefix = storeConfig.prefix;
+
+    // Date de la vente au format YYYYMMDD
+    const saleDate = sale.date || sale.created_at || sale.id;
+    const dateObj = new Date(saleDate);
+    const year = dateObj.getFullYear();
+    const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+    const day = String(dateObj.getDate()).padStart(2, '0');
+    const dateStr = `${year}${month}${day}`;
+
+    // ID sur 3 digits
+    const saleId = sale.db_id || sale.id;
+    const idStr = String(saleId).slice(-3).padStart(3, '0');
+
+    return `${prefix}-${dateStr}-${idStr}`;
+}
+
+/**
+ * Formate la date et l'heure au format YYYY-MM-DD H:M
+ * @param {Date|string|number} date - Date à formater (optionnel, par défaut date actuelle)
+ */
+function formatDateTime(date = null) {
+    const dateObj = date ? new Date(date) : new Date();
+    const year = dateObj.getFullYear();
+    const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+    const day = String(dateObj.getDate()).padStart(2, '0');
+    const hours = String(dateObj.getHours()).padStart(2, '0');
+    const minutes = String(dateObj.getMinutes()).padStart(2, '0');
+    return `${year}-${month}-${day} ${hours}:${minutes}`;
+}
+
+// ================== FONCTIONS D'IMPRESSION ==================
+
+/**
+ * Vérifie si l'imprimante est connectée
+ * @returns {Promise<boolean>}
+ */
+async function checkPrinter() {
+    try {
+        const response = await fetch(`${PRINTER_CONFIG.url}/status`);
+        const data = await response.json();
+        return data.status === 'ok';
+    } catch (error) {
+        console.error('Printer status check failed:', error);
+        return false;
+    }
+}
+
+/**
+ * Formate les données de vente pour l'API d'impression
+ * @param {Object} sale - Objet vente
+ * @returns {Object} - Données formatées pour l'imprimante
+ */
+function formatTicketData(sale) {
+    const storeConfig = getStoreConfig();
+    let subtotal = 0;
+    const giftCardCodes = []; // Collecter les codes des cartes cadeaux
+
+    // Formater les articles
+    const items = sale.items.map(item => {
+        const name = (typeof item.name === "object" && (item.name.en || item.name.fr))
+            ? (item.name.en || item.name.fr)
+            : item.name;
+        const qty = item.quantity;
+        const unitPrice = item.price;
+        let lineTotal = unitPrice * qty;
+
+        // Calculer les remises sur l'article
+        let itemDiscountTotal = 0;
+        if (Array.isArray(item.discounts)) {
+            item.discounts.forEach(d => {
+                const value = Number(d.value) || 0;
+                if (d.scope === 'unit') {
+                    if (d.type === 'amount') itemDiscountTotal += value * qty;
+                    else if (d.type === 'percent') itemDiscountTotal += unitPrice * (value / 100) * qty;
+                } else if (d.scope === 'line') {
+                    if (d.type === 'amount') itemDiscountTotal += value;
+                    else if (d.type === 'percent') itemDiscountTotal += lineTotal * (value / 100);
+                }
+            });
+        }
+
+        if (itemDiscountTotal > lineTotal) itemDiscountTotal = lineTotal;
+        const amount = lineTotal - itemDiscountTotal;
+        subtotal += amount;
+
+        // Collecter le code de carte cadeau si présent
+        if (item.type === 'gift_card' && item.generated_code) {
+            giftCardCodes.push({
+                name: name,
+                code: item.generated_code,
+                amount: unitPrice.toFixed(2)
+            });
+        }
+
+        return {
+            label: name,
+            qty: qty,
+            unit_price: unitPrice.toFixed(2),
+            discount: itemDiscountTotal.toFixed(2),
+            amount: amount.toFixed(2)
+        };
+    });
+
+    // Calculer les remises globales
+    let globalDiscountTotal = 0;
+    let globalDiscountPercent = 0;
+    const globalDiscounts = sale.discounts || [];
+    globalDiscounts.forEach(d => {
+        if (d.type === 'amount') {
+            globalDiscountTotal += d.value;
+        } else if (d.type === 'percent') {
+            globalDiscountPercent += d.value;
+            globalDiscountTotal += subtotal * (d.value / 100);
+        }
+    });
+
+    const total = Math.max(0, subtotal - globalDiscountTotal);
+
+    // Préparer receipt_discount si remise globale existe
+    let receiptDiscount = null;
+    if (globalDiscounts.length > 0 && globalDiscountTotal > 0) {
+        receiptDiscount = {
+            percent: globalDiscountPercent > 0 ? globalDiscountPercent.toString() : "0",
+            amount: globalDiscountTotal.toFixed(2)
+        };
+    }
+
+    // Déterminer le mode de paiement
+    let paymentMethod = sale.payment_type || '';
+    if (sale.split_payments && sale.split_payments.length > 0) {
+        if (sale.split_payments.length === 1) {
+            paymentMethod = sale.split_payments[0].payment_type;
+        } else {
+            paymentMethod = sale.split_payments.map(p => `${p.payment_type}: $${p.amount.toFixed(2)}`).join(' / ');
+        }
+    }
+
+    // Déterminer la date du ticket (date de création de la vente, pas la date actuelle)
+    // Pour les réimpressions, on utilise la date originale de la vente
+    const saleDate = sale.date || sale.created_at || sale.id;
+    const ticketDate = formatDateTime(saleDate);
+
+    // Numéro de ticket au format PREFIX-YYYYMMDD-XXX
+    const ticketNumber = generateTicketNumber(sale);
+
+    const result = {
+        header: {
+            title: storeConfig.address,
+            subtitle: `Phone number: ${storeConfig.phone}`
+        },
+        items: items,
+        subtotal: subtotal.toFixed(2),
+        total: total.toFixed(2),
+        tax: "0.00",
+        payment_method: paymentMethod,
+        ticket_number: ticketNumber,
+        date: ticketDate,
+        footer: PRINTER_CONFIG.footer
+    };
+
+    // Ajouter receipt_discount seulement si remise globale existe
+    if (receiptDiscount) {
+        result.receipt_discount = receiptDiscount;
+    }
+
+    // Ajouter les codes de cartes cadeaux si présents
+    if (giftCardCodes.length > 0) {
+        result.gift_cards = giftCardCodes;
+    }
+
+    return result;
+}
+
+/**
+ * Formate les données d'un voucher pour l'API d'impression
+ * @param {Object} voucher - Objet voucher (code, amount, expires_at)
+ * @param {Object} exchange - Objet exchange (id, return_total, new_items_total, balance)
+ * @returns {Object} - Données formatées pour l'imprimante
+ */
+function formatVoucherTicketData(voucher, exchange = null) {
+    const storeConfig = getStoreConfig();
+    const formattedCode = voucher.code.replace(/(.{3})/g, '$1 ').trim();
+
+    // Format expiration date
+    let expiresFormatted = voucher.expires_at;
+    if (voucher.expires_at) {
+        const expDate = new Date(voucher.expires_at);
+        expiresFormatted = `${expDate.getDate().toString().padStart(2, '0')}/${(expDate.getMonth() + 1).toString().padStart(2, '0')}/${expDate.getFullYear()}`;
+    }
+
+    // Build items to show exchange details if available
+    const items = [];
+    if (exchange) {
+        items.push({
+            label: "Exchange #" + exchange.id,
+            qty: 1,
+            unit_price: "",
+            discount: "0.00",
+            amount: ""
+        });
+        items.push({
+            label: "Return Credit",
+            qty: 1,
+            unit_price: "",
+            discount: "0.00",
+            amount: exchange.return_total.toFixed(2)
+        });
+        if (exchange.new_items_total > 0) {
+            items.push({
+                label: "New Items",
+                qty: 1,
+                unit_price: "",
+                discount: "0.00",
+                amount: "-" + exchange.new_items_total.toFixed(2)
+            });
+        }
+    }
+
+    return {
+        header: {
+            title: storeConfig.address,
+            subtitle: `Phone number: ${storeConfig.phone}`
+        },
+        items: items,
+        voucher: {
+            title: "STORE CREDIT VOUCHER",
+            code: formattedCode,
+            amount: voucher.amount.toFixed(2),
+            expires: expiresFormatted
+        },
+        subtotal: voucher.amount.toFixed(2),
+        total: voucher.amount.toFixed(2),
+        tax: "0.00",
+        payment_method: "VOUCHER",
+        ticket_number: voucher.code,
+        date: formatDateTime(),
+        footer: "Present this voucher for your next purchase.\nValid until " + expiresFormatted
+    };
+}
+
+// Expose function globally for use in sale-detail.blade.php
+window.formatVoucherTicketData = formatVoucherTicketData;
+window.printReceipt = printReceipt;
+
+/**
+ * Envoie les données à l'imprimante
+ * @param {Object} ticketData - Données formatées du ticket
+ * @returns {Promise<boolean>}
+ */
+async function printReceipt(ticketData) {
+    try {
+        const response = await fetch(`${PRINTER_CONFIG.url}/print`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(ticketData)
+        });
+
+        const result = await response.json();
+
+        if (result.status === 'ok') {
+            console.log('Ticket imprimé avec succès');
+            return true;
+        } else {
+            console.error('Erreur impression:', result.message);
+            alert('Erreur impression: ' + (result.message || 'Erreur inconnue'));
+            return false;
+        }
+    } catch (error) {
+        console.error('Erreur de connexion à l\'imprimante:', error);
+        alert('Erreur de connexion à l\'imprimante. Vérifiez que le service est démarré.');
+        return false;
+    }
+}
+
+/**
+ * Ouvre le tiroir-caisse
+ */
+async function openCashDrawer() {
+    try {
+        const response = await fetch(`${PRINTER_CONFIG.url}/open-drawer`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        });
+        const result = await response.json();
+        if (result.status === 'ok') {
+            console.log('Tiroir-caisse ouvert');
+        } else {
+            console.error('Erreur ouverture tiroir:', result.message);
+        }
+    } catch (error) {
+        console.error('Erreur de connexion tiroir-caisse:', error);
+    }
+}
+
 let selectedParentId = null;
 let selectedChildId = null;
 let selectedPath = [];              // [parentId, childId, subChildId, ...]
 let currentQuery = "";
+
+// ================== SCANNER GLOBAL LISTENER ==================
+// Capture les scans de code-barres/QR sans avoir besoin de focus sur le champ de recherche
+(function() {
+    let scanBuffer = '';
+    let lastKeyTime = 0;
+    const SCAN_THRESHOLD = 50;  // Max ms entre les caractères d'un scan
+    const SCAN_MIN_LENGTH = 3;  // Longueur minimale pour considérer comme un scan
+    let scanTimeout = null;
+
+    document.addEventListener('keydown', function(e) {
+        // Ignorer si on est dans un input/textarea (sauf le champ de recherche)
+        const activeElement = document.activeElement;
+        const isInInput = activeElement && (
+            activeElement.tagName === 'INPUT' ||
+            activeElement.tagName === 'TEXTAREA' ||
+            activeElement.isContentEditable
+        );
+
+        // Si on est déjà dans le champ de recherche, laisser le comportement normal
+        if (activeElement && activeElement.id === 'sale-search') {
+            return;
+        }
+
+        // Ignorer si un modal est ouvert (sauf modals de validation)
+        const openModals = document.querySelectorAll('.modal.show');
+        if (openModals.length > 0) {
+            return;
+        }
+
+        // Ignorer les touches de contrôle
+        if (e.ctrlKey || e.altKey || e.metaKey) {
+            return;
+        }
+
+        const now = Date.now();
+        const timeDiff = now - lastKeyTime;
+
+        // Réinitialiser le buffer si trop de temps s'est écoulé
+        if (timeDiff > 300) {
+            scanBuffer = '';
+        }
+
+        // Si Enter est pressé et qu'on a un buffer valide
+        if (e.key === 'Enter' && scanBuffer.length >= SCAN_MIN_LENGTH) {
+            e.preventDefault();
+            e.stopPropagation();
+
+            // Focus sur le champ de recherche et injecter le code scanné
+            const searchInput = document.getElementById('sale-search');
+            if (searchInput) {
+                searchInput.value = scanBuffer;
+                searchInput.focus();
+
+                // Déclencher la recherche
+                if (typeof performSearch === 'function') {
+                    performSearch();
+                }
+            }
+
+            scanBuffer = '';
+            lastKeyTime = 0;
+            return;
+        }
+
+        // Caractères imprimables uniquement
+        if (e.key.length === 1 && !isInInput) {
+            // Détection de scan : caractères rapides
+            if (timeDiff < SCAN_THRESHOLD || scanBuffer === '') {
+                scanBuffer += e.key;
+                e.preventDefault(); // Empêcher l'input d'aller ailleurs
+            } else {
+                // Trop lent, réinitialiser et commencer un nouveau buffer
+                scanBuffer = e.key;
+            }
+
+            lastKeyTime = now;
+
+            // Auto-clear après 500ms d'inactivité
+            clearTimeout(scanTimeout);
+            scanTimeout = setTimeout(() => {
+                scanBuffer = '';
+            }, 500);
+        }
+    }, true); // capture phase
+})();
 
 let isResizing = false;
 const resizer = $("#resizer");
@@ -256,7 +676,197 @@ function addNewSale() {
     saveSalesToLocal();
 }
 
+// ============================================
+// Event Delegation - Attaché une seule fois
+// ============================================
+let salesEventsInitialized = false;
+
+function initSalesEventDelegation() {
+    if (salesEventsInitialized) return;
+    salesEventsInitialized = true;
+
+    const $contents = $("#sales-contents");
+
+    // Impression ticket
+    $contents.on("click", ".print-sale", async function() {
+        const saleId = $(this).data("sale");
+        const sale = sales.find(s => s.id === saleId);
+        if (!sale) return;
+        const ticketData = formatTicketData(sale);
+        await printReceipt(ticketData);
+    });
+
+    // Supprimer un article
+    $contents.on("click", ".remove-item", function() {
+        const saleId = $(this).data("sale"), idx = $(this).data("idx");
+        const sale = sales.find(s => s.id === saleId);
+        if (sale) { sale.items.splice(idx, 1); renderSalesTabs(); saveSalesToLocal(); }
+    });
+
+    // Modifier la quantité
+    $contents.on("click", ".qty-clickable", async function() {
+        const saleId = $(this).data("sale"), idx = $(this).data("idx");
+        const sale = sales.find(s => s.id === saleId);
+        if (!sale || !sale.items[idx]) return;
+
+        const item = sale.items[idx];
+        const itemName = typeof item.name === 'object' ? (item.name.en || item.name.fr || 'Product') : item.name;
+        const newQty = await showNumericModal(`Quantity for ${itemName}`);
+
+        if (newQty > 0) {
+            item.quantity = newQty;
+            renderSalesTabs();
+            saveSalesToLocal();
+        } else if (newQty === 0) {
+            if (confirm(`Remove ${itemName} from cart?`)) {
+                sale.items.splice(idx, 1);
+                renderSalesTabs();
+                saveSalesToLocal();
+            }
+        }
+    });
+
+    // Supprimer remise ligne
+    $contents.on("click", ".remove-line-discount", function() {
+        const saleId = $(this).data("sale"), idx = $(this).data("idx"), discIdx = $(this).data("disc");
+        const sale = sales.find(s => s.id === saleId);
+        if (sale && sale.items[idx] && sale.items[idx].discounts) {
+            sale.items[idx].discounts.splice(discIdx, 1);
+            renderSalesTabs(); saveSalesToLocal();
+        }
+    });
+
+    // Annuler vente
+    $contents.on("click", ".cancel-sale", function() {
+        const saleId = $(this).data("sale");
+        const sale = sales.find(s => s.id === saleId);
+        if (!sale) return;
+        if (!confirm(`Are you sure you want to cancel this sale? All items will be lost.`)) return;
+        sales = sales.filter(s => s.id !== saleId);
+        if (sales.length === 0) addNewSale(); else activeSaleId = sales[0].id;
+        renderSalesTabs(); saveSalesToLocal();
+    });
+
+    // Valider vente
+    $contents.on("click", ".validate-sale", function() {
+        const saleId = $(this).data("sale");
+        handleSaleValidation(saleId);
+    });
+
+    // Remise globale (bouton principal)
+    $contents.on("click", ".set-global-discount", async function() {
+        const saleId = $(this).data("sale");
+        const sale = sales.find(s => s.id === saleId);
+        if (!sale) return;
+        const d = await showDiscountModal("Global Discount", false);
+        if (!d) return;
+        sale.discounts = sale.discounts || [];
+        sale.discounts.push(d);
+        renderSalesTabs(); saveSalesToLocal();
+    });
+
+    // Remise ligne
+    $contents.on("click", ".line-discount", async function() {
+        const saleId = $(this).data("sale"), idx = $(this).data("idx");
+        const sale = sales.find(s => s.id === saleId);
+        if (!sale) return;
+        const item = sale.items[idx];
+        if (!item) return;
+        const d = await showDiscountModal("Line Discount", true, item);
+        if (!d) return;
+        item.discounts = item.discounts || [];
+        item.discounts.push(d);
+        renderSalesTabs(); saveSalesToLocal();
+    });
+
+    // Ajouter remise globale
+    $contents.on("click", ".add-global-discount", async function(e) {
+        e.preventDefault();
+        const saleId = $(this).data("sale");
+        const sale = sales.find(s => s.id === saleId);
+        if (!sale) return;
+        const d = await showDiscountModal("Global Discount", false);
+        if (!d) return;
+        sale.discounts = sale.discounts || [];
+        sale.discounts.push(d);
+        renderSalesTabs(); saveSalesToLocal();
+    });
+
+    // Supprimer remise globale
+    $contents.on("click", ".remove-global-discount", function(e) {
+        e.preventDefault();
+        const saleId = $(this).data("sale");
+        const sale = sales.find(s => s.id === saleId);
+        if (!sale || !sale.discounts) return;
+        sale.discounts = [];
+        renderSalesTabs(); saveSalesToLocal();
+    });
+
+    // Service livraison
+    $contents.on("click", ".add-delivery-service", async function(e) {
+        e.preventDefault();
+        const saleId = $(this).data("sale");
+        const sale = sales.find(s => s.id === saleId);
+        if (!sale) return;
+
+        const hasDelivery = sale.items.some(item => item.is_delivery);
+        if (hasDelivery) {
+            alert("Delivery service already added to this sale");
+            return;
+        }
+
+        const deliveryData = await showDeliveryModal();
+        if (!deliveryData) return;
+
+        sale.items.push({
+            product_id: null,
+            ean: 'DELIVERY',
+            name: { en: 'Delivery Service' },
+            price: parseFloat(deliveryData.fee),
+            quantity: 1,
+            discounts: [],
+            is_delivery: true,
+            delivery_address: deliveryData.address
+        });
+
+        renderSalesTabs(); saveSalesToLocal();
+    });
+
+    // Service personnalisé
+    $contents.on("click", ".add-custom-service", async function(e) {
+        e.preventDefault();
+        const saleId = $(this).data("sale");
+        const sale = sales.find(s => s.id === saleId);
+        if (!sale) return;
+
+        const customServiceData = await showCustomServiceModal();
+        if (!customServiceData) return;
+
+        sale.items.push({
+            product_id: null,
+            ean: 'CUSTOM_SERVICE',
+            name: { en: customServiceData.description, fr: customServiceData.description },
+            price: parseFloat(customServiceData.amount),
+            quantity: 1,
+            discounts: [],
+            is_custom_service: true,
+            custom_service_description: customServiceData.description
+        });
+
+        renderSalesTabs(); saveSalesToLocal();
+    });
+
+    // Ouvrir tiroir-caisse
+    $contents.on("click", ".open-cash-drawer", openCashDrawer);
+
+    console.log('[POS] Sales event delegation initialized');
+}
+
+// ============================================
+
 function renderSalesTabs() {
+    // S'assurer que les events sont initialisés une seule fois
+    initSalesEventDelegation();
     const $tabs = $("#sales-tabs");
     const $contents = $("#sales-contents");
     $tabs.empty();
@@ -378,7 +988,9 @@ function renderSalesTabs() {
             return `
                 <tr>
                     <td class="align-middle" style="word-wrap: break-word; white-space: normal;">${itemIcon} ${item.name.en}</td>
-                    <td class="text-center align-middle">${item.quantity}</td>
+                    <td class="text-center align-middle">
+                        <span class="qty-clickable badge bg-primary" style="cursor:pointer; font-size:1rem; padding:0.5rem 1rem;" data-sale="${sale.id}" data-idx="${i}">${item.quantity}</span>
+                    </td>
                     <td class="text-center align-middle">${unitPriceCalc}</td>
                     <td class="text-center align-middle">${lineTotalCalc}</td>
                     <td class="text-center align-middle">
@@ -445,7 +1057,7 @@ function renderSalesTabs() {
                                 <small>Global discount calculation: ${sale.discounts.map(d => 
                                     d.type === 'amount' ? `- $${d.value.toFixed(2)}` : `- ${d.value}%`
                                 ).join(' + ')}</small><br>` : ''}
-                            Final Total: <strong>$${total.toFixed(2)}</strong>
+                            Final Total: <strong>$${total.toFixed(2)}</strong> <span class="text-muted">(${(total * 4000).toLocaleString('en-US')}៛)</span>
                         </div>
                     </div>
                     <div class="d-flex gap-1">
@@ -455,7 +1067,7 @@ function renderSalesTabs() {
                         <button class="btn btn-primary flex-fill print-sale" data-sale="${sale.id}" title="Print Receipt">
                             <i class="bi bi-printer"></i>
                         </button>
-                        <button id="open-cash-drawer" class="btn btn-warning flex-fill" title="Open Cash Drawer">
+                        <button class="btn btn-warning flex-fill open-cash-drawer" title="Open Cash Drawer">
                             <i class="bi bi-cash-stack"></i>
                         </button>
                         <button class="btn btn-danger flex-fill cancel-sale" data-sale="${sale.id}" title="Cancel Sale">
@@ -481,190 +1093,8 @@ function renderSalesTabs() {
             </div>
         `);
     });
-
-    // actions (inchangé par rapport à ta version)
-    $(".print-sale").off("click").on("click", function() {
-        const saleId = $(this).data("sale");
-        const sale = sales.find(s => s.id === saleId);
-        if (!sale) return;
-
-        let lines = [], total = 0;
-
-        sale.items.forEach(item => {
-            const name = (typeof item.name === "object" && item.name.en) ? item.name.en : item.name;
-            const qty = item.quantity;
-            const unitPrice = item.price;
-            let lineTotal = unitPrice * qty;
-
-            let itemDiscountTotal = 0;
-            if (Array.isArray(item.discounts)) {
-                item.discounts.forEach(d => {
-                    const value = Number(d.value) || 0;
-                    if (d.scope === 'unit') {
-                        if (d.type === 'amount') itemDiscountTotal += value * qty;
-                        else if (d.type === 'percent') itemDiscountTotal += unitPrice * (value / 100) * qty;
-                    } else if (d.scope === 'line') {
-                        if (d.type === 'amount') itemDiscountTotal += value;
-                        else if (d.type === 'percent') itemDiscountTotal += lineTotal * (value / 100);
-                    }
-                });
-            }
-            if (itemDiscountTotal > lineTotal) itemDiscountTotal = lineTotal;
-            lineTotal -= itemDiscountTotal;
-            total += lineTotal;
-
-            lines.push({ name, qty, unitPrice, lineTotal, discounts: item.discounts || [] });
-        });
-
-        const globalDiscounts = sale.discounts || [];
-
-        $.ajax({
-            url: "https://192.168.1.50:5000/print",
-            method: "POST",
-            contentType: "application/json",
-            data: JSON.stringify({ sale: { items: lines, discounts: globalDiscounts, ticket_number: sale.ticket_number, total } }),
-            success: function() {},
-            error: function(err) { console.error(err); alert("Erreur lors de l'impression !"); }
-        });
-    });
-
-    $("#open-cash-drawer").off("click").on("click", openCashDrawer);
-
-    $(".remove-item").off("click").on("click", function () {
-        const saleId = $(this).data("sale"), idx = $(this).data("idx");
-        const sale = sales.find(s => s.id === saleId);
-        if (sale) { sale.items.splice(idx, 1); renderSalesTabs(); saveSalesToLocal(); }
-    });
-
-    $(".remove-line-discount").off("click").on("click", function () {
-        const saleId = $(this).data("sale"), idx = $(this).data("idx"), discIdx = $(this).data("disc");
-        const sale = sales.find(s => s.id === saleId);
-        if (sale && sale.items[idx] && sale.items[idx].discounts) {
-            sale.items[idx].discounts.splice(discIdx, 1);
-            renderSalesTabs(); saveSalesToLocal();
-        }
-    });
-
-    $(".cancel-sale").off("click").on("click", function () {
-        const saleId = $(this).data("sale");
-        const sale = sales.find(s => s.id === saleId);
-
-        if (!sale) return;
-
-        // Confirmation message
-        if (!confirm(`Are you sure you want to cancel this sale? All items will be lost.`)) {
-            return;
-        }
-
-        sales = sales.filter(s => s.id !== saleId);
-        if (sales.length === 0) addNewSale(); else activeSaleId = sales[0].id;
-        renderSalesTabs(); saveSalesToLocal();
-    });
-
-    $(".validate-sale").off("click").on("click", function () {
-        const saleId = $(this).data("sale");
-        handleSaleValidation(saleId);
-    });
-
-    $(".set-global-discount").off("click").on("click", async function () {
-        const saleId = $(this).data("sale");
-        const sale = sales.find(s => s.id === saleId);
-        if (!sale) return;
-        const d = await showDiscountModal("Global Discount", false);
-        if (!d) return;
-        sale.discounts = sale.discounts || [];
-        sale.discounts.push(d);
-        renderSalesTabs(); saveSalesToLocal();
-    });
-
-    $(".line-discount").off("click").on("click", async function () {
-        const saleId = $(this).data("sale"), idx = $(this).data("idx");
-        const sale = sales.find(s => s.id === saleId);
-        if (!sale) return;
-        const item = sale.items[idx];
-        if (!item) return;
-        const d = await showDiscountModal("Line Discount", true, item);
-        if (!d) return;
-        item.discounts = item.discounts || [];
-        item.discounts.push(d);
-        renderSalesTabs(); saveSalesToLocal();
-    });
-
-    $(".add-global-discount").off("click").on("click", async function(e) {
-        e.preventDefault();
-        const saleId = $(this).data("sale");
-        const sale = sales.find(s => s.id === saleId);
-        if (!sale) return;
-        const d = await showDiscountModal("Global Discount", false);
-        if (!d) return;
-        sale.discounts = sale.discounts || [];
-        sale.discounts.push(d);
-        renderSalesTabs(); saveSalesToLocal();
-    });
-
-    $(".remove-global-discount").off("click").on("click", function(e) {
-        e.preventDefault();
-        const saleId = $(this).data("sale");
-        const sale = sales.find(s => s.id === saleId);
-        if (!sale || !sale.discounts) return;
-        sale.discounts = [];
-        renderSalesTabs(); saveSalesToLocal();
-    });
-
-    $(".add-delivery-service").off("click").on("click", async function(e) {
-        e.preventDefault();
-        const saleId = $(this).data("sale");
-        const sale = sales.find(s => s.id === saleId);
-        if (!sale) return;
-
-        // Check if delivery already exists
-        const hasDelivery = sale.items.some(item => item.is_delivery);
-        if (hasDelivery) {
-            alert("Delivery service already added to this sale");
-            return;
-        }
-
-        const deliveryData = await showDeliveryModal();
-        if (!deliveryData) return;
-
-        // Add delivery as a special item
-        sale.items.push({
-            product_id: null,
-            ean: 'DELIVERY',
-            name: { en: 'Delivery Service' },
-            price: parseFloat(deliveryData.fee),
-            quantity: 1,
-            discounts: [],
-            is_delivery: true,
-            delivery_address: deliveryData.address
-        });
-
-        renderSalesTabs(); saveSalesToLocal();
-    });
-
-    $(".add-custom-service").off("click").on("click", async function(e) {
-        e.preventDefault();
-        const saleId = $(this).data("sale");
-        const sale = sales.find(s => s.id === saleId);
-        if (!sale) return;
-
-        const customServiceData = await showCustomServiceModal();
-        if (!customServiceData) return;
-
-        // Add custom service as a special item
-        sale.items.push({
-            product_id: null,
-            ean: 'CUSTOM_SERVICE',
-            name: { en: customServiceData.description, fr: customServiceData.description },
-            price: parseFloat(customServiceData.amount),
-            quantity: 1,
-            discounts: [],
-            is_custom_service: true,
-            custom_service_description: customServiceData.description
-        });
-
-        renderSalesTabs(); saveSalesToLocal();
-    });
+    // Note: Les event handlers sont maintenant gérés par initSalesEventDelegation()
+    // pour éviter l'accumulation de listeners et les problèmes de performance
 }
 
 // ================== Produits / Catalogue (inchangé) ==================
@@ -782,6 +1212,41 @@ async function performSearch() {
         return;
     }
 
+    // D'abord, chercher une correspondance exacte sur l'EAN ou barcodes
+    const catalog = db.table("catalog");
+    const queryLower = query.toLowerCase();
+
+    // Préparer les variantes de recherche (avec et sans 0 initial pour EAN-13)
+    const searchVariants = [queryLower];
+    if (/^\d{12}$/.test(query)) {
+        // Si 12 chiffres, essayer avec un 0 devant (EAN-13 tronqué par le scanner)
+        searchVariants.push('0' + queryLower);
+    }
+
+    const exactMatch = catalog.data.filter(p => {
+        // Vérifier l'EAN principal
+        if (p.ean) {
+            const eanLower = p.ean.toLowerCase();
+            if (searchVariants.includes(eanLower)) return true;
+        }
+        // Vérifier les barcodes additionnels
+        if (p.barcodes && Array.isArray(p.barcodes)) {
+            return p.barcodes.some(bc => {
+                const barcode = (typeof bc === 'object' ? bc.barcode : bc) || '';
+                return searchVariants.includes(barcode.toLowerCase());
+            });
+        }
+        return false;
+    });
+
+    // Si un seul résultat exact, ajouter directement au panier
+    if (exactMatch.length === 1) {
+        const product = exactMatch[0];
+        addProductToCart(product, 1);
+        $("#sale-search").val("").focus();
+        return;
+    }
+
     // Recherche via Meilisearch API
     const storeId = currentUser?.store_id;
     if (!storeId) {
@@ -799,7 +1264,9 @@ async function performSearch() {
         }
 
         const data = await response.json();
-        renderSearchResults(data.results || []);
+        const results = data.results || [];
+
+        renderSearchResults(results);
     } catch (error) {
         console.error('Search error:', error);
         renderCatalog(); // Fallback to local search
@@ -1806,54 +2273,9 @@ function handleSaleValidation(saleId) {
     });
 }
 
-function printSale(sale) {
-    let lines = [], total = 0;
-
-    sale.items.forEach(item => {
-        const name = (typeof item.name === "object" && item.name.en) ? item.name.en : item.name;
-        const qty = item.quantity;
-        const unitPrice = item.price;
-        let lineTotal = unitPrice * qty;
-
-        let itemDiscountTotal = 0;
-        if (Array.isArray(item.discounts)) {
-            item.discounts.forEach(d => {
-                const value = Number(d.value) || 0;
-                if (d.scope === 'unit') {
-                    if (d.type === 'amount') itemDiscountTotal += value * qty;
-                    else if (d.type === 'percent') itemDiscountTotal += unitPrice * (value / 100) * qty;
-                } else if (d.scope === 'line') {
-                    if (d.type === 'amount') itemDiscountTotal += value;
-                    else if (d.type === 'percent') itemDiscountTotal += lineTotal * (value / 100);
-                }
-            });
-        }
-        if (itemDiscountTotal > lineTotal) itemDiscountTotal = lineTotal;
-        lineTotal -= itemDiscountTotal;
-        total += lineTotal;
-
-        lines.push({ name, qty, unitPrice, lineTotal, discounts: item.discounts || [] });
-    });
-
-    const globalDiscounts = sale.discounts || [];
-
-    $.ajax({
-        url: "https://192.168.1.50:5000/print",
-        method: "POST",
-        contentType: "application/json",
-        data: JSON.stringify({ sale: { items: lines, discounts: globalDiscounts, ticket_number: sale.ticket_number, total } }),
-        success: function() {},
-        error: function(err) { console.error(err); alert("Erreur lors de l'impression !"); }
-    });
-}
-
-function openCashDrawer() {
-    $.ajax({
-        url: "http://kabas.local:5000/open-drawer",
-        method: "POST",
-        success: function() { console.log("Cash drawer opened automatically"); },
-        error: function(err) { console.error("Cash drawer opening error:", err); }
-    });
+async function printSale(sale) {
+    const ticketData = formatTicketData(sale);
+    await printReceipt(ticketData);
 }
 
 function saveValidatedSaleToLocal(sale) {

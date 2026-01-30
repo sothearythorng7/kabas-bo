@@ -45,6 +45,14 @@
             </button>
         </li>
         @endif
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="invoice-tab" data-bs-toggle="tab" data-bs-target="#invoice" type="button" role="tab" aria-controls="invoice" aria-selected="false">
+                <i class="bi bi-receipt"></i> {{ __('messages.resellers.invoice') }}
+                @if($delivery->invoice)
+                    <span class="badge bg-success">{{ __('messages.resellers.created') }}</span>
+                @endif
+            </button>
+        </li>
     </ul>
 
     <div class="tab-content mt-3" id="deliveryTabsContent">
@@ -126,6 +134,67 @@
                     {{ __('messages.btn.cancel') }}
                 </a>
             </form>
+
+            {{-- Delivery Note Section --}}
+            <hr class="my-4">
+            <h5><i class="bi bi-file-earmark-text"></i> {{ __('messages.resellers.delivery_note') }}</h5>
+
+            @if($delivery->delivery_note)
+                <div class="alert alert-success d-flex align-items-center justify-content-between">
+                    <div>
+                        <i class="bi bi-check-circle me-2"></i>
+                        {{ __('messages.resellers.delivery_note_uploaded_status') }}
+                    </div>
+                    <div>
+                        <a href="{{ asset('storage/' . $delivery->delivery_note) }}" target="_blank" class="btn btn-sm btn-primary me-2">
+                            <i class="bi bi-eye"></i> {{ __('messages.btn.view') }}
+                        </a>
+                        <a href="{{ asset('storage/' . $delivery->delivery_note) }}" download class="btn btn-sm btn-outline-primary me-2">
+                            <i class="bi bi-download"></i> {{ __('messages.btn.download') }}
+                        </a>
+                        <form action="{{ route('reseller-stock-deliveries.delete-note', [$reseller->id, $delivery->id]) }}" method="POST" class="d-inline" onsubmit="return confirm('{{ __('messages.resellers.confirm_delete_note') }}');">
+                            @csrf
+                            @method('DELETE')
+                            <button type="submit" class="btn btn-sm btn-danger">
+                                <i class="bi bi-trash"></i> {{ __('messages.btn.delete') }}
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            @else
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle me-2"></i>
+                    {{ __('messages.resellers.no_delivery_note') }}
+                </div>
+            @endif
+
+            <div class="row">
+                <div class="col-md-6">
+                    <form action="{{ route('reseller-stock-deliveries.upload-note', [$reseller->id, $delivery->id]) }}" method="POST" enctype="multipart/form-data">
+                        @csrf
+                        <div class="mb-3">
+                            <label for="delivery_note" class="form-label">{{ __('messages.resellers.upload_delivery_note') }}</label>
+                            <input type="file" name="delivery_note" id="delivery_note" class="form-control @error('delivery_note') is-invalid @enderror" accept=".pdf,.jpg,.jpeg,.png">
+                            @error('delivery_note')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
+                            <small class="text-muted">{{ __('messages.resellers.delivery_note_formats') }}</small>
+                        </div>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-upload"></i> {{ __('messages.btn.upload') }}
+                        </button>
+                    </form>
+                </div>
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label class="form-label">{{ __('messages.resellers.generate_delivery_note') }}</label>
+                        <p class="text-muted small">{{ __('messages.resellers.generate_delivery_note_desc') }}</p>
+                        <a href="{{ route('reseller-stock-deliveries.generate-note', [$reseller->id, $delivery->id]) }}" class="btn btn-success">
+                            <i class="bi bi-file-earmark-pdf"></i> {{ __('messages.resellers.generate_pdf') }}
+                        </a>
+                    </div>
+                </div>
+            </div>
         </div>
 
         {{-- Onglet Produits --}}
@@ -237,6 +306,107 @@
             </button>
         </div>
         @endif
+
+        {{-- Onglet Invoice --}}
+        <div class="tab-pane fade" id="invoice" role="tabpanel" aria-labelledby="invoice-tab">
+            <h4><i class="bi bi-receipt"></i> {{ __('messages.resellers.invoice_details') }}</h4>
+
+            {{-- Résumé de la livraison --}}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <strong>{{ __('messages.resellers.delivery') }} #{{ $delivery->id }}</strong>
+                    <span class="badge bg-{{ $delivery->status === 'shipped' ? 'success' : ($delivery->status === 'draft' ? 'secondary' : 'warning') }} ms-2">
+                        {{ __('messages.order.' . strtolower($delivery->status)) }}
+                    </span>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <strong>{{ __('messages.resellers.recipient') }}:</strong><br>
+                            {{ $reseller->name }}
+                        </div>
+                        <div class="col-md-4">
+                            <strong>{{ __('messages.resellers.date') }}:</strong><br>
+                            {{ $delivery->created_at->format('d/m/Y H:i') }}
+                        </div>
+                        <div class="col-md-4">
+                            <strong>{{ __('messages.resellers.status') }}:</strong><br>
+                            {{ __('messages.order.' . strtolower($delivery->status)) }}
+                        </div>
+                    </div>
+
+                    {{-- Tableau des produits --}}
+                    <div class="table-responsive">
+                        <table class="table table-sm table-striped">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>{{ __('messages.product.ean') }}</th>
+                                    <th>{{ __('messages.product.name') }}</th>
+                                    <th>{{ __('messages.product.brand') }}</th>
+                                    <th class="text-end">{{ __('messages.resellers.unit_price') }}</th>
+                                    <th class="text-center">{{ __('messages.resellers.quantity') }}</th>
+                                    <th class="text-end">{{ __('messages.resellers.total') }}</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @php $grandTotal = 0; $totalQty = 0; @endphp
+                                @foreach($delivery->products as $product)
+                                    @php
+                                        $lineTotal = $product->pivot->quantity * $product->pivot->unit_price;
+                                        $grandTotal += $lineTotal;
+                                        $totalQty += $product->pivot->quantity;
+                                    @endphp
+                                    <tr>
+                                        <td>{{ $product->ean }}</td>
+                                        <td>{{ $product->name[app()->getLocale()] ?? reset($product->name) }}</td>
+                                        <td>{{ $product->brand?->name ?? '-' }}</td>
+                                        <td class="text-end">$ {{ number_format($product->pivot->unit_price, 2) }}</td>
+                                        <td class="text-center">{{ $product->pivot->quantity }}</td>
+                                        <td class="text-end">$ {{ number_format($lineTotal, 2) }}</td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                            <tfoot class="table-secondary">
+                                <tr>
+                                    <td colspan="4" class="text-end"><strong>{{ __('messages.resellers.total') }}</strong></td>
+                                    <td class="text-center"><strong>{{ $totalQty }}</strong></td>
+                                    <td class="text-end"><strong>$ {{ number_format($grandTotal, 2) }}</strong></td>
+                                </tr>
+                                @if($delivery->shipping_cost > 0)
+                                <tr>
+                                    <td colspan="5" class="text-end">{{ __('messages.resellers.shipping_cost') }}</td>
+                                    <td class="text-end">$ {{ number_format($delivery->shipping_cost, 2) }}</td>
+                                </tr>
+                                <tr>
+                                    <td colspan="5" class="text-end"><strong>{{ __('messages.resellers.grand_total') }}</strong></td>
+                                    <td class="text-end"><strong>$ {{ number_format($grandTotal + $delivery->shipping_cost, 2) }}</strong></td>
+                                </tr>
+                                @endif
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            {{-- Actions --}}
+            <div class="d-flex gap-2">
+                @if($delivery->invoice)
+                    <a href="{{ route('reseller-invoices.show', $delivery->invoice->id) }}" class="btn btn-info">
+                        <i class="bi bi-eye"></i> {{ __('messages.resellers.view_invoice') }}
+                    </a>
+                @else
+                    <form action="{{ route('reseller-stock-deliveries.create-invoice', [$reseller->id, $delivery->id]) }}" method="POST" class="d-inline">
+                        @csrf
+                        <button type="submit" class="btn btn-success">
+                            <i class="bi bi-plus-circle"></i> {{ __('messages.resellers.create_invoice') }}
+                        </button>
+                    </form>
+                @endif
+                <a href="{{ route('reseller-stock-deliveries.generate-invoice-pdf', [$reseller->id, $delivery->id]) }}" class="btn btn-primary">
+                    <i class="bi bi-file-earmark-pdf"></i> {{ __('messages.resellers.download_invoice_pdf') }}
+                </a>
+            </div>
+        </div>
     </div>
 </div>
 

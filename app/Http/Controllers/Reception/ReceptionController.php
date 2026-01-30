@@ -89,6 +89,12 @@ class ReceptionController extends Controller
             ->where('order_type', SupplierOrder::ORDER_TYPE_PRODUCT)
             ->count();
 
+        // Count pending factory orders (raw materials)
+        $pendingFactoryOrdersCount = SupplierOrder::whereIn('destination_store_id', $storeIds)
+            ->where('status', 'waiting_reception')
+            ->where('order_type', SupplierOrder::ORDER_TYPE_RAW_MATERIAL)
+            ->count();
+
         // Count all pending transfers (not restricted by store)
         $pendingTransfersCount = StockMovement::whereIn('status', [StockMovement::STATUS_VALIDATED, StockMovement::STATUS_IN_TRANSIT])
             ->count();
@@ -96,6 +102,7 @@ class ReceptionController extends Controller
         return view('reception.home', [
             'userName' => session('reception_user_name'),
             'pendingOrdersCount' => $pendingOrdersCount,
+            'pendingFactoryOrdersCount' => $pendingFactoryOrdersCount,
             'pendingTransfersCount' => $pendingTransfersCount,
         ]);
     }
@@ -258,6 +265,168 @@ class ReceptionController extends Controller
 
         return redirect()->route('reception.orders')
             ->with('success', 'Order finalized successfully');
+    }
+
+    // =====================================================
+    // FACTORY ORDERS (Raw Materials)
+    // =====================================================
+
+    /**
+     * List factory orders (raw materials) waiting for reception
+     */
+    public function factoryOrdersList()
+    {
+        $storeIds = $this->getAccessibleStoreIds();
+
+        $orders = SupplierOrder::with(['supplier', 'destinationStore'])
+            ->whereIn('destination_store_id', $storeIds)
+            ->where('status', 'waiting_reception')
+            ->where('order_type', SupplierOrder::ORDER_TYPE_RAW_MATERIAL)
+            ->latest()
+            ->get();
+
+        // Check which orders have partial reception
+        $orderIds = $orders->pluck('id');
+        $ordersWithPartialReception = \App\Models\RawMaterialStockBatch::whereIn('source_supplier_order_id', $orderIds)
+            ->where('quantity', '>', 0)
+            ->distinct()
+            ->pluck('source_supplier_order_id')
+            ->toArray();
+
+        return view('reception.factory-orders.index', compact('orders', 'ordersWithPartialReception'));
+    }
+
+    /**
+     * Show single factory order for reception
+     */
+    public function factoryOrderShow(SupplierOrder $order)
+    {
+        $storeIds = $this->getAccessibleStoreIds();
+
+        if (!in_array($order->destination_store_id, $storeIds)) {
+            abort(403, 'Access denied');
+        }
+
+        if ($order->status !== 'waiting_reception') {
+            return redirect()->route('reception.factory-orders')
+                ->with('error', 'This order is not available for reception');
+        }
+
+        $order->load(['supplier', 'rawMaterials', 'destinationStore']);
+
+        // Get already received quantities from RawMaterialStockBatch
+        $receivedQuantities = \App\Models\RawMaterialStockBatch::where('source_supplier_order_id', $order->id)
+            ->pluck('quantity', 'raw_material_id')
+            ->toArray();
+
+        return view('reception.factory-orders.show', compact('order', 'receivedQuantities'));
+    }
+
+    /**
+     * Receive a single raw material item (AJAX)
+     */
+    public function receiveFactoryItem(Request $request, SupplierOrder $order)
+    {
+        $request->validate([
+            'raw_material_id' => 'required|exists:raw_materials,id',
+            'quantity_received' => 'required|numeric|min:0',
+        ]);
+
+        $storeIds = $this->getAccessibleStoreIds();
+
+        if (!in_array($order->destination_store_id, $storeIds)) {
+            return response()->json(['error' => 'Access denied'], 403);
+        }
+
+        if ($order->status !== 'waiting_reception') {
+            return response()->json(['error' => 'Order not available for reception'], 400);
+        }
+
+        $rawMaterialId = $request->raw_material_id;
+        $quantityReceived = $request->quantity_received;
+
+        // Get purchase price from order pivot
+        $orderMaterial = $order->rawMaterials()->where('raw_material_id', $rawMaterialId)->first();
+        if (!$orderMaterial) {
+            return response()->json(['error' => 'Raw material not found in order'], 404);
+        }
+        $purchasePrice = $orderMaterial->pivot->purchase_price ?? 0;
+
+        DB::transaction(function () use ($order, $rawMaterialId, $quantityReceived, $purchasePrice) {
+            // Find or create RawMaterialStockBatch for this material/order
+            $batch = \App\Models\RawMaterialStockBatch::where('source_supplier_order_id', $order->id)
+                ->where('raw_material_id', $rawMaterialId)
+                ->first();
+
+            $oldQuantity = $batch ? $batch->quantity : 0;
+            $difference = $quantityReceived - $oldQuantity;
+
+            if ($batch) {
+                // Update existing batch
+                $batch->update(['quantity' => $quantityReceived]);
+            } else {
+                // Create new batch
+                $batch = \App\Models\RawMaterialStockBatch::create([
+                    'raw_material_id' => $rawMaterialId,
+                    'quantity' => $quantityReceived,
+                    'unit_price' => $purchasePrice,
+                    'source_supplier_order_id' => $order->id,
+                ]);
+            }
+
+            // Update pivot table
+            $order->rawMaterials()->updateExistingPivot($rawMaterialId, [
+                'quantity_received' => $quantityReceived,
+            ]);
+
+            // Create stock movement if there's a difference
+            if ($difference != 0) {
+                \App\Models\RawMaterialStockMovement::create([
+                    'raw_material_stock_batch_id' => $batch->id,
+                    'raw_material_id' => $rawMaterialId,
+                    'type' => \App\Models\RawMaterialStockMovement::TYPE_PURCHASE,
+                    'quantity' => $difference, // Positive for in, negative for out
+                    'reference' => 'Order #' . $order->id,
+                    'source_type' => 'App\Models\SupplierOrder',
+                    'source_id' => $order->id,
+                    'user_id' => session('reception_user_id'),
+                ]);
+            }
+        });
+
+        return response()->json([
+            'success' => true,
+            'new_quantity' => $quantityReceived,
+        ]);
+    }
+
+    /**
+     * Finalize factory order reception
+     */
+    public function finalizeFactoryOrder(SupplierOrder $order)
+    {
+        $storeIds = $this->getAccessibleStoreIds();
+
+        if (!in_array($order->destination_store_id, $storeIds)) {
+            return redirect()->route('reception.factory-orders')
+                ->with('error', 'Access denied');
+        }
+
+        if ($order->status !== 'waiting_reception') {
+            return redirect()->route('reception.factory-orders')
+                ->with('error', 'Order cannot be finalized');
+        }
+
+        // Change status based on supplier type
+        if ($order->supplier->type === 'consignment') {
+            $order->status = 'received';
+        } else {
+            $order->status = 'waiting_invoice';
+        }
+        $order->save();
+
+        return redirect()->route('reception.factory-orders')
+            ->with('success', 'Factory order finalized successfully');
     }
 
     /**

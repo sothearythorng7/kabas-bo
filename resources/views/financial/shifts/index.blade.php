@@ -66,6 +66,8 @@
                             <th>{{ __('messages.financial.end') }}</th>
                             <th>{{ __('messages.financial.duration') }}</th>
                             <th>{{ __('messages.financial.opening_cash') }}</th>
+                            <th>{{ __('messages.financial.cash_in') }}</th>
+                            <th>{{ __('messages.financial.cash_out') }}</th>
                             <th>{{ __('messages.financial.closing_cash') }}</th>
                             <th>{{ __('messages.financial.cash_difference') }}</th>
                             <th>{{ __('messages.financial.actions') }}</th>
@@ -93,6 +95,20 @@
                                 @endif
                             </td>
                             <td>${{ number_format($s->opening_cash ?? 0, 2) }}</td>
+                            <td>
+                                @if($s->cash_in)
+                                    <span class="text-success">+${{ number_format($s->cash_in, 2) }}</span>
+                                @else
+                                    <span class="text-muted">-</span>
+                                @endif
+                            </td>
+                            <td>
+                                @if($s->cash_out)
+                                    <span class="text-danger">-${{ number_format($s->cash_out, 2) }}</span>
+                                @else
+                                    <span class="text-muted">-</span>
+                                @endif
+                            </td>
                             <td>
                                 @if($s->closing_cash !== null)
                                     ${{ number_format($s->closing_cash, 2) }}
@@ -154,11 +170,27 @@
                 </div>
                 <hr>
                 <div class="row">
-                    <div class="col-md-3">
+                    <div class="col-md-2">
                         <strong>{{ __('messages.financial.opening_cash') }}:</strong><br>
                         ${{ number_format($shift->opening_cash ?? 0, 2) }}
                     </div>
-                    <div class="col-md-3">
+                    <div class="col-md-2">
+                        <strong>{{ __('messages.financial.cash_in') }}:</strong><br>
+                        @if($shift->cash_in)
+                            <span class="text-success">+${{ number_format($shift->cash_in, 2) }}</span>
+                        @else
+                            <span class="text-muted">-</span>
+                        @endif
+                    </div>
+                    <div class="col-md-2">
+                        <strong>{{ __('messages.financial.cash_out') }}:</strong><br>
+                        @if($shift->cash_out)
+                            <span class="text-danger">-${{ number_format($shift->cash_out, 2) }}</span>
+                        @else
+                            <span class="text-muted">-</span>
+                        @endif
+                    </div>
+                    <div class="col-md-2">
                         <strong>{{ __('messages.financial.closing_cash') }}:</strong><br>
                         @if($shift->closing_cash !== null)
                             ${{ number_format($shift->closing_cash, 2) }}
@@ -166,7 +198,7 @@
                             <span class="text-muted">N/A</span>
                         @endif
                     </div>
-                    <div class="col-md-3">
+                    <div class="col-md-2">
                         <strong>{{ __('messages.financial.cash_difference') }}:</strong><br>
                         @if($shift->cash_difference !== null)
                             <span class="badge bg-{{ $shift->cash_difference == 0 ? 'success' : ($shift->cash_difference > 0 ? 'warning' : 'danger') }}">
@@ -176,7 +208,7 @@
                             <span class="text-muted">N/A</span>
                         @endif
                     </div>
-                    <div class="col-md-3">
+                    <div class="col-md-2">
                         <strong>{{ __('messages.financial.visitors') }}:</strong><br>
                         {{ $shift->visitors_count ?? 'N/A' }}
                     </div>

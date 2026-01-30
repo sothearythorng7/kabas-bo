@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Product;
 use App\Models\Reseller;
+use App\Models\ResellerProductPrice;
 use App\Models\ResellerStockDelivery;
 use App\Models\StockBatch;
 use App\Models\StockTransaction;
@@ -12,6 +13,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use App\Models\FinancialPaymentMethod;
+use App\Models\ResellerInvoice;
 
 class ResellerStockDeliveryController extends Controller
 {
@@ -40,10 +42,20 @@ class ResellerStockDeliveryController extends Controller
             $query->where('is_resalable', true);
         }
 
-        $products = $query->get()->map(function($product) use ($warehouse) {
-            $product->available_stock = $warehouse 
-                ? $product->stockBatches()->where('store_id', $warehouse->id)->sum('quantity') 
+        // Récupérer les prix personnalisés pour ce revendeur
+        $resellerPrices = [];
+        if (!$isShop && is_numeric($reseller)) {
+            $resellerPrices = ResellerProductPrice::where('reseller_id', $reseller)
+                ->pluck('price', 'product_id')
+                ->toArray();
+        }
+
+        $products = $query->get()->map(function($product) use ($warehouse, $resellerPrices) {
+            $product->available_stock = $warehouse
+                ? $product->stockBatches()->where('store_id', $warehouse->id)->sum('quantity')
                 : 0;
+            // Utiliser le prix personnalisé du revendeur s'il existe
+            $product->reseller_price = $resellerPrices[$product->id] ?? $product->price_btob ?? $product->price;
             return $product;
         });
 
@@ -252,17 +264,18 @@ class ResellerStockDeliveryController extends Controller
                         ]);
                     }
 
-                    // Transaction d'entrée stock
-                    StockTransaction::create([
-                        'stock_batch_id' => $batch->id,
-                        'store_id'       => $batch->store_id,
-                        'reseller_id'    => $batch->reseller_id,
-                        'product_id'     => $product->id,
-                        'type'           => 'in',
-                        'quantity'       => $product->pivot->quantity,
-                        'reason'         => 'reseller_delivery_received',
-                        'user_id'        => auth()->id(),
-                    ]);
+                    // Transaction d'entrée stock (seulement pour les shops, pas les revendeurs externes)
+                    if ($batch->store_id) {
+                        StockTransaction::create([
+                            'stock_batch_id' => $batch->id,
+                            'store_id'       => $batch->store_id,
+                            'product_id'     => $product->id,
+                            'type'           => 'in',
+                            'quantity'       => $product->pivot->quantity,
+                            'reason'         => 'reseller_delivery_received',
+                            'user_id'        => auth()->id(),
+                        ]);
+                    }
                 }
             }
         });
@@ -280,5 +293,162 @@ class ResellerStockDeliveryController extends Controller
             $resellerId = (int)$reseller;
             return ResellerStockDelivery::where('reseller_id', $resellerId)->latest()->paginate(10);
         }
+    }
+
+    // Upload delivery note
+    public function uploadDeliveryNote(Request $request, $reseller, ResellerStockDelivery $delivery)
+    {
+        $isShop = str_starts_with($reseller, 'shop-');
+
+        if ($isShop) {
+            $shopId = (int) str_replace('shop-', '', $reseller);
+            if ($delivery->store_id !== $shopId) abort(404);
+        } else {
+            if ($delivery->reseller_id !== (int)$reseller) abort(404);
+        }
+
+        $request->validate([
+            'delivery_note' => 'required|file|mimes:pdf,jpg,jpeg,png|max:5120', // 5MB max
+        ]);
+
+        // Delete old file if exists
+        if ($delivery->delivery_note && \Storage::disk('public')->exists($delivery->delivery_note)) {
+            \Storage::disk('public')->delete($delivery->delivery_note);
+        }
+
+        // Store new file
+        $path = $request->file('delivery_note')->store('delivery-notes', 'public');
+        $delivery->update(['delivery_note' => $path]);
+
+        return back()->with('success', __('messages.resellers.delivery_note_uploaded'));
+    }
+
+    // Delete delivery note
+    public function deleteDeliveryNote($reseller, ResellerStockDelivery $delivery)
+    {
+        $isShop = str_starts_with($reseller, 'shop-');
+
+        if ($isShop) {
+            $shopId = (int) str_replace('shop-', '', $reseller);
+            if ($delivery->store_id !== $shopId) abort(404);
+        } else {
+            if ($delivery->reseller_id !== (int)$reseller) abort(404);
+        }
+
+        if ($delivery->delivery_note && \Storage::disk('public')->exists($delivery->delivery_note)) {
+            \Storage::disk('public')->delete($delivery->delivery_note);
+        }
+
+        $delivery->update(['delivery_note' => null]);
+
+        return back()->with('success', __('messages.resellers.delivery_note_deleted'));
+    }
+
+    // Generate delivery note PDF
+    public function generateDeliveryNote($reseller, ResellerStockDelivery $delivery)
+    {
+        $isShop = str_starts_with($reseller, 'shop-');
+
+        if ($isShop) {
+            $shopId = (int) str_replace('shop-', '', $reseller);
+            $shop = Store::findOrFail($shopId);
+            $resellerObj = (object)[
+                'id' => $reseller,
+                'name' => $shop->name,
+                'type' => 'shop',
+                'is_shop' => true,
+                'contacts' => collect(),
+            ];
+
+            if ($delivery->store_id !== $shopId) abort(404);
+        } else {
+            $resellerObj = Reseller::with('contacts')->findOrFail($reseller);
+            if ($delivery->reseller_id !== (int)$reseller) abort(404);
+        }
+
+        $delivery->load('products');
+
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('resellers.deliveries.delivery-note-pdf', [
+            'delivery' => $delivery,
+            'reseller' => $resellerObj,
+        ]);
+
+        $filename = 'delivery_note_' . $delivery->id . '_' . now()->format('Ymd') . '.pdf';
+
+        return $pdf->download($filename);
+    }
+
+    // Create invoice for delivery
+    public function createInvoice($reseller, ResellerStockDelivery $delivery)
+    {
+        $isShop = str_starts_with($reseller, 'shop-');
+
+        if ($isShop) {
+            $shopId = (int) str_replace('shop-', '', $reseller);
+            if ($delivery->store_id !== $shopId) abort(404);
+            $resellerId = null;
+            $storeId = $shopId;
+        } else {
+            if ($delivery->reseller_id !== (int)$reseller) abort(404);
+            $resellerId = (int)$reseller;
+            $storeId = null;
+        }
+
+        // Check if invoice already exists
+        if ($delivery->invoice) {
+            return back()->with('info', __('messages.resellers.invoice_already_exists'));
+        }
+
+        // Calculate total amount
+        $totalAmount = $delivery->products->sum(function ($product) {
+            return $product->pivot->quantity * $product->pivot->unit_price;
+        });
+
+        // Add shipping cost if any
+        $totalAmount += $delivery->shipping_cost ?? 0;
+
+        // Create invoice
+        ResellerInvoice::create([
+            'reseller_id' => $resellerId,
+            'store_id' => $storeId,
+            'reseller_stock_delivery_id' => $delivery->id,
+            'total_amount' => $totalAmount,
+            'status' => 'unpaid',
+        ]);
+
+        return back()->with('success', __('messages.resellers.invoice_created'));
+    }
+
+    // Generate invoice PDF
+    public function generateInvoicePdf($reseller, ResellerStockDelivery $delivery)
+    {
+        $isShop = str_starts_with($reseller, 'shop-');
+
+        if ($isShop) {
+            $shopId = (int) str_replace('shop-', '', $reseller);
+            $shop = Store::findOrFail($shopId);
+            $resellerObj = (object)[
+                'id' => $reseller,
+                'name' => $shop->name,
+                'type' => 'shop',
+                'is_shop' => true,
+            ];
+
+            if ($delivery->store_id !== $shopId) abort(404);
+        } else {
+            $resellerObj = Reseller::findOrFail($reseller);
+            if ($delivery->reseller_id !== (int)$reseller) abort(404);
+        }
+
+        $delivery->load('products.brand', 'products.suppliers');
+
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('resellers.deliveries.invoice-pdf', [
+            'delivery' => $delivery,
+            'reseller' => $resellerObj,
+        ]);
+
+        $filename = 'invoice_' . $delivery->id . '_' . now()->format('Ymd') . '.pdf';
+
+        return $pdf->download($filename);
     }
 }

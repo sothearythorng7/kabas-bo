@@ -63,8 +63,9 @@ class GeneralInvoiceController extends Controller
 
         $accounts = FinancialAccount::all();
         $categories = \App\Models\InvoiceCategory::orderBy('name')->get();
+        $paymentMethods = \App\Models\FinancialPaymentMethod::all();
 
-        return view('financial.general-invoices.index', compact('invoices', 'store', 'statusFilter', 'accounts', 'categories'));
+        return view('financial.general-invoices.index', compact('invoices', 'store', 'statusFilter', 'accounts', 'categories', 'paymentMethods'));
     }
 
     public function export(Store $store, Request $request)
@@ -266,9 +267,17 @@ class GeneralInvoiceController extends Controller
         $this->authorizeInvoice($generalInvoice, $store->id);
 
         $request->validate([
+            'payment_date' => 'required|date',
             'payment_method_id' => 'required|exists:financial_payment_methods,id',
             'payment_reference' => 'nullable|string|max:255',
+            'payment_proof' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:10240',
         ]);
+
+        // Upload de la preuve de paiement si fournie
+        $paymentProofPath = null;
+        if ($request->hasFile('payment_proof')) {
+            $paymentProofPath = $request->file('payment_proof')->store('payment_proofs', 'public');
+        }
 
         // Récupérer le compte 401 (Fournisseurs)
         $account = \App\Models\FinancialAccount::where('code', '401')->first();
@@ -293,7 +302,7 @@ class GeneralInvoiceController extends Controller
                 'label' => 'Paiement facture : ' . $generalInvoice->label,
                 'description' => $request->payment_reference ?? null,
                 'status' => 'validated',
-                'transaction_date' => now(),
+                'transaction_date' => $request->payment_date,
                 'payment_method_id' => $request->payment_method_id,
                 'user_id' => auth()->id(),
                 'external_reference' => route('financial.general-invoices.show', [$store->id, $generalInvoice->id]),
@@ -307,11 +316,21 @@ class GeneralInvoiceController extends Controller
                     'uploaded_by' => auth()->id(),
                 ]);
             }
+
+            // Ajouter la preuve de paiement comme pièce jointe si elle existe
+            if ($paymentProofPath) {
+                $transaction->attachments()->create([
+                    'path' => $paymentProofPath,
+                    'file_type' => $request->file('payment_proof')->getMimeType(),
+                    'uploaded_by' => auth()->id(),
+                ]);
+            }
         }
 
         $generalInvoice->update([
             'status' => 'paid',
-            'payment_date' => now()->toDateString(),
+            'payment_date' => $request->payment_date,
+            'payment_proof' => $paymentProofPath,
         ]);
 
         return redirect()->route('financial.general-invoices.show', [$store->id, $generalInvoice->id])

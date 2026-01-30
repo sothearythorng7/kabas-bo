@@ -76,11 +76,17 @@ Route::prefix('reception')->group(function () {
     Route::middleware('reception.auth')->group(function () {
         Route::get('/home', [ReceptionController::class, 'home'])->name('reception.home');
 
-        // Supplier Orders
+        // Supplier Orders (Products)
         Route::get('/orders', [ReceptionController::class, 'ordersList'])->name('reception.orders');
         Route::get('/orders/{order}', [ReceptionController::class, 'orderShow'])->name('reception.orders.show');
         Route::post('/orders/{order}/receive-item', [ReceptionController::class, 'receiveItem'])->name('reception.orders.receive-item');
         Route::post('/orders/{order}/finalize', [ReceptionController::class, 'finalizeOrder'])->name('reception.orders.finalize');
+
+        // Factory Orders (Raw Materials)
+        Route::get('/factory-orders', [ReceptionController::class, 'factoryOrdersList'])->name('reception.factory-orders');
+        Route::get('/factory-orders/{order}', [ReceptionController::class, 'factoryOrderShow'])->name('reception.factory-orders.show');
+        Route::post('/factory-orders/{order}/receive-item', [ReceptionController::class, 'receiveFactoryItem'])->name('reception.factory-orders.receive-item');
+        Route::post('/factory-orders/{order}/finalize', [ReceptionController::class, 'finalizeFactoryOrder'])->name('reception.factory-orders.finalize');
 
         // Refill
         Route::get('/refill', [ReceptionController::class, 'refillSuppliers'])->name('reception.refill');
@@ -163,6 +169,7 @@ Route::middleware(['auth', SetUserLocale::class])->group(function () {
         Route::resource('users', UserController::class);
         Route::resource('stores', StoreController::class);
         Route::resource('suppliers', SupplierController::class)->except('show');
+        Route::get('suppliers/{supplier}/export-sales', [SupplierController::class, 'exportSales'])->name('suppliers.export-sales');
         Route::resource('categories', CategoryController::class)->except(['show', 'create', 'edit']);
         Route::resource('brands', BrandController::class);
         Route::get('products/check-ean', [ProductController::class, 'checkEan'])->name('products.check-ean');
@@ -170,6 +177,12 @@ Route::middleware(['auth', SetUserLocale::class])->group(function () {
         Route::post('products/{product}/photos', [ProductController::class, 'uploadPhotos'])->name('products.photos.upload');
         Route::delete('products/{product}/photos/{photo}', [ProductController::class, 'deletePhoto'])->name('products.photos.delete');
         Route::post('products/{product}/photos/{photo}/set-primary', [ProductController::class, 'setPrimaryPhoto'])->name('products.photos.setPrimary');
+
+        // Gestion des barcodes
+        Route::post('products/{product}/barcodes', [ProductController::class, 'storeBarcode'])->name('products.barcodes.store');
+        Route::post('products/{product}/barcodes/{barcode}/set-primary', [ProductController::class, 'setPrimaryBarcode'])->name('products.barcodes.setPrimary');
+        Route::delete('products/{product}/barcodes/{barcode}', [ProductController::class, 'destroyBarcode'])->name('products.barcodes.destroy');
+
         Route::get('products/{product}/variations', [ProductController::class, 'variationsIndex'])->name('products.variations.index');
         Route::post('products/{product}/variations', [ProductController::class, 'variationsStore'])->name('products.variations.store');
         Route::put('products/{product}/variations/{variation}', [ProductController::class, 'variationsUpdate'])->name('products.variations.update');
@@ -253,6 +266,10 @@ Route::middleware(['auth', SetUserLocale::class])->group(function () {
             // Marquer un rapport comme payé
             Route::post('sale-reports/{saleReport}/mark-as-paid', [SaleReportController::class, 'markAsPaid'])
                 ->name('sale-reports.markAsPaid');
+
+            // Régénérer le PDF
+            Route::post('sale-reports/{saleReport}/regenerate-pdf', [SaleReportController::class, 'regeneratePdf'])
+                ->name('sale-reports.regeneratePdf');
         });
 
         Route::resource('hero-slides', \App\Http\Controllers\HeroSlideController::class)->except('show')->names('hero-slides');
@@ -349,6 +366,8 @@ Route::middleware(['auth', SetUserLocale::class])->group(function () {
                 ->name('supplier-orders.destroy');
             Route::put('orders/{order}/revert-to-pending', [SupplierOrderController::class, 'revertToPending'])
                 ->name('supplier-orders.revertToPending');
+            Route::put('orders/{order}/update-received-quantities', [SupplierOrderController::class, 'updateReceivedQuantities'])
+                ->name('supplier-orders.updateReceivedQuantities');
 
             Route::get('refills', [RefillController::class, 'index'])->name('refills.index');
             Route::get('refills/{refill}', [RefillController::class, 'show'])->name('refills.show');
@@ -374,8 +393,10 @@ Route::middleware(['auth', SetUserLocale::class])->group(function () {
         });
 
 
+        Route::get('resellers/overview', [ResellerController::class, 'overview'])->name('resellers.overview');
         Route::resource('resellers', ResellerController::class);
         Route::post('resellers/{reseller}/update-stock', [ResellerController::class, 'updateStock'])->name('resellers.update-stock');
+        Route::post('resellers/{reseller}/update-price', [ResellerController::class, 'updateProductPrice'])->name('resellers.update-price');
         Route::post('resellers/{reseller}/contacts', [ResellerContactController::class, 'store'])->name('resellers.contacts.store');
         Route::delete('resellers/{reseller}/contacts/{contact}', [ResellerContactController::class, 'destroy'])->name('resellers.contacts.destroy');
         Route::get('resellers/{reseller}/deliveries/create', [ResellerStockDeliveryController::class, 'create'])->name('resellers.deliveries.create');
@@ -396,6 +417,21 @@ Route::middleware(['auth', SetUserLocale::class])->group(function () {
 
         Route::put('resellers/{reseller}/deliveries/{delivery}', [ResellerStockDeliveryController::class, 'update'])
             ->name('reseller-stock-deliveries.update');
+
+        Route::post('resellers/{reseller}/deliveries/{delivery}/upload-note', [ResellerStockDeliveryController::class, 'uploadDeliveryNote'])
+            ->name('reseller-stock-deliveries.upload-note');
+
+        Route::delete('resellers/{reseller}/deliveries/{delivery}/delete-note', [ResellerStockDeliveryController::class, 'deleteDeliveryNote'])
+            ->name('reseller-stock-deliveries.delete-note');
+
+        Route::get('resellers/{reseller}/deliveries/{delivery}/generate-note', [ResellerStockDeliveryController::class, 'generateDeliveryNote'])
+            ->name('reseller-stock-deliveries.generate-note');
+
+        Route::post('resellers/{reseller}/deliveries/{delivery}/create-invoice', [ResellerStockDeliveryController::class, 'createInvoice'])
+            ->name('reseller-stock-deliveries.create-invoice');
+
+        Route::get('resellers/{reseller}/deliveries/{delivery}/invoice-pdf', [ResellerStockDeliveryController::class, 'generateInvoicePdf'])
+            ->name('reseller-stock-deliveries.generate-invoice-pdf');
 
         Route::get('/deliveries/{delivery}/invoice', [\App\Http\Controllers\ResellerInvoiceController::class, 'generateOrDownloadInvoice'])
             ->name('resellers.deliveries.invoice');
@@ -466,6 +502,29 @@ Route::middleware(['auth', SetUserLocale::class])->group(function () {
             ->name('promotion-bar.index');
         Route::put('promotion-bar', [\App\Http\Controllers\PromotionBarController::class, 'update'])
             ->name('promotion-bar.update');
+
+        // Staff Management
+        Route::prefix('settings/staff')->name('staff.')->group(function () {
+            Route::get('/', [\App\Http\Controllers\StaffController::class, 'index'])->name('index');
+            Route::get('/create', [\App\Http\Controllers\StaffController::class, 'create'])->name('create');
+            Route::post('/', [\App\Http\Controllers\StaffController::class, 'store'])->name('store');
+            Route::get('/{user}', [\App\Http\Controllers\StaffController::class, 'show'])->name('show');
+            Route::post('/{user}/terminate', [\App\Http\Controllers\StaffController::class, 'terminate'])->name('terminate');
+            Route::post('/{user}/reactivate', [\App\Http\Controllers\StaffController::class, 'reactivate'])->name('reactivate');
+            Route::put('/{user}', [\App\Http\Controllers\StaffController::class, 'update'])->name('update');
+            Route::post('/{user}/documents', [\App\Http\Controllers\StaffController::class, 'uploadDocument'])->name('documents.upload');
+            Route::delete('/documents/{document}', [\App\Http\Controllers\StaffController::class, 'deleteDocument'])->name('documents.delete');
+            Route::post('/{user}/salary', [\App\Http\Controllers\StaffController::class, 'updateSalary'])->name('salary.update');
+            Route::post('/{user}/advances', [\App\Http\Controllers\StaffController::class, 'storeAdvance'])->name('advances.store');
+            Route::post('/advances/{advance}/approve', [\App\Http\Controllers\StaffController::class, 'approveAdvance'])->name('advances.approve');
+            Route::post('/{user}/leaves', [\App\Http\Controllers\StaffController::class, 'storeLeave'])->name('leaves.store');
+            Route::post('/leaves/{leave}/approve', [\App\Http\Controllers\StaffController::class, 'approveLeave'])->name('leaves.approve');
+            Route::put('/{user}/schedule', [\App\Http\Controllers\StaffController::class, 'updateSchedule'])->name('schedule.update');
+            Route::post('/{user}/payments', [\App\Http\Controllers\StaffController::class, 'storeSalaryPayment'])->name('payments.store');
+            Route::get('/payments/{payment}', [\App\Http\Controllers\StaffController::class, 'showPayment'])->name('payments.show');
+            Route::get('/payments/{payment}/payslip', [\App\Http\Controllers\StaffController::class, 'downloadPayslip'])->name('payments.payslip');
+            Route::post('/bulk-payment', [\App\Http\Controllers\StaffController::class, 'bulkPayment'])->name('bulk-payment');
+        });
     });
 
     Route::get('/financial', [FinancialDashboardController::class, 'overviewInvoices'])->name('financial.overview');
@@ -498,6 +557,12 @@ Route::get('/pos', function () {
     return view('pos.index');
 });
 
+// POS Logs (admin only)
+Route::middleware(['auth'])->group(function () {
+    Route::get('/pos/logs', [\App\Http\Controllers\POS\LogController::class, 'index'])->name('pos.logs');
+    Route::delete('/pos/logs/clear', [\App\Http\Controllers\POS\LogController::class, 'clear'])->name('pos.logs.clear');
+});
+
 Route::prefix('api/pos')->middleware('api')->group(function () {
     Route::get('products', [ProductController::class, 'index']);
     Route::post('sync', [SyncController::class, 'sync']);
@@ -523,6 +588,9 @@ Route::prefix('api/pos')->middleware('api')->group(function () {
     // Vouchers
     Route::get('voucher/validate', [ExchangeController::class, 'validateVoucher']);
     Route::post('voucher/apply', [ExchangeController::class, 'applyVoucher']);
+
+    // Client Logs (for debugging)
+    Route::post('logs', [\App\Http\Controllers\POS\LogController::class, 'store']);
 });
 
 // Blog Routes

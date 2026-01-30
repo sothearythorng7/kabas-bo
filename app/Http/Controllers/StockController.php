@@ -124,13 +124,11 @@ class StockController extends Controller
                     $searchResults = Product::search($q)->get();
                     $searchIds = $searchResults->pluck('id');
 
-                    // Intersection avec les produits en stock
-                    $finalIds = $productIdsWithStock->intersect($searchIds);
-
-                    if ($finalIds->isNotEmpty()) {
+                    // Afficher tous les résultats de recherche (avec ou sans stock)
+                    if ($searchIds->isNotEmpty()) {
                         $query = Product::with('brand')
-                            ->whereIn('id', $finalIds)
-                            ->orderByRaw('FIELD(id, ' . $finalIds->implode(',') . ')');
+                            ->whereIn('id', $searchIds)
+                            ->orderByRaw('FIELD(id, ' . $searchIds->implode(',') . ')');
 
                         // Filtre par marque
                         if ($request->filled('brand_id')) {

@@ -72,8 +72,20 @@ return [
     [
         'label' => 'messages.menu.resellers',
         'icon'  => 'bi-shop',
-        'route' => 'resellers.index',
         'active_pattern' => 'resellers*',
+        'submenu' => [
+            [
+                'label' => 'messages.menu.resellers_overview',
+                'icon'  => 'bi-eye',
+                'route' => 'resellers.overview',
+                'active_pattern' => 'resellers/overview*',
+            ],
+            [
+                'label' => 'messages.menu.resellers_list',
+                'icon'  => 'bi-list',
+                'route' => 'resellers.index',
+            ],
+        ]
     ],
     [
         'label' => 'messages.menu.suppliers',
@@ -238,8 +250,14 @@ return [
     [
         'label' => 'messages.menu.settings',
         'icon'  => 'bi-gear',
-        'active_pattern' => 'roles*|users*|stores*|categories*|brands*|variation*|backups*', // parent actif si une sous-page est active
+        'active_pattern' => 'roles*|users*|stores*|categories*|brands*|variation*|backups*|settings/staff*', // parent actif si une sous-page est active
         'submenu' => [
+            [
+                'label' => 'messages.menu.staff_management',
+                'icon'  => 'bi-person-badge',
+                'route' => 'staff.index',
+                'active_pattern' => 'settings/staff*',
+            ],
             [
                 'label' => 'messages.menu.roles',
                 'icon'  => 'bi-shield-lock',

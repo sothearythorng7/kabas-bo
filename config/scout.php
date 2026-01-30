@@ -140,9 +140,18 @@ return [
         'host' => env('MEILISEARCH_HOST', 'http://localhost:7700'),
         'key' => env('MEILISEARCH_KEY'),
         'index-settings' => [
-            // 'users' => [
-            //     'filterableAttributes'=> ['id', 'name', 'email'],
-            // ],
+            'products' => [
+                'filterableAttributes' => [
+                    'brand_id',
+                    'category_ids',
+                    'is_active',
+                    'is_best_seller',
+                    'price',
+                ],
+                'sortableAttributes' => [
+                    'price',
+                ],
+            ],
         ],
     ],
 

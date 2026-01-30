@@ -18,7 +18,7 @@
 </div>
 
 <!-- Tableau des alertes produits -->
-@if(($productsWithoutImages ?? 0) > 0 || ($productsWithoutDescriptionFr ?? 0) > 0 || ($productsWithoutDescriptionEn ?? 0) > 0 || ($productsOutOfStock ?? 0) > 0 || ($productsWithFakeOrEmptyEan ?? 0) > 0 || ($productsWithoutCategories ?? 0) > 0)
+@if(($productsWithoutImages ?? 0) > 0 || ($productsWithoutDescriptionFr ?? 0) > 0 || ($productsWithoutDescriptionEn ?? 0) > 0 || ($productsOutOfStock ?? 0) > 0 || ($productsWithFakeOrEmptyEan ?? 0) > 0 || ($productsWithoutCategories ?? 0) > 0 || ($inactiveProducts ?? 0) > 0)
 <div class="card shadow mb-4">
     <div class="card-header py-3 d-flex justify-content-between align-items-center">
         <h6 class="m-0 font-weight-bold text-danger">
@@ -129,6 +129,22 @@
                         </td>
                         <td class="text-center">
                             <a class="btn btn-sm btn-primary" href="{{ route('dashboard.products-issues', ['type' => 'no_category']) }}">
+                                <i class="bi bi-eye"></i> {{ __('messages.main_dashboard.view_products') }}
+                            </a>
+                        </td>
+                    </tr>
+                    @endif
+
+                    @if(($inactiveProducts ?? 0) > 0)
+                    <tr>
+                        <td>
+                            <i class="bi bi-toggle-off text-secondary"></i> {{ __('messages.main_dashboard.products_inactive') }}
+                        </td>
+                        <td class="text-center">
+                            <span class="badge bg-secondary fs-5">{{ $inactiveProducts }}</span>
+                        </td>
+                        <td class="text-center">
+                            <a class="btn btn-sm btn-secondary" href="{{ route('dashboard.products-issues', ['type' => 'inactive']) }}">
                                 <i class="bi bi-eye"></i> {{ __('messages.main_dashboard.view_products') }}
                             </a>
                         </td>

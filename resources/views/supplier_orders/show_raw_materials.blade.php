@@ -177,13 +177,16 @@
                                 $quantityReceived = $material->pivot->quantity_received ?? 0;
                                 $invoicedPrice = $material->pivot->invoice_price ?? $orderedPrice;
 
-                                $lineTotal = $orderedPrice * $quantityOrdered;
-                                $totalExpected += $lineTotal;
+                                $lineExpected = $orderedPrice * $quantityOrdered;
+                                $totalExpected += $lineExpected;
 
-                                if(in_array($order->status, ['waiting_invoice', 'received'])) {
-                                    $lineTotalInvoiced = $invoicedPrice * $quantityReceived;
-                                    $totalInvoiced += $lineTotalInvoiced;
-                                }
+                                $lineTotalInvoiced = $invoicedPrice * $quantityReceived;
+                                $totalInvoiced += $lineTotalInvoiced;
+
+                                // Afficher le total facturé si commande reçue/en attente facture, sinon le total attendu
+                                $lineTotal = in_array($order->status, ['waiting_invoice', 'received'])
+                                    ? $lineTotalInvoiced
+                                    : $lineExpected;
                             @endphp
                             <tr>
                                 <td>{{ $material->sku ?? '-' }}</td>
@@ -220,7 +223,7 @@
                     <tfoot>
                         <tr class="table-light fw-bold">
                             <td colspan="{{ in_array($order->status, ['waiting_invoice', 'received']) ? 7 : 5 }}"></td>
-                            <td>${{ number_format($totalExpected, 2) }}</td>
+                            <td>${{ number_format(in_array($order->status, ['waiting_invoice', 'received']) ? $totalInvoiced : $totalExpected, 2) }}</td>
                         </tr>
                     </tfoot>
                 </table>

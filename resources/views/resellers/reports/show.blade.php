@@ -6,6 +6,9 @@
 @endphp
 <div class="container mt-4">
     <h1>{{ __('messages.resellers.sales_report') }} #{{ $report->id }} {{ __('messages.resellers.for') }} {{ $reseller->name }}</h1>
+    @if($report->start_date && $report->end_date)
+        <p><strong>{{ __('messages.resellers.period') }}:</strong> {{ $report->start_date->format('d/m/Y') }} - {{ $report->end_date->format('d/m/Y') }}</p>
+    @endif
     <p><strong>{{ __('messages.resellers.created_at') }}:</strong> {{ $report->created_at->format('d/m/Y H:i') }}</p>
 
     <div class="mb-3">

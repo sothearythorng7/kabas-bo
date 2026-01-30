@@ -1,0 +1,88 @@
+======================================
+RAPPORT D'IMPORT - PRIX REVENDEURS
+Généré le: 2026-01-20 00:00:14
+======================================
+
+=== PRODUITS NON TROUVÉS EN BASE (22) ===
+Ces produits du fichier Excel n'ont pas été trouvés dans la base de données.
+Vérifiez que le code EAN correspond.
+
+Ligne   Barcode                  Description
+--------------------------------------------------------------------------------
+112     SAYSABOK-CP-SR           CAP SIEM REAP
+113     KABAS-MUG-GM             MUG GOOD MORNING
+114     KABAS-KB-KEY             KEYRING
+115     KABAS-KB-MAGNET          MAGNET
+119     KB-WALLET-S              KRAMA SMALL WALLET
+120     KB-CASHEW NUTS           Cashew Nuts
+121     KABAS-BUDDHA-S           SEATED BUDDHA SMALL
+122     KABAS-BUDDHA-L           SEATED BUDDHA BIG
+123     KABAS-ELEPHANT-S         SMALL ELEPHANT
+124     KABAS-ELEPHANT-L         BIG ELEPHANT
+125     KABAS-KRAMA-TB           KRAMA TOTE BAG
+127     KB-HAT                   KRAMA HAT
+128     KB-AMOK-50G              AMOK SPICE
+129     KB-LOKLAK-50G            LOKLAK SPICE
+130     KB-CURRY-50G             CURRY SPICE
+131     KB-CINAMON-50G           CINAMON
+132     KB-Powder set            Powder Set
+133     KABAS-HONEY-50G          HONEY 50G
+134     KABAS-HONEY-140G         HONEY 140 G
+135     KABAS-HONEY-360G         HONEY 360 G
+136     KABAS-HONEY-1LITER       HONEY 1 LITER
+140     KB-ENCENS                ENCENS
+
+
+=== REVENDEURS EXCEL NON MAPPÉS (0) ===
+Ces revendeurs du fichier Excel n'ont pas pu être associés à un revendeur en base.
+
+Aucun - Tous les revendeurs Excel ont été mappés!
+
+
+=== REVENDEURS EN BASE NON PRÉSENTS DANS EXCEL (2) ===
+Ces revendeurs de la base ne recevront pas de mise à jour de prix.
+Ils garderont leurs prix B2B par défaut.
+
+ID 12: 'EVAAN MARKET'
+ID 16: 'AMAZING CAMBODIA PP AIPORT (LB02&04)'
+
+
+=== MAPPING UTILISÉ ===
+Correspondance entre les noms Excel et les IDs en base:
+
+'Angkor Cookie (Siem Reap)'
+  => IDs [1] (Angkor Cookie (Siem Reap))
+
+'Amazing Cambodia (aeon1, aeon2, aeon3)'
+  => IDs [8, 9, 10] (Amazing Cambodia (aeon 1), Amazing Cambodia (aeon 2), Amazing Cambodia (aeon 3))
+
+'Amazing Cambodia Airport (Siem Reap)'
+  => IDs [11] (Amazing Cambodia Airport (Siem Reap))
+
+'AMAZING CAMBODIA PP AIPORT (C7)'
+  => IDs [13] (AMAZING CAMBODIA PP AIPORT (C7))
+
+'AMAZING CAMBODIA PP AIPORT (AC17,18)'
+  => IDs [14] (AMAZING CAMBODIA PP AIPORT (AC17,18))
+
+'AMAZING CAMBODIA PP AIPORT (ACKH-C14)'
+  => IDs [15] (AMAZING CAMBODIA PP AIPORT (ACKH-C14))
+
+'Monument Books'
+  => IDs [6] (Monument Books)
+
+'SATU'
+  => IDs [5] (Satu)
+
+'SOUVENIR STATION'
+  => IDs [7] (Souvenir Station)
+
+'THE GREEN STORE'
+  => IDs [4] (The Green Store)
+
+'NyoNyum'
+  => IDs [3] (Nyoro Nyum)
+
+'FRANGIPANI ROYAL'
+  => IDs [2] (Frangipani)
+

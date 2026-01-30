@@ -10,7 +10,8 @@ class SaleItem extends Model
     use HasFactory;
 
     protected $fillable = [
-        'sale_id', 'product_id', 'quantity', 'price', 'discounts', 'is_delivery', 'delivery_address', 'is_custom_service', 'custom_service_description',
+        'sale_id', 'product_id', 'item_type', 'gift_box_id', 'gift_card_id', 'generated_gift_card_code_id',
+        'quantity', 'price', 'discounts', 'is_delivery', 'delivery_address', 'is_custom_service', 'custom_service_description',
         'exchanged_at', 'exchanged_in_exchange_id', 'added_via_exchange_id'
     ];
 
@@ -27,6 +28,18 @@ class SaleItem extends Model
 
     public function product() {
         return $this->belongsTo(Product::class);
+    }
+
+    public function giftBox() {
+        return $this->belongsTo(GiftBox::class);
+    }
+
+    public function giftCard() {
+        return $this->belongsTo(GiftCard::class);
+    }
+
+    public function generatedGiftCardCode() {
+        return $this->belongsTo(GiftCardCode::class, 'generated_gift_card_code_id');
     }
 
     public function exchangedInExchange()

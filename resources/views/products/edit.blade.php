@@ -66,6 +66,14 @@
         <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-stores" type="button" role="tab"><i class="bi bi-shop"></i> {{ __('messages.product.tab_stores') }}</button></li>
         <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-photos" type="button" role="tab"><i class="bi bi-images"></i> {{ __('messages.product.tab_photos') }}</button></li>
         <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-descriptions" type="button" role="tab"><i class="bi bi-blockquote-right"></i> {{ __('messages.product.tab_descriptions') }}</button></li>
+        <li class="nav-item">
+            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-barcodes" type="button" role="tab">
+                <i class="bi bi-upc-scan"></i> {{ __('messages.product.tab_barcodes') ?? 'Codes-barres' }}
+                <span class="badge bg-{{ ($product->barcodes->count() ?? 0) > 0 ? 'success' : 'secondary' }}">
+                    {{ $product->barcodes->count() ?? 0 }}
+                </span>
+            </button>
+        </li>
     </ul>
 
     {{-- Dropdown version mobile --}}
@@ -78,7 +86,7 @@
             <option value="#tab-photos">{{ __('messages.product.tab_photos') }}</option>
             <option value="#tab-descriptions">{{ __('messages.product.tab_descriptions') }}</option>
             <option value="#tab-variations">{{ __('messages.product.tab_variations') }} ({{ $product->variations->count() ?? 0 }})</option>
-
+            <option value="#tab-barcodes">{{ __('messages.product.tab_barcodes') ?? 'Codes-barres' }} ({{ $product->barcodes->count() ?? 0 }})</option>
         </select>
     </div>
 
@@ -234,7 +242,7 @@
 
         {{-- Stores --}}
         <div class="tab-pane fade" id="tab-stores" role="tabpanel">
-            <h5>{{ __('messages.product.stores') }}</h5>
+            <h5><i class="bi bi-shop"></i> {{ __('messages.product.stores') }}</h5>
             <table class="table table-bordered align-middle">
                 <thead>
                     <tr>
@@ -245,25 +253,32 @@
                     </tr>
                 </thead>
                 <tbody>
-                    @forelse($product->stores as $store)
+                    @forelse($stores as $store)
                         @php
-                            // Nouveau calcul basé sur les batches
+                            // Calcul du stock réel basé sur les batches
                             $realStock = $product->stockBatches()
                                 ->where('store_id', $store->id)
                                 ->sum('quantity');
+                            // Récupérer l'alerte stock depuis le pivot si disponible
+                            $alertStock = $storePivot[$store->id]['alert_stock_quantity'] ?? null;
                         @endphp
-                        <tr>
-                            <td>{{ $store->name }}</td>
+                        <tr class="{{ $store->type === 'warehouse' ? 'table-info' : '' }}">
+                            <td>
+                                {{ $store->name }}
+                                @if($store->type === 'warehouse')
+                                    <span class="badge bg-info ms-1">Warehouse</span>
+                                @endif
+                            </td>
                             <form action="{{ route('products.stores.updateStock', [$product, $store]) }}" method="POST" class="d-flex">
                                 @csrf
                                 @method('PUT')
                                 <td>
-                                    <input type="number" min="0" name="stock_quantity" class="form-control form-control-sm" 
+                                    <input type="number" min="0" name="stock_quantity" class="form-control form-control-sm"
                                         value="{{ $realStock }}">
                                 </td>
                                 <td>
                                     <input type="number" min="0" name="alert_stock_quantity" class="form-control form-control-sm"
-                                        placeholder="{{ __('messages.product.stock_alert') }}" value="{{ $store->pivot->alert_stock_quantity }}">
+                                        placeholder="{{ __('messages.product.stock_alert') }}" value="{{ $alertStock }}">
                                 </td>
                                 <td>
                                     <button class="btn btn-sm btn-success ms-2"><i class="bi bi-check"></i></button>
@@ -277,6 +292,59 @@
                     @endforelse
                 </tbody>
             </table>
+
+            {{-- Resellers Stock --}}
+            @php
+                $resellersWithStock = \App\Models\StockBatch::where('product_id', $product->id)
+                    ->whereNotNull('reseller_id')
+                    ->where('quantity', '>', 0)
+                    ->with('reseller')
+                    ->get()
+                    ->groupBy('reseller_id')
+                    ->map(function($batches) {
+                        return [
+                            'reseller' => $batches->first()->reseller,
+                            'quantity' => $batches->sum('quantity'),
+                        ];
+                    })
+                    ->sortByDesc('quantity')
+                    ->values();
+            @endphp
+
+            @if($resellersWithStock->count() > 0)
+            <hr class="my-4">
+            <h5><i class="bi bi-people"></i> {{ __('messages.product.resellers_stock') }}</h5>
+            <table class="table table-bordered align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th>{{ __('messages.product.reseller') }}</th>
+                        <th style="width: 150px;" class="text-end">{{ __('messages.store.stock_quantity') }}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach($resellersWithStock as $item)
+                        <tr>
+                            <td>
+                                <a href="{{ route('resellers.show', $item['reseller']->id) }}">
+                                    {{ $item['reseller']->name }}
+                                </a>
+                            </td>
+                            <td class="text-end">
+                                <span class="badge bg-secondary fs-6">{{ $item['quantity'] }}</span>
+                            </td>
+                        </tr>
+                    @endforeach
+                </tbody>
+                <tfoot class="table-light">
+                    <tr>
+                        <th>{{ __('messages.product.total_resellers_stock') }}</th>
+                        <th class="text-end">
+                            <span class="badge bg-primary fs-6">{{ $resellersWithStock->sum('quantity') }}</span>
+                        </th>
+                    </tr>
+                </tfoot>
+            </table>
+            @endif
         </div>
 
         {{-- Photos --}}
@@ -491,6 +559,91 @@
                 </div>
             </div>
 
+        </div>
+
+        {{-- Barcodes --}}
+        <div class="tab-pane fade" id="tab-barcodes" role="tabpanel">
+            <h5>{{ __('messages.product.barcodes') ?? 'Codes-barres' }}</h5>
+            <p class="text-muted">{{ __('messages.product.barcodes_help') ?? 'Gérez les codes-barres alternatifs pour ce produit. Le code principal est synchronisé avec le champ EAN.' }}</p>
+
+            {{-- Formulaire pour ajouter un barcode --}}
+            <form action="{{ route('products.barcodes.store', $product) }}" method="POST" class="row g-2 mb-4">
+                @csrf
+                <div class="col-md-5">
+                    <input type="text" name="barcode" class="form-control" placeholder="{{ __('messages.product.barcode_placeholder') ?? 'Nouveau code-barre' }}" required>
+                </div>
+                <div class="col-md-3">
+                    <select name="type" class="form-select">
+                        <option value="ean13">EAN-13</option>
+                        <option value="ean8">EAN-8</option>
+                        <option value="upc">UPC</option>
+                        <option value="internal">Interne</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <div class="form-check mt-2">
+                        <input class="form-check-input" type="checkbox" name="is_primary" id="is_primary_barcode" value="1">
+                        <label class="form-check-label" for="is_primary_barcode">{{ __('messages.product.primary') ?? 'Principal' }}</label>
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <button type="submit" class="btn btn-success w-100">
+                        <i class="bi bi-plus-circle"></i> {{ __('messages.btn.add') }}
+                    </button>
+                </div>
+            </form>
+
+            {{-- Liste des barcodes --}}
+            <table class="table table-bordered align-middle">
+                <thead>
+                    <tr>
+                        <th>{{ __('messages.product.barcode') ?? 'Code-barre' }}</th>
+                        <th style="width: 120px;">{{ __('messages.product.barcode_type') ?? 'Type' }}</th>
+                        <th style="width: 100px;">{{ __('messages.product.primary') ?? 'Principal' }}</th>
+                        <th style="width: 150px;"></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @forelse($product->barcodes as $barcode)
+                        <tr>
+                            <td>
+                                <code class="fs-5">{{ $barcode->barcode }}</code>
+                                @if($barcode->is_primary)
+                                    <span class="badge bg-primary ms-2">{{ __('messages.product.primary') ?? 'Principal' }}</span>
+                                @endif
+                            </td>
+                            <td>
+                                <span class="badge bg-secondary">{{ strtoupper($barcode->type) }}</span>
+                            </td>
+                            <td class="text-center">
+                                @if(!$barcode->is_primary)
+                                    <form action="{{ route('products.barcodes.setPrimary', [$product, $barcode]) }}" method="POST" class="d-inline">
+                                        @csrf
+                                        <button type="submit" class="btn btn-sm btn-outline-primary" title="{{ __('messages.product.set_as_primary') ?? 'Définir comme principal' }}">
+                                            <i class="bi bi-star"></i>
+                                        </button>
+                                    </form>
+                                @else
+                                    <i class="bi bi-star-fill text-warning"></i>
+                                @endif
+                            </td>
+                            <td>
+                                <form action="{{ route('products.barcodes.destroy', [$product, $barcode]) }}" method="POST" class="d-inline" onsubmit="return confirm('{{ __('messages.product.confirm_delete_barcode') ?? 'Supprimer ce code-barre ?' }}')">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button type="submit" class="btn btn-sm btn-danger" {{ $barcode->is_primary ? 'disabled' : '' }} title="{{ $barcode->is_primary ? __('messages.product.cannot_delete_primary') ?? 'Impossible de supprimer le code principal' : '' }}">
+                                        <i class="bi bi-trash"></i> {{ __('messages.btn.delete') }}
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                    @empty
+                        <tr>
+                            <td colspan="4" class="text-muted text-center">{{ __('messages.product.no_barcode') ?? 'Aucun code-barre configuré' }}</td>
+                        </tr>
+                    @endforelse
+                </tbody>
+            </table>
         </div>
 
         <script>

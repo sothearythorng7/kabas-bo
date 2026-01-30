@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 use App\Models\ResellerContact;
 use App\Models\ResellerStockDelivery;
 use App\Models\ResellerSalesReport;
+use App\Models\ResellerProductPrice;
 use App\Models\Store;
 
 
@@ -16,6 +17,25 @@ class Reseller extends Model
     public function contacts() { return $this->hasMany(ResellerContact::class); }
     public function deliveries() { return $this->hasMany(ResellerStockDelivery::class); }
     public function reports() { return $this->hasMany(ResellerSalesReport::class); }
+    public function productPrices() { return $this->hasMany(ResellerProductPrice::class); }
+
+    /**
+     * Get products with custom B2B prices for this reseller.
+     */
+    public function productsWithPrices()
+    {
+        return $this->belongsToMany(Product::class, 'reseller_product_prices')
+            ->withPivot('price')
+            ->withTimestamps();
+    }
+
+    /**
+     * Get the B2B price for a specific product for this reseller.
+     */
+    public function getPriceForProduct(int $productId): ?float
+    {
+        return ResellerProductPrice::getPriceFor($this->id, $productId);
+    }
 
     public function stockBatches()
     {

@@ -1,0 +1,220 @@
+/* ===========================================
+   Virtual Keyboard - POS Kabas
+   =========================================== */
+
+/* Overlay container */
+.virtual-keyboard-overlay {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 9999;
+    background: linear-gradient(to bottom, #e9ecef 0%, #d3d3d3 100%);
+    border-top: 2px solid #adb5bd;
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.15);
+    padding: 8px 10px 12px;
+    transform: translateY(100%);
+    transition: transform 0.25s ease-out;
+}
+
+.virtual-keyboard-overlay.visible {
+    transform: translateY(0);
+}
+
+/* Keyboard container */
+.virtual-keyboard {
+    max-width: 900px;
+    margin: 0 auto;
+}
+
+/* Keyboard rows */
+.vk-row {
+    display: flex;
+    justify-content: center;
+    gap: 4px;
+    margin-bottom: 4px;
+}
+
+.vk-row:last-child {
+    margin-bottom: 0;
+}
+
+/* Base key styles */
+.vk-key {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 42px;
+    height: 48px;
+    padding: 0 8px;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #212529;
+    background: linear-gradient(to bottom, #ffffff 0%, #f0f0f0 100%);
+    border: 1px solid #c4c4c4;
+    border-radius: 6px;
+    box-shadow: 0 2px 3px rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.8);
+    cursor: pointer;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    transition: all 0.1s ease;
+    flex: 1;
+    max-width: 60px;
+}
+
+.vk-key:active,
+.vk-key.active {
+    background: linear-gradient(to bottom, #d0d0d0 0%, #e0e0e0 100%);
+    box-shadow: inset 0 2px 3px rgba(0, 0, 0, 0.15);
+    transform: translateY(1px);
+}
+
+/* Number row */
+.vk-row-numbers .vk-key {
+    background: linear-gradient(to bottom, #f8f9fa 0%, #e9ecef 100%);
+}
+
+/* Special keys */
+.vk-key-shift {
+    min-width: 65px;
+    max-width: 80px;
+    font-size: 1.3rem;
+}
+
+.vk-key-shift.active {
+    background: linear-gradient(to bottom, #0d6efd 0%, #0b5ed7 100%);
+    color: white;
+    border-color: #0a58ca;
+}
+
+.vk-key-backspace {
+    min-width: 65px;
+    max-width: 80px;
+    font-size: 1.3rem;
+    background: linear-gradient(to bottom, #ffc107 0%, #e0a800 100%);
+    border-color: #d39e00;
+    color: #212529;
+}
+
+.vk-key-backspace:active {
+    background: linear-gradient(to bottom, #e0a800 0%, #c69500 100%);
+}
+
+.vk-key-space {
+    flex: 4;
+    min-width: 180px;
+    max-width: 300px;
+}
+
+.vk-key-enter {
+    min-width: 70px;
+    max-width: 90px;
+    background: linear-gradient(to bottom, #198754 0%, #157347 100%);
+    border-color: #146c43;
+    color: white;
+    font-size: 0.85rem;
+}
+
+.vk-key-enter:active {
+    background: linear-gradient(to bottom, #146c43 0%, #13653f 100%);
+}
+
+/* Hide keyboard button */
+.vk-hide-btn {
+    display: block;
+    width: 100%;
+    max-width: 200px;
+    margin: 8px auto 0;
+    padding: 6px 16px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: #6c757d;
+    background: transparent;
+    border: 1px solid #adb5bd;
+    border-radius: 20px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.vk-hide-btn:hover,
+.vk-hide-btn:active {
+    background: #6c757d;
+    color: white;
+    border-color: #6c757d;
+}
+
+/* Touch device optimizations */
+@media (hover: none) and (pointer: coarse) {
+    .vk-key {
+        min-width: 36px;
+        height: 52px;
+        font-size: 1.2rem;
+    }
+
+    .vk-key-shift,
+    .vk-key-backspace {
+        min-width: 55px;
+    }
+
+    .vk-key-enter {
+        min-width: 60px;
+    }
+
+    .vk-key-space {
+        min-width: 140px;
+    }
+
+    .virtual-keyboard-overlay {
+        padding: 6px 6px 10px;
+    }
+
+    .vk-row {
+        gap: 3px;
+        margin-bottom: 3px;
+    }
+}
+
+/* Landscape mode on tablets */
+@media (max-height: 500px) {
+    .vk-key {
+        height: 40px;
+        font-size: 1rem;
+    }
+
+    .virtual-keyboard-overlay {
+        padding: 4px 8px 8px;
+    }
+}
+
+/* Large screens */
+@media (min-width: 1200px) {
+    .vk-key {
+        min-width: 50px;
+        height: 54px;
+        font-size: 1.2rem;
+    }
+
+    .vk-row {
+        gap: 6px;
+        margin-bottom: 6px;
+    }
+}
+
+/* Keyboard backdrop (optional dark overlay) */
+.vk-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.1);
+    z-index: 9998;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.25s ease, visibility 0.25s ease;
+}
+
+.vk-backdrop.visible {
+    opacity: 1;
+    visibility: visible;
+}

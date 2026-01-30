@@ -43,7 +43,7 @@
                                        name="products[{{ $product->id }}][unit_price]" 
                                        class="form-control form-control-sm price-input" 
                                        data-product-id="{{ $product->id }}"
-                                       value="{{ old("products.{$product->id}.unit_price", $product->price_btob ?? $product->price) }}">
+                                       value="{{ old("products.{$product->id}.unit_price", $product->reseller_price) }}">
                             </td>
                             <input type="hidden" name="products[{{ $product->id }}][id]" value="{{ $product->id }}">
                         </tr>
@@ -80,7 +80,7 @@
                                            name="products[{{ $product->id }}][unit_price]" 
                                            class="form-control form-control-sm price-input" 
                                            data-product-id="{{ $product->id }}"
-                                           value="{{ old("products.{$product->id}.unit_price", $product->price_btob ?? $product->price) }}">
+                                           value="{{ old("products.{$product->id}.unit_price", $product->reseller_price) }}">
                                 </div>
 
                                 <input type="hidden" name="products[{{ $product->id }}][id]" value="{{ $product->id }}">

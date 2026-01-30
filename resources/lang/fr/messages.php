@@ -3161,4 +3161,7 @@ return [
         'confirm_terminate' => 'Confirmer la résiliation',
         'confirm_reactivate' => 'Êtes-vous sûr de vouloir réactiver ce contrat ?',
     ],
+
+    // Contrôle d'accès
+    'access_denied_bo' => 'Vous n\'avez pas la permission d\'accéder au Back Office.',
 ];

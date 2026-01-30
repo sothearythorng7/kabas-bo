@@ -12,5 +12,8 @@ class RolesTableSeeder extends Seeder
         Role::firstOrCreate(['name' => 'admin']);
         Role::firstOrCreate(['name' => 'manager']);
         Role::firstOrCreate(['name' => 'user']);
+        Role::firstOrCreate(['name' => 'seller']);
+        Role::firstOrCreate(['name' => 'marketing']);
+        Role::firstOrCreate(['name' => 'accounting']);
     }
 }

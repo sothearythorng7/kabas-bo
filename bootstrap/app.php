@@ -21,6 +21,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'permission' => \Spatie\Permission\Middleware\PermissionMiddleware::class,
             'role_or_permission' => \Spatie\Permission\Middleware\RoleOrPermissionMiddleware::class,
             'reception.auth' => \App\Http\Middleware\ReceptionAuth::class,
+            'bo.access' => \App\Http\Middleware\CheckBoAccess::class,
         ]);
 
         $middleware->statefulApi();

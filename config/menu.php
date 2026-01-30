@@ -251,6 +251,7 @@ return [
         'label' => 'messages.menu.settings',
         'icon'  => 'bi-gear',
         'active_pattern' => 'roles*|users*|stores*|categories*|brands*|variation*|backups*|settings/staff*', // parent actif si une sous-page est active
+        'denied_roles' => ['marketing', 'accounting'], // Ces rôles ne peuvent pas voir ce menu
         'submenu' => [
             [
                 'label' => 'messages.menu.staff_management',

@@ -153,7 +153,7 @@ Route::post('/track-url', function (\Illuminate\Http\Request $request) {
 
 
 
-Route::middleware(['auth', SetUserLocale::class])->group(function () {
+Route::middleware(['auth', SetUserLocale::class, 'bo.access'])->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
     Route::get('/dashboard/products-issues', [DashboardController::class, 'productsWithIssues'])->name('dashboard.products-issues');
     Route::get('/dashboard/daily-sales/{store}', [DashboardController::class, 'dailySales'])->name('dashboard.daily-sales');

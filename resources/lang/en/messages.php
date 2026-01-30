@@ -3177,4 +3177,7 @@ return [
         'confirm_terminate' => 'Confirm Termination',
         'confirm_reactivate' => 'Are you sure you want to reactivate this contract?',
     ],
+
+    // Access control
+    'access_denied_bo' => 'You do not have permission to access the Back Office.',
 ];

@@ -1,6 +1,15 @@
 @php
 function renderMenu($items, $level = 0) {
+    $user = auth()->user();
+
     foreach ($items as $item) {
+        // Vérifier les restrictions de rôles
+        if (isset($item['denied_roles']) && $user) {
+            if ($user->hasAnyRole($item['denied_roles'])) {
+                continue; // Passer cet élément de menu
+            }
+        }
+
         $hasSub = isset($item['submenu']) || isset($item['dynamic_submenu']);
         $submenuId = 'submenu-' . md5($item['label'] . $level);
 

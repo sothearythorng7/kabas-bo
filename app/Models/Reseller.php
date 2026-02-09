@@ -12,7 +12,10 @@ use App\Models\Store;
 
 class Reseller extends Model
 {
-    protected $fillable = ['name', 'type'];
+    protected $fillable = [
+        'name', 'type', 'address', 'address2', 'city',
+        'postal_code', 'country', 'phone', 'email', 'tax_id'
+    ];
 
     public function contacts() { return $this->hasMany(ResellerContact::class); }
     public function deliveries() { return $this->hasMany(ResellerStockDelivery::class); }

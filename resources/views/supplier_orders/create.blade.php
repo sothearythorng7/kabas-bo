@@ -11,7 +11,7 @@
 
             <div class="row mb-3">
                 <!-- Menu déroulant pour la destination -->
-                <div class="col-md-4">
+                <div class="col-md-3">
                     <label for="destination_store_id" class="form-label">{{ __('messages.supplier_order.destination_store') }}</label>
                     <select name="destination_store_id" id="destination_store_id" class="form-control" required>
                         <option value="">{{ __('messages.supplier_order.select_destination') }}</option>
@@ -24,6 +24,15 @@
                     @enderror
                 </div>
 
+                <!-- Deposit -->
+                <div class="col-md-2">
+                    <label for="deposit" class="form-label">{{ __('messages.supplier_order.deposit') }}</label>
+                    <div class="input-group">
+                        <span class="input-group-text">$</span>
+                        <input type="number" step="0.01" min="0" name="deposit" id="deposit" class="form-control" value="0">
+                    </div>
+                </div>
+
                 <!-- Champ de recherche -->
                 <div class="col-md-4">
                     <label for="searchProduct" class="form-label">{{ __('messages.common.search') }}</label>
@@ -31,7 +40,7 @@
                 </div>
 
                 <!-- Compteur produits sélectionnés -->
-                <div class="col-md-4 d-flex align-items-end">
+                <div class="col-md-3 d-flex align-items-end">
                     <div class="alert alert-info mb-0 py-2 w-100">
                         <strong id="selectedCount">0</strong> {{ __('messages.supplier_order.products_with_quantity') }}
                     </div>
@@ -100,6 +109,15 @@
                 @error('destination_store_id')
                     <div class="text-danger">{{ $message }}</div>
                 @enderror
+            </div>
+
+            <!-- Deposit mobile -->
+            <div class="mb-3">
+                <label for="deposit_mobile" class="form-label">{{ __('messages.supplier_order.deposit') }}</label>
+                <div class="input-group">
+                    <span class="input-group-text">$</span>
+                    <input type="number" step="0.01" min="0" name="deposit" id="deposit_mobile" class="form-control" value="0">
+                </div>
             </div>
 
             <!-- Champ de recherche mobile -->

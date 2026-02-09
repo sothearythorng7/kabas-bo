@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class UserSalary extends Model
 {
     protected $fillable = [
-        'user_id',
+        'staff_member_id',
         'base_salary',
         'currency',
         'effective_from',
@@ -20,9 +20,9 @@ class UserSalary extends Model
         'base_salary' => 'decimal:2',
     ];
 
-    public function user(): BelongsTo
+    public function staffMember(): BelongsTo
     {
-        return $this->belongsTo(User::class);
+        return $this->belongsTo(StaffMember::class);
     }
 
     public function creator(): BelongsTo

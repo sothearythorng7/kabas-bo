@@ -1149,12 +1149,24 @@ function initSalesHistory() {
         totalArticles += numArticles;
         totalDiscounts += sale.discount_total || 0;
 
-        const type = sale.payment_type || "UNKNOWN";
-        if (!totalByPayment[type]) totalByPayment[type] = 0;
-        totalByPayment[type] += sale.total || 0;
+        // Handle split payments to separate VOUCHER from real payments
+        if (sale.split_payments && sale.split_payments.length > 0) {
+            sale.split_payments.forEach(sp => {
+                const type = sp.payment_type || "UNKNOWN";
+                if (!totalByPayment[type]) totalByPayment[type] = 0;
+                totalByPayment[type] += parseFloat(sp.amount) || 0;
+            });
+        } else {
+            const type = sale.payment_type || "UNKNOWN";
+            if (!totalByPayment[type]) totalByPayment[type] = 0;
+            totalByPayment[type] += sale.total || 0;
+        }
     });
 
-    const totalSalesAmount = Object.values(totalByPayment).reduce((sum, v) => sum + v, 0);
+    // Calculate total excluding VOUCHER payments (vouchers are not real income)
+    const totalSalesAmount = Object.entries(totalByPayment)
+        .filter(([type]) => type.toUpperCase() !== 'VOUCHER')
+        .reduce((sum, [, v]) => sum + v, 0);
 
     $("#summary-total-amount").text("$" + totalSalesAmount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}));
     $("#summary-sales-count").text(validatedSales.length.toLocaleString());

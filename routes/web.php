@@ -49,6 +49,7 @@ use App\Http\Controllers\BlogPostController;
 use App\Http\Controllers\BlogCategoryController;
 use App\Http\Controllers\BlogTagController;
 use App\Http\Controllers\ContactMessageController;
+use App\Http\Controllers\WebsiteOrderController;
 use App\Http\Controllers\GiftBoxController;
 use App\Http\Controllers\GiftCardController;
 use App\Http\Controllers\InventoryController;
@@ -164,14 +165,21 @@ Route::middleware(['auth', SetUserLocale::class, 'bo.access'])->group(function (
     
     Route::get('products/search', [ProductController::class, 'search'])->name('products.search'); // Ajax recherche EAN / nom
 
+    // === Admin only: Roles, Users, Stores ===
     Route::middleware(['role:admin'])->group(function () {
         Route::resource('roles', RoleController::class)->parameters(['roles' => 'role']);
         Route::resource('users', UserController::class);
         Route::resource('stores', StoreController::class);
+    });
+
         Route::resource('suppliers', SupplierController::class)->except('show');
         Route::get('suppliers/{supplier}/export-sales', [SupplierController::class, 'exportSales'])->name('suppliers.export-sales');
-        Route::resource('categories', CategoryController::class)->except(['show', 'create', 'edit']);
-        Route::resource('brands', BrandController::class);
+        // === Admin only: Categories, Brands ===
+        Route::middleware(['role:admin'])->group(function () {
+            Route::resource('categories', CategoryController::class)->except(['show', 'create', 'edit']);
+            Route::resource('brands', BrandController::class);
+        });
+
         Route::get('products/check-ean', [ProductController::class, 'checkEan'])->name('products.check-ean');
         Route::resource('products', ProductController::class);
         Route::post('products/{product}/photos', [ProductController::class, 'uploadPhotos'])->name('products.photos.upload');
@@ -361,6 +369,9 @@ Route::middleware(['auth', SetUserLocale::class, 'bo.access'])->group(function (
             Route::post('orders/{order}/mark-paid', [SupplierOrderController::class, 'markPaid'])
                 ->name('supplier-orders.markAsPaid');
 
+            Route::put('orders/{order}/update-deposit', [SupplierOrderController::class, 'updateDeposit'])
+                ->name('supplier-orders.updateDeposit');
+
             // Annulation de commande
             Route::delete('orders/{order}', [SupplierOrderController::class, 'destroy'])
                 ->name('supplier-orders.destroy');
@@ -397,6 +408,7 @@ Route::middleware(['auth', SetUserLocale::class, 'bo.access'])->group(function (
         Route::resource('resellers', ResellerController::class);
         Route::post('resellers/{reseller}/update-stock', [ResellerController::class, 'updateStock'])->name('resellers.update-stock');
         Route::post('resellers/{reseller}/update-price', [ResellerController::class, 'updateProductPrice'])->name('resellers.update-price');
+        Route::put('resellers/{reseller}/update-info', [ResellerController::class, 'updateInfo'])->name('resellers.update-info');
         Route::post('resellers/{reseller}/contacts', [ResellerContactController::class, 'store'])->name('resellers.contacts.store');
         Route::delete('resellers/{reseller}/contacts/{contact}', [ResellerContactController::class, 'destroy'])->name('resellers.contacts.destroy');
         Route::get('resellers/{reseller}/deliveries/create', [ResellerStockDeliveryController::class, 'create'])->name('resellers.deliveries.create');
@@ -503,29 +515,75 @@ Route::middleware(['auth', SetUserLocale::class, 'bo.access'])->group(function (
         Route::put('promotion-bar', [\App\Http\Controllers\PromotionBarController::class, 'update'])
             ->name('promotion-bar.update');
 
+        // === Admin only: Staff, Planning, Leave Requests ===
+        Route::middleware(['role:admin'])->group(function () {
         // Staff Management
         Route::prefix('settings/staff')->name('staff.')->group(function () {
             Route::get('/', [\App\Http\Controllers\StaffController::class, 'index'])->name('index');
             Route::get('/create', [\App\Http\Controllers\StaffController::class, 'create'])->name('create');
             Route::post('/', [\App\Http\Controllers\StaffController::class, 'store'])->name('store');
-            Route::get('/{user}', [\App\Http\Controllers\StaffController::class, 'show'])->name('show');
-            Route::post('/{user}/terminate', [\App\Http\Controllers\StaffController::class, 'terminate'])->name('terminate');
-            Route::post('/{user}/reactivate', [\App\Http\Controllers\StaffController::class, 'reactivate'])->name('reactivate');
-            Route::put('/{user}', [\App\Http\Controllers\StaffController::class, 'update'])->name('update');
-            Route::post('/{user}/documents', [\App\Http\Controllers\StaffController::class, 'uploadDocument'])->name('documents.upload');
+            Route::get('/{staffMember}', [\App\Http\Controllers\StaffController::class, 'show'])->name('show');
+            Route::post('/{staffMember}/terminate', [\App\Http\Controllers\StaffController::class, 'terminate'])->name('terminate');
+            Route::post('/{staffMember}/reactivate', [\App\Http\Controllers\StaffController::class, 'reactivate'])->name('reactivate');
+            Route::put('/{staffMember}', [\App\Http\Controllers\StaffController::class, 'update'])->name('update');
+            Route::post('/{staffMember}/documents', [\App\Http\Controllers\StaffController::class, 'uploadDocument'])->name('documents.upload');
             Route::delete('/documents/{document}', [\App\Http\Controllers\StaffController::class, 'deleteDocument'])->name('documents.delete');
-            Route::post('/{user}/salary', [\App\Http\Controllers\StaffController::class, 'updateSalary'])->name('salary.update');
-            Route::post('/{user}/advances', [\App\Http\Controllers\StaffController::class, 'storeAdvance'])->name('advances.store');
+            Route::post('/{staffMember}/salary', [\App\Http\Controllers\StaffController::class, 'updateSalary'])->name('salary.update');
+            Route::post('/{staffMember}/advances', [\App\Http\Controllers\StaffController::class, 'storeAdvance'])->name('advances.store');
             Route::post('/advances/{advance}/approve', [\App\Http\Controllers\StaffController::class, 'approveAdvance'])->name('advances.approve');
-            Route::post('/{user}/leaves', [\App\Http\Controllers\StaffController::class, 'storeLeave'])->name('leaves.store');
+            Route::post('/{staffMember}/leaves', [\App\Http\Controllers\StaffController::class, 'storeLeave'])->name('leaves.store');
             Route::post('/leaves/{leave}/approve', [\App\Http\Controllers\StaffController::class, 'approveLeave'])->name('leaves.approve');
-            Route::put('/{user}/schedule', [\App\Http\Controllers\StaffController::class, 'updateSchedule'])->name('schedule.update');
-            Route::post('/{user}/payments', [\App\Http\Controllers\StaffController::class, 'storeSalaryPayment'])->name('payments.store');
+            Route::put('/{staffMember}/schedule', [\App\Http\Controllers\StaffController::class, 'updateSchedule'])->name('schedule.update');
+            Route::post('/{staffMember}/payments', [\App\Http\Controllers\StaffController::class, 'storeSalaryPayment'])->name('payments.store');
             Route::get('/payments/{payment}', [\App\Http\Controllers\StaffController::class, 'showPayment'])->name('payments.show');
             Route::get('/payments/{payment}/payslip', [\App\Http\Controllers\StaffController::class, 'downloadPayslip'])->name('payments.payslip');
             Route::post('/bulk-payment', [\App\Http\Controllers\StaffController::class, 'bulkPayment'])->name('bulk-payment');
+            Route::post('/payments/{payment}/transfer', [\App\Http\Controllers\StaffController::class, 'toggleTransfer'])->name('payments.transfer');
+
+            // Quotas
+            Route::get('/{staffMember}/quotas', [\App\Http\Controllers\StaffController::class, 'quotas'])->name('quotas.index');
+            Route::post('/{staffMember}/quotas', [\App\Http\Controllers\StaffController::class, 'storeQuota'])->name('quotas.store');
+
+            // Commissions
+            Route::get('/{staffMember}/commissions', [\App\Http\Controllers\StaffController::class, 'commissions'])->name('commissions.index');
+            Route::post('/{staffMember}/commissions', [\App\Http\Controllers\StaffController::class, 'storeCommission'])->name('commissions.store');
+            Route::post('/{staffMember}/commissions/calculate', [\App\Http\Controllers\StaffController::class, 'calculateCommissions'])->name('commissions.calculate');
+            Route::post('/commissions/{commission}/toggle', [\App\Http\Controllers\StaffController::class, 'toggleCommission'])->name('commissions.toggle');
+            Route::delete('/commissions/{commission}', [\App\Http\Controllers\StaffController::class, 'deleteCommission'])->name('commissions.delete');
+            Route::post('/commission-calculations/{calculation}/approve', [\App\Http\Controllers\StaffController::class, 'approveCommission'])->name('commissions.approve');
+
+            // Adjustments
+            Route::get('/{staffMember}/adjustments', [\App\Http\Controllers\StaffController::class, 'adjustments'])->name('adjustments.index');
+            Route::post('/{staffMember}/adjustments', [\App\Http\Controllers\StaffController::class, 'storeAdjustment'])->name('adjustments.store');
+            Route::post('/adjustments/{adjustment}/approve', [\App\Http\Controllers\StaffController::class, 'approveAdjustment'])->name('adjustments.approve');
+            Route::delete('/adjustments/{adjustment}', [\App\Http\Controllers\StaffController::class, 'deleteAdjustment'])->name('adjustments.delete');
+        });
+
+        // Planning
+        Route::prefix('planning')->name('planning.')->group(function () {
+            Route::get('/', [\App\Http\Controllers\PlanningController::class, 'index'])->name('index');
+            Route::get('/monthly', [\App\Http\Controllers\PlanningController::class, 'monthly'])->name('monthly');
+            Route::get('/events', [\App\Http\Controllers\PlanningController::class, 'apiEvents'])->name('events');
+            Route::get('/performance', [\App\Http\Controllers\PlanningController::class, 'performance'])->name('performance');
+        });
+
+        // Leave Requests Management (Admin)
+        Route::prefix('leave-requests')->name('leave-requests.')->group(function () {
+            Route::get('/', [\App\Http\Controllers\LeaveRequestsController::class, 'index'])->name('index');
+            Route::post('/{leave}/approve', [\App\Http\Controllers\LeaveRequestsController::class, 'approve'])->name('approve');
+            Route::post('/bulk-approve', [\App\Http\Controllers\LeaveRequestsController::class, 'bulkApprove'])->name('bulk-approve');
         });
     });
+
+    // My Leaves (accessible to all authenticated users)
+    Route::prefix('my-leaves')->name('my-leaves.')->group(function () {
+        Route::get('/', [\App\Http\Controllers\MyLeavesController::class, 'index'])->name('index');
+        Route::post('/', [\App\Http\Controllers\MyLeavesController::class, 'store'])->name('store');
+        Route::delete('/{leave}', [\App\Http\Controllers\MyLeavesController::class, 'cancel'])->name('cancel');
+    });
+
+    // My Planning (accessible to all authenticated users)
+    Route::get('/my-planning', [\App\Http\Controllers\MyPlanningController::class, 'index'])->name('my-planning.index');
 
     Route::get('/financial', [FinancialDashboardController::class, 'overviewInvoices'])->name('financial.overview');
     Route::prefix('financial/{store}')->name('financial.')->group(function () {
@@ -539,14 +597,19 @@ Route::middleware(['auth', SetUserLocale::class, 'bo.access'])->group(function (
         Route::get('dashboard', [FinancialDashboardController::class, 'index'])->name('dashboard');
         Route::get('shifts', [FinancialShiftController::class, 'index'])->name('shifts.index');
         Route::get('shifts/{shift}', [FinancialShiftController::class, 'show'])->name('shifts.show');
+        Route::post('shifts/{shift}/force-close', [FinancialShiftController::class, 'forceClose'])->name('shifts.force-close')->middleware('role:admin');
         Route::get('general-invoices/export', [GeneralInvoiceController::class, 'export'])->name('general-invoices.export');
         Route::get('general-invoices/{generalInvoice}/attachment', [GeneralInvoiceController::class, 'downloadAttachment'])->name('general-invoices.attachment');
         Route::resource('general-invoices', GeneralInvoiceController::class);
         Route::post('general-invoices/{generalInvoice}/mark-as-paid', [GeneralInvoiceController::class, 'markAsPaid'])->name('general-invoices.mark-as-paid');
     });
 
-    Route::resource('variation-types', \App\Http\Controllers\VariationTypeController::class);
-    Route::resource('variation-values', \App\Http\Controllers\VariationValueController::class);
+    // === Admin only: Variation Types, Variation Values ===
+    Route::middleware(['role:admin'])->group(function () {
+        Route::resource('variation-types', \App\Http\Controllers\VariationTypeController::class);
+        Route::resource('variation-values', \App\Http\Controllers\VariationValueController::class);
+    });
+
     Route::resource('invoice-categories', \App\Http\Controllers\InvoiceCategoryController::class);
 
 });
@@ -589,6 +652,15 @@ Route::prefix('api/pos')->middleware('api')->group(function () {
     Route::get('voucher/validate', [ExchangeController::class, 'validateVoucher']);
     Route::post('voucher/apply', [ExchangeController::class, 'applyVoucher']);
 
+    // Planning
+    Route::get('planning/absences/{storeId}', [\App\Http\Controllers\POS\PlanningController::class, 'getAbsences']);
+    Route::get('planning/user-balance/{userId}', [\App\Http\Controllers\POS\PlanningController::class, 'getUserLeaveBalance']);
+    Route::get('planning/user-planning/{userId}', [\App\Http\Controllers\POS\PlanningController::class, 'getUserPlanning']);
+    Route::get('planning/user-leaves/{userId}', [\App\Http\Controllers\POS\PlanningController::class, 'getUserLeaves']);
+    Route::post('planning/request-leave', [\App\Http\Controllers\POS\PlanningController::class, 'requestLeave']);
+    Route::get('planning/staff/{storeId}', [\App\Http\Controllers\POS\PlanningController::class, 'getStoreStaff']);
+    Route::get('planning/today-absences/{storeId}', [\App\Http\Controllers\POS\PlanningController::class, 'getTodayAbsences']);
+
     // Client Logs (for debugging)
     Route::post('logs', [\App\Http\Controllers\POS\LogController::class, 'store']);
 });
@@ -614,14 +686,22 @@ Route::middleware(['auth'])->group(function () {
     Route::delete('contact-messages/{contactMessage}', [ContactMessageController::class, 'destroy'])->name('contact-messages.destroy');
 });
 
+// Website Orders Routes
+Route::middleware(['auth'])->group(function () {
+    Route::get('website-orders', [WebsiteOrderController::class, 'index'])->name('website-orders.index');
+    Route::get('website-orders/{order}', [WebsiteOrderController::class, 'show'])->name('website-orders.show');
+    Route::post('website-orders/{order}/status', [WebsiteOrderController::class, 'updateStatus'])->name('website-orders.update-status');
+    Route::post('website-orders/{order}/notes', [WebsiteOrderController::class, 'updateNotes'])->name('website-orders.update-notes');
+});
+
 // Home Content Routes
 Route::middleware(['auth'])->group(function () {
     Route::get('home-content', [App\Http\Controllers\HomeContentController::class, 'edit'])->name('home-content.edit');
     Route::put('home-content', [App\Http\Controllers\HomeContentController::class, 'update'])->name('home-content.update');
 });
 
-// Backup Routes
-Route::middleware(['auth'])->group(function () {
+// Backup Routes (Admin only)
+Route::middleware(['auth', 'bo.access', 'role:admin'])->group(function () {
     Route::get('backups', [App\Http\Controllers\BackupController::class, 'index'])->name('backups.index');
     Route::post('backups/create', [App\Http\Controllers\BackupController::class, 'create'])->name('backups.create');
     Route::get('backups/download/{filename}', [App\Http\Controllers\BackupController::class, 'download'])->name('backups.download');
@@ -671,6 +751,6 @@ Route::middleware(['auth', SetUserLocale::class])->prefix('factory')->name('fact
 });
 
 // BI Routes
-Route::middleware(['auth', SetUserLocale::class])->prefix('bi')->name('bi.')->group(function () {
+Route::middleware(['auth', SetUserLocale::class, 'bo.access', 'role:admin'])->prefix('bi')->name('bi.')->group(function () {
     Route::get('/', [BIDashboardController::class, 'index'])->name('dashboard');
 });

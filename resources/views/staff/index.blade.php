@@ -1,19 +1,21 @@
 @extends('layouts.app')
 
 @section('content')
-<div class="container mt-4">
+<div class="container-fluid mt-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h1 class="crud_title mb-0">{{ __('messages.staff.title') }}</h1>
-        <div>
-            @if($pendingPaymentsCount > 0)
-                <button type="button" class="btn btn-success me-2" data-bs-toggle="modal" data-bs-target="#bulkPaymentModal">
+        <div class="d-flex gap-2">
+            @if($tab === 'list' && $pendingPaymentsCount > 0)
+                <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#bulkPaymentModal">
                     <i class="bi bi-cash-stack"></i> {{ __('messages.staff.pay_all') }}
                     <span class="badge bg-light text-success">{{ $pendingPaymentsCount }}</span>
                 </button>
             @endif
-            <a href="{{ route('staff.create') }}" class="btn btn-primary">
-                <i class="bi bi-person-plus"></i> {{ __('messages.staff.add_employee') }}
-            </a>
+            @if($tab === 'list')
+                <a href="{{ route('staff.create') }}" class="btn btn-primary">
+                    <i class="bi bi-person-plus"></i> {{ __('messages.staff.add_employee') }}
+                </a>
+            @endif
         </div>
     </div>
 
@@ -24,149 +26,39 @@
         </div>
     @endif
 
-    {{-- Bandeau mois en cours --}}
-    <div class="alert alert-info d-flex justify-content-between align-items-center mb-4">
-        <div>
-            <i class="bi bi-calendar-month"></i>
-            <strong>{{ __('messages.staff.payroll_period') }}:</strong>
-            {{ \Carbon\Carbon::parse($currentMonth . '-01')->translatedFormat('F Y') }}
-        </div>
-        <div>
-            <span class="badge bg-warning text-dark fs-6">
-                {{ $pendingPaymentsCount }} {{ __('messages.staff.pending_payments') }}
-            </span>
-        </div>
-    </div>
-
-    {{-- Filtres --}}
-    <form action="{{ route('staff.index') }}" method="GET" class="row g-2 mb-4">
-        <div class="col-md-3">
-            <input type="text" name="q" value="{{ request('q') }}" class="form-control"
-                   placeholder="{{ __('messages.staff.search_placeholder') }}">
-        </div>
-        <div class="col-md-2">
-            <select name="store_id" class="form-select">
-                <option value="">{{ __('messages.staff.all_stores') }}</option>
-                @foreach($stores as $store)
-                    <option value="{{ $store->id }}" {{ request('store_id') == $store->id ? 'selected' : '' }}>
-                        {{ $store->name }}
-                    </option>
-                @endforeach
-            </select>
-        </div>
-        <div class="col-md-2">
-            <select name="status" class="form-select">
-                <option value="active" {{ $contractStatus === 'active' ? 'selected' : '' }}>
-                    {{ __('messages.staff.contract_status.active') }}
-                </option>
-                <option value="terminated" {{ $contractStatus === 'terminated' ? 'selected' : '' }}>
-                    {{ __('messages.staff.contract_status.terminated') }}
-                </option>
-                <option value="all" {{ $contractStatus === 'all' ? 'selected' : '' }}>
-                    {{ __('messages.staff.all_status') }}
-                </option>
-            </select>
-        </div>
-        <div class="col-md-2">
-            <button type="submit" class="btn btn-primary w-100">
-                <i class="bi bi-search"></i> {{ __('messages.btn.search') }}
-            </button>
-        </div>
-        @if(request('q') || request('store_id') || request('status'))
-        <div class="col-md-2">
-            <a href="{{ route('staff.index') }}" class="btn btn-secondary w-100">
-                <i class="bi bi-x-circle"></i> {{ __('messages.btn.reset') }}
+    {{-- Onglets --}}
+    <ul class="nav nav-tabs mb-4" id="staffMainTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <a class="nav-link {{ $tab === 'list' ? 'active' : '' }}" href="{{ route('staff.index', ['tab' => 'list']) }}">
+                <i class="bi bi-people"></i> {{ __('messages.staff.tab_list') }}
+                @if($pendingPaymentsCount > 0)
+                    <span class="badge bg-warning text-dark">{{ $pendingPaymentsCount }}</span>
+                @endif
             </a>
-        </div>
-        @endif
-    </form>
+        </li>
+        <li class="nav-item" role="presentation">
+            <a class="nav-link {{ $tab === 'planning' ? 'active' : '' }}" href="{{ route('staff.index', ['tab' => 'planning', 'month' => request('month', now()->format('Y-m')), 'store_id' => request('store_id')]) }}">
+                <i class="bi bi-calendar-week"></i> {{ __('messages.staff.tab_planning') }}
+            </a>
+        </li>
+        <li class="nav-item" role="presentation">
+            <a class="nav-link {{ $tab === 'performance' ? 'active' : '' }}" href="{{ route('staff.index', ['tab' => 'performance', 'period' => request('period', now()->format('Y-m')), 'store_id' => request('store_id')]) }}">
+                <i class="bi bi-graph-up"></i> {{ __('messages.staff.tab_performances') }}
+            </a>
+        </li>
+    </ul>
 
-    <form action="{{ route('staff.bulk-payment') }}" method="POST" id="bulkPaymentForm">
-        @csrf
-        <input type="hidden" name="store_id" id="bulk_store_id" value="">
-
-        <div class="table-responsive">
-            <table class="table table-striped table-hover">
-                <thead>
-                    <tr>
-                        <th style="width: 30px;">
-                            <input type="checkbox" class="form-check-input" id="selectAll" title="{{ __('messages.staff.select_all') }}">
-                        </th>
-                        <th></th>
-                        <th>{{ __('messages.staff.name') }}</th>
-                        <th>{{ __('messages.staff.store') }}</th>
-                        <th class="text-center">{{ __('messages.staff.salary') }}</th>
-                        <th class="text-center">{{ __('messages.staff.deductions') }}</th>
-                        <th class="text-center">{{ __('messages.staff.net_to_pay') }}</th>
-                    </tr>
-                </thead>
-                <tbody>
-                @forelse($users as $user)
-                    @php
-                        $payroll = $user->payroll_calculated;
-                        $canPay = $payroll['base_salary'] > 0 && !$payroll['is_paid'];
-                    @endphp
-                    <tr class="{{ $payroll['is_paid'] ? 'table-success' : '' }}">
-                        <td>
-                            @if($canPay)
-                                <input type="checkbox" class="form-check-input user-checkbox"
-                                       name="user_ids[]" value="{{ $user->id }}"
-                                       data-amount="{{ $payroll['net_amount'] }}">
-                            @endif
-                        </td>
-                        <td style="width: 1%; white-space: nowrap;">
-                            <a href="{{ route('staff.show', $user) }}" class="btn btn-primary btn-sm">
-                                <i class="bi bi-eye"></i>
-                            </a>
-                        </td>
-                        <td>
-                            <strong>{{ $user->name }}</strong>
-                            @if($user->roles->isNotEmpty())
-                                <br><small class="text-muted">{{ $user->roles->pluck('name')->join(', ') }}</small>
-                            @endif
-                        </td>
-                        <td>{{ $user->store->name ?? '-' }}</td>
-                        <td class="text-center">
-                            @if($payroll['base_salary'] > 0)
-                                {{ number_format($payroll['base_salary'], 2) }} {{ $payroll['currency'] }}
-                            @else
-                                <span class="text-muted">-</span>
-                            @endif
-                        </td>
-                        <td class="text-center">
-                            @if($payroll['deductions'] > 0)
-                                <span class="text-danger">- {{ number_format($payroll['deductions'], 2) }}</span>
-                            @else
-                                <span class="text-muted">-</span>
-                            @endif
-                        </td>
-                        <td class="text-center">
-                            @if($payroll['is_paid'])
-                                <span class="badge bg-success">
-                                    <i class="bi bi-check-circle"></i> {{ __('messages.staff.paid') }}
-                                </span>
-                            @elseif($payroll['base_salary'] > 0)
-                                <strong class="{{ $payroll['net_amount'] >= 0 ? 'text-primary' : 'text-danger' }}">
-                                    {{ number_format($payroll['net_amount'], 2) }} {{ $payroll['currency'] }}
-                                </strong>
-                            @else
-                                <span class="text-muted">-</span>
-                            @endif
-                        </td>
-                    </tr>
-                @empty
-                    <tr>
-                        <td colspan="7" class="text-muted text-center">{{ __('messages.staff.no_staff') }}</td>
-                    </tr>
-                @endforelse
-                </tbody>
-            </table>
-        </div>
-    </form>
-
-    {{ $users->appends(request()->query())->links() }}
+    {{-- Contenu des onglets --}}
+    @if($tab === 'list')
+        @include('staff.partials.index-list')
+    @elseif($tab === 'planning')
+        @include('staff.partials.index-planning')
+    @elseif($tab === 'performance')
+        @include('staff.partials.index-performance')
+    @endif
 </div>
 
+@if($tab === 'list')
 {{-- Modal paiement en masse --}}
 <div class="modal fade" id="bulkPaymentModal" tabindex="-1">
     <div class="modal-dialog">
@@ -229,33 +121,37 @@ document.addEventListener('DOMContentLoaded', function() {
         selectedTotal.textContent = total.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     }
 
-    selectAll.addEventListener('change', function() {
-        checkboxes.forEach(function(cb) {
-            cb.checked = selectAll.checked;
+    if (selectAll) {
+        selectAll.addEventListener('change', function() {
+            checkboxes.forEach(function(cb) {
+                cb.checked = selectAll.checked;
+            });
+            updateTotals();
         });
-        updateTotals();
-    });
+    }
 
     checkboxes.forEach(function(cb) {
         cb.addEventListener('change', updateTotals);
     });
 
-    confirmBtn.addEventListener('click', function() {
-        const count = document.querySelectorAll('.user-checkbox:checked').length;
-        if (count === 0) {
-            alert('{{ __('messages.staff.select_at_least_one') }}');
-            return;
-        }
+    if (confirmBtn) {
+        confirmBtn.addEventListener('click', function() {
+            const count = document.querySelectorAll('.user-checkbox:checked').length;
+            if (count === 0) {
+                alert('{{ __('messages.staff.select_at_least_one') }}');
+                return;
+            }
 
-        bulkStoreId.value = modalStoreId.value;
+            bulkStoreId.value = modalStoreId.value;
 
-        if (confirm('{{ __('messages.staff.confirm_bulk_payment_message') }}')) {
-            form.submit();
-        }
-    });
+            if (confirm('{{ __('messages.staff.confirm_bulk_payment_message') }}')) {
+                form.submit();
+            }
+        });
+    }
 
-    // Initial calculation
     updateTotals();
 });
 </script>
+@endif
 @endsection

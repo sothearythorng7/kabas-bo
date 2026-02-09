@@ -78,7 +78,20 @@ class ExchangeController extends Controller
         $store = $shift->store;
         $user = $shift->user;
 
-        $result = $this->exchangeService->processExchange($data, $user, $store, $shift);
+        try {
+            $result = $this->exchangeService->processExchange($data, $user, $store, $shift);
+        } catch (\Exception $e) {
+            \Log::error('Exchange process error', [
+                'sale_id' => $data['original_sale_id'],
+                'store_id' => $store->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'error' => $e->getMessage(),
+            ], 400);
+        }
 
         if (!$result['success']) {
             return response()->json($result, 400);

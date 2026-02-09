@@ -36,6 +36,8 @@
             @include('pos.screens.journal')
             @include('pos.screens.search-results')
             @include('pos.screens.sale-detail')
+            @include('pos.screens.my-planning')
+            @include('pos.screens.leave-request')
         </div>
 
         <!-- ===== GLOBAL Side Menu (present everywhere except login) ===== -->
@@ -56,6 +58,16 @@
                 <button id="btn-end-shift" class="btn btn-warning w-100 mb-2">{{ __('messages.Close Shift') }}</button>
                 <button id="btn-journal" class="btn btn-primary w-100 mb-2">Journal</button>
                 <hr />
+
+                <!-- Planning & Leave Request -->
+                <button id="btn-my-planning" class="btn btn-info w-100 mb-2">
+                    <i class="bi bi-calendar-week"></i> {{ __('messages.my_planning.menu_title') }}
+                </button>
+                <button id="btn-leave-request" class="btn btn-success w-100 mb-2">
+                    <i class="bi bi-calendar-plus"></i> {{ __('messages.staff.request_leave') }}
+                </button>
+                <hr />
+
                 <button id="btn-logout" class="btn btn-danger w-100 mb-2">{{ __('messages.logout') }}</button>
                 <button id="btn-force-sync" class="btn btn-info w-100 mb-2"><i class="bi bi-arrow-clockwise"></i> Refresh</button>
 
@@ -402,6 +414,33 @@ function restoreCategoryTreeFromLocal(storeId) {
         }
         // Init au chargement
         $(updateMenuVisibility);
+    })();
+    </script>
+
+    <!-- ===== Planning & Leave Request Navigation ===== -->
+    <script>
+    (function() {
+        // From menu (during active shift)
+        $(document).on("click", "#btn-my-planning", function() {
+            showScreen("myplanning");
+            if (typeof initMyplanning === "function") initMyplanning();
+        });
+
+        $(document).on("click", "#btn-leave-request", function() {
+            showScreen("leaverequest");
+            if (typeof initLeaverequest === "function") initLeaverequest();
+        });
+
+        // From shift-start screen (before shift)
+        $(document).on("click", "#btn-my-planning-preshift", function() {
+            showScreen("myplanning");
+            if (typeof initMyplanning === "function") initMyplanning();
+        });
+
+        $(document).on("click", "#btn-leave-request-preshift", function() {
+            showScreen("leaverequest");
+            if (typeof initLeaverequest === "function") initLeaverequest();
+        });
     })();
     </script>
 

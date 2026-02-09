@@ -304,7 +304,10 @@ public function update(Request $request, Product $product)
         foreach ($locales as $locale) {
             $product->setTranslation('name', $locale, $data['name'][$locale] ?? '');
             $product->setTranslation('slugs', $locale, Str::slug($data['name'][$locale] ?? ''));
-            $product->setTranslation('description', $locale, $data['description'][$locale] ?? '');
+            // Only update description if explicitly provided in the request
+            if (isset($data['description'])) {
+                $product->setTranslation('description', $locale, $data['description'][$locale] ?? '');
+            }
         }
 
         $product->save();

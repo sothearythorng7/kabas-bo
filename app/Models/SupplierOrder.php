@@ -8,10 +8,11 @@ use App\Models\SupplierOrderInvoiceLine;
 
 class SupplierOrder extends Model
 {
-    protected $fillable = ['supplier_id', 'status', 'destination_store_id', 'is_paid', 'paid_at', 'payment_proof', 'order_type', 'invoice_file'];
+    protected $fillable = ['supplier_id', 'status', 'destination_store_id', 'is_paid', 'paid_at', 'payment_proof', 'order_type', 'invoice_file', 'deposit'];
 
     protected $casts = [
         'paid_at' => 'date',
+        'deposit' => 'decimal:2',
     ];
 
     const ORDER_TYPE_PRODUCT = 'product';

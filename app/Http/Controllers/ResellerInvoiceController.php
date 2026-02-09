@@ -72,11 +72,11 @@ class ResellerInvoiceController extends Controller
         ]);
 
         $wareHouse = Store::where('type', 'warehouse')->first();
-
-        // Vérifier si le revendeur est un "buyer"
         $reseller = $invoice->reseller;
-        if ($reseller && $reseller->type === 'buyer' && $wareHouse) {
-  
+
+        // Créer la transaction financière pour tous les types de revendeurs (buyer et consignment)
+        if ($reseller && $wareHouse) {
+
             $account = FinancialAccount::where('code', '701')->first();
             if (!$account) {
                 throw new \Exception("Le compte caisse (701) est introuvable.");
@@ -91,16 +91,19 @@ class ResellerInvoiceController extends Controller
             $balanceBefore = $lastTransaction?->balance_after ?? 0;
             $balanceAfter = $balanceBefore + $payment->amount;
 
-            //Référence pour aller directement sur la commande
-            $url = route('reseller-stock-deliveries.edit', [
-                'reseller' => $reseller->id,
-                'delivery' => $invoice->reseller_stock_delivery_id,
-            ]);
-            $path = parse_url($url, PHP_URL_PATH);
-            $path = ltrim($path, '/');
+            // Référence pour aller directement sur la facture ou la commande
+            if ($invoice->reseller_stock_delivery_id) {
+                $url = route('reseller-stock-deliveries.edit', [
+                    'reseller' => $reseller->id,
+                    'delivery' => $invoice->reseller_stock_delivery_id,
+                ]);
+            } else {
+                $url = route('reseller-invoices.show', $invoice);
+            }
+            $path = ltrim(parse_url($url, PHP_URL_PATH), '/');
 
-           $paymentMethod = FinancialPaymentMethod::where('code', strtoupper($data['payment_method']))->first();
-           $paymentMethodId = $paymentMethod ? $paymentMethod->id : 1;
+            $paymentMethod = FinancialPaymentMethod::where('code', strtoupper($data['payment_method']))->first();
+            $paymentMethodId = $paymentMethod ? $paymentMethod->id : 1;
 
             // Créer la transaction crédit
             FinancialTransaction::create([
@@ -111,7 +114,7 @@ class ResellerInvoiceController extends Controller
                 'direction' => 'credit',
                 'balance_before' => $balanceBefore,
                 'balance_after' => $balanceAfter,
-                'label' => "Paiement revendeur #{$reseller->id}",
+                'label' => "Paiement revendeur {$reseller->name}",
                 'description' => "Paiement reçu pour facture #{$invoice->id}",
                 'status' => 'validated',
                 'transaction_date' => Carbon::now(),

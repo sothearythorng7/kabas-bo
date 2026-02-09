@@ -234,6 +234,20 @@
                     </div>
                 </div>
                 @endif
+
+                @if(auth()->user()->hasRole('admin') && !$shift->ended_at)
+                <hr>
+                <div class="row">
+                    <div class="col-12">
+                        <form action="{{ route('financial.shifts.force-close', [$store->id, $shift->id]) }}" method="POST" class="d-inline" onsubmit="return confirm('{{ __('messages.financial_shift.confirm_force_close') }}')">
+                            @csrf
+                            <button type="submit" class="btn btn-danger">
+                                <i class="bi bi-x-circle"></i> {{ __('messages.financial_shift.force_close_shift') }}
+                            </button>
+                        </form>
+                    </div>
+                </div>
+                @endif
             </div>
         </div>
 

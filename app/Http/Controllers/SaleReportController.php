@@ -118,6 +118,7 @@ class SaleReportController extends Controller
 
     /**
      * Récupère les quantités vendues depuis le POS pour une période et un magasin donnés
+     * (ventes brutes moins les retours/échanges)
      */
     private function getPosSalesQuantities(int $storeId, string $periodStart, string $periodEnd, array $productIds): array
     {
@@ -135,6 +136,38 @@ class SaleReportController extends Controller
         ->get();
 
         foreach ($salesItems as $item) {
+            $quantities[$item->product_id] = (int) $item->total_quantity;
+        }
+
+        // Déduire les quantités retournées via les échanges
+        $returnedQuantities = $this->getExchangeReturnQuantities($storeId, $periodStart, $periodEnd, $productIds);
+        foreach ($returnedQuantities as $productId => $returnedQty) {
+            if (isset($quantities[$productId])) {
+                $quantities[$productId] = max(0, $quantities[$productId] - $returnedQty);
+            }
+        }
+
+        return $quantities;
+    }
+
+    /**
+     * Récupère les quantités retournées via les échanges pour une période et un magasin donnés
+     */
+    private function getExchangeReturnQuantities(int $storeId, string $periodStart, string $periodEnd, array $productIds): array
+    {
+        $quantities = [];
+
+        $exchangeItems = \App\Models\ExchangeItem::whereHas('exchange', function ($query) use ($storeId, $periodStart, $periodEnd) {
+            $query->where('store_id', $storeId)
+                ->whereDate('created_at', '>=', $periodStart)
+                ->whereDate('created_at', '<=', $periodEnd);
+        })
+        ->whereIn('product_id', $productIds)
+        ->selectRaw('product_id, SUM(quantity) as total_quantity')
+        ->groupBy('product_id')
+        ->get();
+
+        foreach ($exchangeItems as $item) {
             $quantities[$item->product_id] = (int) $item->total_quantity;
         }
 

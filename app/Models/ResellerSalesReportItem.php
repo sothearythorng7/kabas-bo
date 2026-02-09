@@ -9,6 +9,9 @@ class ResellerSalesReportItem extends Model
     protected $fillable = [
         'report_id',
         'product_id',
+        'old_stock',
+        'refill',
+        'stock_on_hand',
         'quantity_sold',
         'unit_price'
     ];

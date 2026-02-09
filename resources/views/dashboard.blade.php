@@ -157,6 +157,57 @@
 </div>
 @endif
 
+<!-- Commandes site web payées -->
+@if($websiteOrdersPaidTotal > 0)
+<div class="card shadow mb-4">
+    <div class="card-header py-3 d-flex justify-content-between align-items-center">
+        <h6 class="m-0 font-weight-bold text-success">
+            <i class="bi bi-bag-check"></i> {{ __('messages.main_dashboard.website_orders_title') }}
+            <span class="badge bg-success ms-2">{{ $websiteOrdersPaidTotal }}</span>
+            <small class="text-muted fw-normal ms-2">${{ number_format($websiteOrdersPaidAmount, 2) }}</small>
+        </h6>
+        <a href="{{ route('website-orders.index') }}" class="btn btn-sm btn-outline-success">
+            <i class="bi bi-eye"></i> {{ __('messages.main_dashboard.view_all') }}
+        </a>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-bordered table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>{{ __('messages.main_dashboard.wo_status') }}</th>
+                        <th class="text-center" style="width: 120px;">{{ __('messages.main_dashboard.wo_count') }}</th>
+                        <th class="text-end" style="width: 150px;">{{ __('messages.main_dashboard.wo_amount') }}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach($websiteOrdersByStatus as $row)
+                    <tr>
+                        <td>
+                            <span class="badge bg-{{ \App\Models\WebsiteOrder::statusBadgeClass($row->status) }}">
+                                {{ __('messages.website_order.status_' . $row->status) }}
+                            </span>
+                        </td>
+                        <td class="text-center">
+                            <span class="fw-bold">{{ $row->count }}</span>
+                        </td>
+                        <td class="text-end fw-bold">${{ number_format($row->total, 2) }}</td>
+                    </tr>
+                    @endforeach
+                </tbody>
+                <tfoot class="table-light">
+                    <tr>
+                        <th>Total</th>
+                        <th class="text-center">{{ $websiteOrdersPaidTotal }}</th>
+                        <th class="text-end">${{ number_format($websiteOrdersPaidAmount, 2) }}</th>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+</div>
+@endif
+
 <!-- Cartes KPI originales -->
 <div class="row">
     <!-- Carte KPI: Factures à payer -->

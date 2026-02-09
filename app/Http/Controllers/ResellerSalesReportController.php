@@ -9,6 +9,7 @@ use App\Models\ResellerSalesReport;
 use App\Models\ResellerSalesReportItem;
 use App\Models\ResellerSalesReportAnomaly;
 use App\Models\ResellerInvoice;
+use App\Models\ResellerProductPrice;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -94,6 +95,15 @@ class ResellerSalesReportController extends Controller
                 'end_date' => $validated['end_date'],
             ]);
 
+            $startDate = Carbon::parse($validated['start_date'])->startOfDay();
+            $endDate = Carbon::parse($validated['end_date'])->endOfDay();
+
+            // Get current stock (stock at end of period = now)
+            $currentStock = $reseller->getCurrentStock();
+
+            // Get refills (deliveries received during period)
+            $refillQuantities = $this->getRefillQuantities($reseller, $isShop, $startDate, $endDate);
+
             $productsData = Product::whereIn('id', collect($validated['products'])->pluck('id'))->get()->keyBy('id');
             $totalValue = 0;
 
@@ -101,15 +111,34 @@ class ResellerSalesReportController extends Controller
                 if ($p['quantity'] <= 0) continue;
 
                 $product = $productsData[$p['id']];
+                $quantitySold = $p['quantity'];
+
+                // Stock on Hand = current stock (at end of period, before this sale deduction)
+                $stockOnHand = ($currentStock[$product->id] ?? 0);
+
+                // Refill = deliveries received during period
+                $refill = $refillQuantities[$product->id] ?? 0;
+
+                // Old Stock = Stock on Hand + Quantity Sold - Refill
+                // (Stock at start of period = Stock at end + what was sold - what was received)
+                $oldStock = max(0, $stockOnHand + $quantitySold - $refill);
+
+                // Utiliser le prix B2B pour les revendeurs en consignement
+                $unitPrice = $isShop
+                    ? ($product->price_btob ?? $product->price)
+                    : ResellerProductPrice::getPriceFor($reseller->id, $product->id);
 
                 ResellerSalesReportItem::create([
                     'report_id' => $report->id,
                     'product_id' => $product->id,
-                    'quantity_sold' => $p['quantity'],
-                    'unit_price' => $product->price,
+                    'old_stock' => $oldStock,
+                    'refill' => $refill,
+                    'stock_on_hand' => $stockOnHand,
+                    'quantity_sold' => $quantitySold,
+                    'unit_price' => $unitPrice,
                 ]);
 
-                $totalValue += $p['quantity'] * $product->price;
+                $totalValue += $p['quantity'] * $unitPrice;
 
                 // Déduction FIFO dans le stock
                 $remaining = $p['quantity'];
@@ -356,5 +385,37 @@ public function addPayment(Request $request, $resellerId, ResellerSalesReport $r
     ])->with('success', 'Paiement enregistré et transaction générée.');
 }
 
+    /**
+     * Get refill quantities (deliveries received) for a reseller during a period
+     */
+    private function getRefillQuantities($reseller, bool $isShop, Carbon $startDate, Carbon $endDate): array
+    {
+        $query = \App\Models\ResellerStockDelivery::query()
+            ->where('status', 'shipped')
+            ->where(function ($q) use ($startDate, $endDate) {
+                $q->whereBetween('delivered_at', [$startDate, $endDate])
+                  ->orWhere(function ($q2) use ($startDate, $endDate) {
+                      $q2->whereNull('delivered_at')
+                         ->whereBetween('created_at', [$startDate, $endDate]);
+                  });
+            });
 
+        if ($isShop) {
+            $query->where('store_id', $reseller->id);
+        } else {
+            $query->where('reseller_id', $reseller->id);
+        }
+
+        $deliveries = $query->with('products')->get();
+
+        $refillQuantities = [];
+        foreach ($deliveries as $delivery) {
+            foreach ($delivery->products as $product) {
+                $productId = $product->id;
+                $refillQuantities[$productId] = ($refillQuantities[$productId] ?? 0) + $product->pivot->quantity;
+            }
+        }
+
+        return $refillQuantities;
+    }
 }

@@ -25,13 +25,6 @@ class User extends Authenticatable
         'locale',
         'pin_code',
         'store_id',
-        'phone',
-        'address',
-        'hire_date',
-        'is_staff',
-        'contract_status',
-        'contract_end_date',
-        'termination_reason',
     ];
 
     public function store()
@@ -44,42 +37,9 @@ class User extends Authenticatable
         return $this->hasMany(Shift::class);
     }
 
-    public function documents()
+    public function staffMember()
     {
-        return $this->hasMany(UserDocument::class);
-    }
-
-    public function salaries()
-    {
-        return $this->hasMany(UserSalary::class)->orderByDesc('effective_from');
-    }
-
-    public function currentSalary()
-    {
-        return $this->hasOne(UserSalary::class)
-            ->where('effective_from', '<=', now())
-            ->orderByDesc('effective_from')
-            ->orderByDesc('id');
-    }
-
-    public function salaryAdvances()
-    {
-        return $this->hasMany(SalaryAdvance::class)->orderByDesc('requested_at');
-    }
-
-    public function leaves()
-    {
-        return $this->hasMany(Leave::class)->orderByDesc('start_date');
-    }
-
-    public function schedules()
-    {
-        return $this->hasMany(UserSchedule::class)->orderBy('day_of_week');
-    }
-
-    public function salaryPayments()
-    {
-        return $this->hasMany(SalaryPayment::class)->orderByDesc('period');
+        return $this->hasOne(StaffMember::class);
     }
 
     /**
@@ -102,7 +62,6 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
-            'hire_date' => 'date',
         ];
     }
 }

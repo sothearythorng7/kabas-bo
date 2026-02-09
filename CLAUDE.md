@@ -1,7 +1,7 @@
 # Kabas Concept Store - Contexte Projet
 
 > Ce fichier contient toutes les informations nécessaires pour comprendre et travailler sur le projet Kabas.
-> Dernière mise à jour: 2025-12-29
+> Dernière mise à jour: 2026-02-09
 
 ## Vue d'Ensemble
 
@@ -168,6 +168,8 @@ DB Principale (kabas)     │  DB Backoffice (partagée)
 ### Fonctionnalités
 - Catalogue multilingue (FR/EN)
 - Panier sans authentification
+- Checkout guest avec paiement ABA PayWay (popup iframe)
+- Stock déduit du Warehouse en FIFO + transaction financière automatique
 - Compte client (commandes, adresses)
 - Coffrets cadeaux & cartes cadeaux
 - Blog intégré
@@ -353,6 +355,62 @@ BO_API_URL=https://bo.kabasconceptstore.com/api
 
 ---
 
+## Module Website Orders (ajouté 2026-02-09)
+
+Gestion des commandes e-commerce depuis le BO. Les commandes sont créées par le site (`/var/www/kabas-site`) et partagent la même base de données.
+
+### Fichiers créés
+
+| Fichier | Rôle |
+|---------|------|
+| `app/Models/WebsiteOrder.php` | Modèle `orders` (préfixé "Website" pour éviter conflit avec supplier orders). Relations: items, transactions. Scopes: byStatus, byPaymentStatus, search |
+| `app/Models/WebsiteOrderItem.php` | Modèle `order_items`. Relations: order, product, giftBox, giftCard |
+| `app/Models/WebsitePaymentTransaction.php` | Modèle `payment_transactions`. Accessor: status_description (codes PayWay 0-11) |
+| `app/Http/Controllers/WebsiteOrderController.php` | index, show, updateStatus (+ annulation complète), updateNotes |
+| `resources/views/website-orders/index.blade.php` | Liste paginée avec filtres, badges colorés, compteurs |
+| `resources/views/website-orders/show.blade.php` | Détail: client, adresse, items, totaux, transactions PayWay, formulaires status/notes |
+| `config/payway.php` | Config PayWay pour le BO (merchant_id, api_key, refund_url, rsa_public_key) |
+
+### Fichiers modifiés
+
+| Fichier | Modifications |
+|---------|---------------|
+| `config/menu.php` | +Website Orders dans submenu Website (icon bi-bag-check) |
+| `routes/web.php` | +4 routes: website-orders (index, show, update-status, update-notes) |
+| `resources/lang/en/messages.php` | +menu.website_orders, +main_dashboard.*, +website_order.* (~70 clés) |
+| `resources/lang/fr/messages.php` | Idem en français |
+| `app/Http/Controllers/DashboardController.php` | +Widget commandes payées ventilées par statut |
+| `resources/views/dashboard.blade.php` | +Tableau paid website orders (status, count, amount) |
+
+### Routes
+
+```
+GET  /website-orders              → index (liste + filtres)
+GET  /website-orders/{order}      → show (détail)
+POST /website-orders/{order}/status → updateStatus
+POST /website-orders/{order}/notes  → updateNotes
+```
+
+### Annulation d'une commande payée
+
+Quand on annule une commande payée depuis le BO, `updateStatus()` exécute :
+
+1. **Remboursement PayWay** (`refundPayWay()`) : RSA encrypt merchant_auth + HMAC-SHA512 hash + POST refund API
+2. **Réversion stock** (`reverseStock()`) : Re-ajoute les quantités au dernier lot, crée stock_transaction (type=in, reason=website_cancellation)
+3. **Réversion financière** (`reverseFinancialTransaction()`) : Crée transaction debit sur compte 701, running balance
+4. Met à jour `payment_transactions` (internal_status=refunded, refunded_at, refund_amount)
+
+**Dégradation gracieuse** : Si le remboursement PayWay échoue (pas de clef RSA, erreur API), la réversion interne (stock + finance) est quand même effectuée avec un warning.
+
+**Constantes** : `FINANCIAL_ACCOUNT_ID=17` (701 Shop Sales), `SYSTEM_USER_ID=1`, store par défaut `store_id=3` (Warehouse).
+
+### TODO PayWay
+
+- **RAPPEL** : Demander à ABA Bank la clef RSA publique pour les remboursements → `PAYWAY_RSA_PUBLIC_KEY` dans `.env`
+- **Ajouter au `.env` du BO** : `PAYWAY_MERCHANT_ID`, `PAYWAY_API_KEY` (mêmes valeurs que le site)
+
+---
+
 ## Notes de Développement
 
 ### Migrations Récentes (Dec 2025)
@@ -362,12 +420,16 @@ BO_API_URL=https://bo.kabasconceptstore.com/api
 - Retours fournisseur
 - Cash in/out pour shifts
 
+### Migrations Récentes (Feb 2026)
+- `add_store_id_to_orders_table` : store_id (default 3 = Warehouse) sur table orders
+
 ### Points d'Attention
 1. **Multi-magasins**: Toujours filtrer par `store_id`
 2. **Stock par lot**: Utiliser `StockBatch` pour traçabilité
 3. **Offline POS**: Sync via `SyncController`
 4. **Traductions**: JSON dans colonnes pour produits/catégories
 5. **Comptabilité**: Toujours créer `FinancialTransaction` pour mouvements d'argent
+6. **Commandes website**: Stock déduit du Warehouse (store_id=3) en FIFO, transaction financière sur compte 701
 
 ---
 

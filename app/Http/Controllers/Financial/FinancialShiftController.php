@@ -4,9 +4,11 @@ namespace App\Http\Controllers\Financial;
 
 use App\Models\Store;
 use App\Models\Shift;
+use App\Models\ShiftUser;
 use App\Models\Sale;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
+use Carbon\Carbon;
 
 class FinancialShiftController extends Controller
 {
@@ -121,10 +123,44 @@ class FinancialShiftController extends Controller
 
         return [
             'number_of_sales' => $sales->count(),
-            'total_sales' => $sales->sum('total'), // sale.total is now the correct net amount
+            'total_sales' => Sale::sumRealRevenue($sales), // Excluding voucher payments
             'total_items' => $sales->flatMap(fn($s) => $s->items)->sum('quantity'),
             'total_discounts' => $totalDiscounts,
         ];
+    }
+
+    /**
+     * Force close an open shift (admin only)
+     */
+    public function forceClose(Store $store, Shift $shift)
+    {
+        if ($shift->ended_at) {
+            return redirect()->back()->with('error', __('messages.financial_shift.shift_already_closed'));
+        }
+
+        $now = Carbon::now();
+
+        // Calculate expected cash based on sales
+        $salesTotal = $shift->sales()
+            ->where('payment_method', 'cash')
+            ->sum('total');
+
+        $expectedCash = ($shift->opening_cash ?? 0) + $salesTotal + ($shift->cash_in ?? 0) - ($shift->cash_out ?? 0);
+
+        // Force close the shift
+        $shift->update([
+            'closing_cash' => $expectedCash,
+            'cash_difference' => 0,
+            'ended_at' => $now,
+        ]);
+
+        // Close all open shift user sessions
+        ShiftUser::where('shift_id', $shift->id)
+            ->whereNull('ended_at')
+            ->update(['ended_at' => $now]);
+
+        return redirect()->route('financial.shifts.index', $store->id)
+            ->with('success', __('messages.financial_shift.shift_force_closed'));
     }
 
 }

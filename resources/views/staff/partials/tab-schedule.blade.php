@@ -6,7 +6,7 @@
         </span>
     </div>
     <div class="card-body">
-        <form action="{{ route('staff.schedule.update', $user) }}" method="POST">
+        <form action="{{ route('staff.schedule.update', $staffMember) }}" method="POST">
             @csrf
             @method('PUT')
 

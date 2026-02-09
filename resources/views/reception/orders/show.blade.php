@@ -155,11 +155,47 @@
         saving[productId] = false;
     }
 
-    // Confirm before finalizing
-    document.getElementById('finalizeForm').addEventListener('submit', function(e) {
+    // Save all products before finalizing (catches untouched inputs)
+    document.getElementById('finalizeForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+
         if (!confirm('Finalize this reception? The order will move to the next step.')) {
-            e.preventDefault();
+            return;
         }
+
+        const btn = document.getElementById('finalizeBtn');
+        btn.disabled = true;
+        btn.innerHTML = '<span>Saving all items...</span>';
+
+        // Send save requests for ALL products to ensure nothing is left NULL
+        const productItems = document.querySelectorAll('.product-item[data-product-id]');
+        const savePromises = [];
+
+        for (const item of productItems) {
+            const productId = item.dataset.productId;
+            const input = document.getElementById('qty-' + productId);
+            const quantity = parseInt(input.value) || 0;
+
+            savePromises.push(
+                fetch('{{ route("reception.orders.receive-item", $order) }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': window.csrfToken,
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        product_id: productId,
+                        quantity_received: quantity
+                    })
+                }).catch(err => console.error('Save failed for product ' + productId, err))
+            );
+        }
+
+        await Promise.all(savePromises);
+
+        btn.innerHTML = '<span>Finalizing...</span>';
+        e.target.submit();
     });
 
     // Save partial and go back to list

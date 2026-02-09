@@ -10,20 +10,31 @@
             @csrf
             @method('PUT')
 
-            <!-- Menu déroulant pour la destination -->
-            <div class="mb-3">
-                <label for="destination_store_id" class="form-label">{{ __('messages.supplier_order.destination_store') }}</label>
-                <select name="destination_store_id" id="destination_store_id" class="form-control" required>
-                    <option value="">{{ __('messages.supplier_order.select_destination') }}</option>
-                    @foreach($stores as $store)
-                        <option value="{{ $store->id }}" {{ $order->destination_store_id == $store->id ? 'selected' : '' }}>
-                            {{ $store->name }} ({{ $store->type }})
-                        </option>
-                    @endforeach
-                </select>
-                @error('destination_store_id')
-                    <div class="text-danger">{{ $message }}</div>
-                @enderror
+            <div class="row mb-3">
+                <!-- Menu déroulant pour la destination -->
+                <div class="col-md-6">
+                    <label for="destination_store_id" class="form-label">{{ __('messages.supplier_order.destination_store') }}</label>
+                    <select name="destination_store_id" id="destination_store_id" class="form-control" required>
+                        <option value="">{{ __('messages.supplier_order.select_destination') }}</option>
+                        @foreach($stores as $store)
+                            <option value="{{ $store->id }}" {{ $order->destination_store_id == $store->id ? 'selected' : '' }}>
+                                {{ $store->name }} ({{ $store->type }})
+                            </option>
+                        @endforeach
+                    </select>
+                    @error('destination_store_id')
+                        <div class="text-danger">{{ $message }}</div>
+                    @enderror
+                </div>
+
+                <!-- Deposit -->
+                <div class="col-md-3">
+                    <label for="deposit" class="form-label">{{ __('messages.supplier_order.deposit') }}</label>
+                    <div class="input-group">
+                        <span class="input-group-text">$</span>
+                        <input type="number" step="0.01" min="0" name="deposit" id="deposit" class="form-control" value="{{ old('deposit', $order->deposit ?? 0) }}">
+                    </div>
+                </div>
             </div>
 
             <table class="table table-striped">
@@ -68,8 +79,8 @@
 
             <!-- Menu déroulant pour la destination -->
             <div class="mb-3">
-                <label for="destination_store_id" class="form-label">{{ __('messages.supplier_order.destination_store') }}</label>
-                <select name="destination_store_id" id="destination_store_id" class="form-control" required>
+                <label for="destination_store_id_mobile" class="form-label">{{ __('messages.supplier_order.destination_store') }}</label>
+                <select name="destination_store_id" id="destination_store_id_mobile" class="form-control" required>
                     <option value="">{{ __('messages.supplier_order.select_destination') }}</option>
                     @foreach($stores as $store)
                         <option value="{{ $store->id }}" {{ $order->destination_store_id == $store->id ? 'selected' : '' }}>
@@ -80,6 +91,15 @@
                 @error('destination_store_id')
                     <div class="text-danger">{{ $message }}</div>
                 @enderror
+            </div>
+
+            <!-- Deposit mobile -->
+            <div class="mb-3">
+                <label for="deposit_mobile" class="form-label">{{ __('messages.supplier_order.deposit') }}</label>
+                <div class="input-group">
+                    <span class="input-group-text">$</span>
+                    <input type="number" step="0.01" min="0" name="deposit" id="deposit_mobile" class="form-control" value="{{ old('deposit', $order->deposit ?? 0) }}">
+                </div>
             </div>
 
             <div class="row">

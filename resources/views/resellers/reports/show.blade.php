@@ -75,26 +75,32 @@
                 <tr>
                     <th>{{ __('messages.resellers.ean') }}</th>
                     <th>{{ __('messages.resellers.product_name') }}</th>
-                    <th>{{ __('messages.resellers.unit_price') }}</th>
-                    <th>{{ __('messages.resellers.quantity_sold') }}</th>
-                    <th>{{ __('messages.resellers.total_value') }}</th>
+                    <th class="text-center">{{ __('messages.sale_report.old_stock') }}</th>
+                    <th class="text-center">{{ __('messages.sale_report.refill') }}</th>
+                    <th class="text-center">{{ __('messages.sale_report.quantity_sold') }}</th>
+                    <th class="text-center">{{ __('messages.sale_report.stock_on_hand') }}</th>
+                    <th class="text-end">{{ __('messages.resellers.unit_price') }}</th>
+                    <th class="text-end">{{ __('messages.resellers.total_value') }}</th>
                 </tr>
             </thead>
             <tbody>
                 @foreach($report->items as $item)
                     <tr>
                         <td>{{ $item->product->ean ?? '-' }}</td>
-                        <td>{{ $item->product->name[app()->getLocale()] ?? reset($item->product->name) }}</td>
-                        <td>{{ number_format($item->unit_price, 2, ',', ' ') }}</td>
-                        <td>{{ $item->quantity_sold }}</td>
-                        <td>{{ number_format($item->quantity_sold * $item->unit_price, 2, ',', ' ') }}</td>
+                        <td>{{ is_array($item->product->name) ? ($item->product->name[app()->getLocale()] ?? $item->product->name['en'] ?? $item->product->name['fr'] ?? '-') : ($item->product->name ?? '-') }}</td>
+                        <td class="text-center">{{ $item->old_stock }}</td>
+                        <td class="text-center">{{ $item->refill }}</td>
+                        <td class="text-center">{{ $item->quantity_sold }}</td>
+                        <td class="text-center">{{ $item->stock_on_hand }}</td>
+                        <td class="text-end">{{ number_format($item->unit_price, 2, ',', ' ') }}</td>
+                        <td class="text-end">{{ number_format($item->quantity_sold * $item->unit_price, 2, ',', ' ') }}</td>
                     </tr>
                 @endforeach
             </tbody>
             <tfoot>
                 <tr>
-                    <th colspan="4" class="text-end">{{ __('messages.resellers.total_report_value') }}</th>
-                    <th>
+                    <th colspan="7" class="text-end">{{ __('messages.resellers.total_report_value') }}</th>
+                    <th class="text-end">
                         {{ number_format($report->items->sum(fn($i) => $i->quantity_sold * $i->unit_price), 2, ',', ' ') }} $
                     </th>
                 </tr>

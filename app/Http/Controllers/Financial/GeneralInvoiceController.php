@@ -170,7 +170,7 @@ class GeneralInvoiceController extends Controller
             $path = $request->file('attachment')->store("stores/{$store->id}/invoices", 'public');
         }
 
-        GeneralInvoice::create([
+        $invoice = GeneralInvoice::create([
             'store_id' => $store->id,
             'label' => $request->label,
             'note' => $request->note,
@@ -181,6 +181,11 @@ class GeneralInvoiceController extends Controller
             'account_id' => $request->account_id,
             'category_id' => $request->category_id,
         ]);
+
+        // Créer la transaction si la facture est directement marquée comme payée
+        if ($request->status === 'paid') {
+            $this->createTransactionForInvoice($store, $invoice);
+        }
 
         return redirect()->route('financial.general-invoices.index', $store->id)
             ->with('success', 'Invoice created successfully.');
@@ -223,6 +228,8 @@ class GeneralInvoiceController extends Controller
             $generalInvoice->attachment = $request->file('attachment')->store("stores/{$store->id}/invoices", 'public');
         }
 
+        $oldStatus = $generalInvoice->status;
+
         $generalInvoice->update([
             'label' => $request->label,
             'note' => $request->note,
@@ -232,6 +239,11 @@ class GeneralInvoiceController extends Controller
             'account_id' => $request->account_id,
             'category_id' => $request->category_id,
         ]);
+
+        // Créer la transaction si le status passe à "paid"
+        if ($oldStatus !== 'paid' && $request->status === 'paid') {
+            $this->createTransactionForInvoice($store, $generalInvoice);
+        }
 
         return redirect()->route('financial.general-invoices.index', $store->id)
             ->with('success', 'Invoice updated successfully.');
@@ -279,35 +291,14 @@ class GeneralInvoiceController extends Controller
             $paymentProofPath = $request->file('payment_proof')->store('payment_proofs', 'public');
         }
 
-        // Récupérer le compte 401 (Fournisseurs)
-        $account = \App\Models\FinancialAccount::where('code', '401')->first();
+        // Créer la transaction financière
+        $transaction = $this->createTransactionForInvoice($store, $generalInvoice, [
+            'payment_date' => $request->payment_date,
+            'payment_method_id' => $request->payment_method_id,
+            'description' => $request->payment_reference,
+        ]);
 
-        if ($account) {
-            // Solde précédent
-            $lastTransaction = \App\Models\FinancialTransaction::where('store_id', $store->id)
-                ->latest('transaction_date')
-                ->first();
-            $balanceBefore = $lastTransaction?->balance_after ?? 0;
-            $balanceAfter = $balanceBefore - $generalInvoice->amount;
-
-            // Création de la transaction
-            $transaction = \App\Models\FinancialTransaction::create([
-                'store_id' => $store->id,
-                'account_id' => $account->id,
-                'amount' => $generalInvoice->amount,
-                'currency' => 'USD',
-                'direction' => 'debit',
-                'balance_before' => $balanceBefore,
-                'balance_after' => $balanceAfter,
-                'label' => 'Paiement facture : ' . $generalInvoice->label,
-                'description' => $request->payment_reference ?? null,
-                'status' => 'validated',
-                'transaction_date' => $request->payment_date,
-                'payment_method_id' => $request->payment_method_id,
-                'user_id' => auth()->id(),
-                'external_reference' => route('financial.general-invoices.show', [$store->id, $generalInvoice->id]),
-            ]);
-
+        if ($transaction) {
             // Ajouter la facture comme pièce jointe si elle existe
             if ($generalInvoice->attachment) {
                 $transaction->attachments()->create([
@@ -352,6 +343,47 @@ class GeneralInvoiceController extends Controller
         }
 
         abort(404, 'Attachment not found');
+    }
+
+    /**
+     * Crée une FinancialTransaction pour une facture générale payée.
+     */
+    protected function createTransactionForInvoice(Store $store, GeneralInvoice $invoice, array $options = [])
+    {
+        $account = $invoice->account;
+        if (!$account) {
+            return null;
+        }
+
+        // Vérifier qu'une transaction n'existe pas déjà pour cette facture
+        $externalRef = route('financial.general-invoices.show', [$store->id, $invoice->id]);
+        $existing = \App\Models\FinancialTransaction::where('external_reference', $externalRef)->first();
+        if ($existing) {
+            return $existing;
+        }
+
+        $lastTransaction = \App\Models\FinancialTransaction::where('store_id', $store->id)
+            ->latest('transaction_date')
+            ->first();
+        $balanceBefore = $lastTransaction?->balance_after ?? 0;
+        $balanceAfter = $balanceBefore - $invoice->amount;
+
+        return \App\Models\FinancialTransaction::create([
+            'store_id' => $store->id,
+            'account_id' => $account->id,
+            'amount' => $invoice->amount,
+            'currency' => 'USD',
+            'direction' => 'debit',
+            'balance_before' => $balanceBefore,
+            'balance_after' => $balanceAfter,
+            'label' => 'Paiement facture : ' . $invoice->label,
+            'description' => $options['description'] ?? null,
+            'status' => 'validated',
+            'transaction_date' => $options['payment_date'] ?? now(),
+            'payment_method_id' => $options['payment_method_id'] ?? null,
+            'user_id' => auth()->id(),
+            'external_reference' => $externalRef,
+        ]);
     }
 
     protected function authorizeInvoice(GeneralInvoice $invoice, $storeId)

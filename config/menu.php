@@ -175,7 +175,7 @@ return [
     [
         'label' => 'Website',
         'icon'  => 'bi-globe',
-        'active_pattern' => 'blog*|contact-messages*|pages*|hero-slides*|home-content*|promotion-bar*',
+        'active_pattern' => 'blog*|contact-messages*|pages*|hero-slides*|home-content*|promotion-bar*|website-orders*',
         'submenu' => [
             [
                 'label' => 'messages.menu.home_content',
@@ -215,6 +215,12 @@ return [
                 ]
             ],
             [
+                'label' => 'messages.menu.website_orders',
+                'icon'  => 'bi-bag-check',
+                'route' => 'website-orders.index',
+                'active_pattern' => 'website-orders*',
+            ],
+            [
                 'label' => 'messages.menu.contact_messages',
                 'icon'  => 'bi-envelope',
                 'route' => 'contact-messages.index',
@@ -238,6 +244,7 @@ return [
         'label' => 'messages.menu.bi',
         'icon'  => 'bi-graph-up-arrow',
         'active_pattern' => 'bi*',
+        'allowed_roles' => ['admin'],
         'submenu' => [
             [
                 'label' => 'messages.menu.bi_dashboard',
@@ -250,14 +257,26 @@ return [
     [
         'label' => 'messages.menu.settings',
         'icon'  => 'bi-gear',
-        'active_pattern' => 'roles*|users*|stores*|categories*|brands*|variation*|backups*|settings/staff*', // parent actif si une sous-page est active
-        'denied_roles' => ['marketing', 'accounting'], // Ces rôles ne peuvent pas voir ce menu
+        'active_pattern' => 'roles*|users*|stores*|categories*|brands*|variation*|backups*|settings/staff*|planning*', // parent actif si une sous-page est active
+        'allowed_roles' => ['admin'], // Seuls les admins peuvent voir ce menu
         'submenu' => [
             [
                 'label' => 'messages.menu.staff_management',
                 'icon'  => 'bi-person-badge',
                 'route' => 'staff.index',
                 'active_pattern' => 'settings/staff*',
+            ],
+            [
+                'label' => 'messages.menu.planning',
+                'icon'  => 'bi-calendar3',
+                'route' => 'planning.index',
+                'active_pattern' => 'planning*',
+            ],
+            [
+                'label' => 'messages.menu.leave_requests',
+                'icon'  => 'bi-calendar-check',
+                'route' => 'leave-requests.index',
+                'active_pattern' => 'leave-requests*',
             ],
             [
                 'label' => 'messages.menu.roles',

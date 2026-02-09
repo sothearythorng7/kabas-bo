@@ -46,9 +46,9 @@
                 @endforeach
             </select>
         </div>
-        <div class="mb-3" id="store-select" style="display:{{ $user->hasRole('SELLER') ? 'block' : 'none' }};">
-            <label>{{ __('messages.user_edit.site') }}</label>
-            <select name="store_id" class="form-control" id="store_id">
+        <div class="mb-3">
+            <label>{{ __('messages.user_edit.site') }} <span class="text-danger">*</span></label>
+            <select name="store_id" class="form-control" id="store_id" required>
                 <option value="">{{ __('messages.users_extra.select_site') }}</option>
                 @foreach($stores as $store)
                     <option value="{{ $store->id }}" {{ $user->store_id == $store->id ? 'selected' : '' }}>
@@ -64,29 +64,33 @@
             <small class="form-text text-muted">{{ __('messages.users_extra.pin_help') }}</small>
         </div>
 
+        <div class="mb-3">
+            <label for="staff_member_id" class="form-label">{{ __('messages.user.link_to_staff') }}</label>
+            @if($user->staffMember)
+                <div class="mb-2">
+                    <a href="{{ route('staff.show', $user->staffMember) }}" class="btn btn-outline-primary btn-sm">
+                        <i class="bi bi-person-vcard"></i> {{ __('messages.staff.view_staff_profile') }}: {{ $user->staffMember->name }}
+                    </a>
+                </div>
+            @endif
+            <select class="form-select" id="staff_member_id" name="staff_member_id">
+                <option value="">{{ __('messages.user.no_staff_link') }}</option>
+                @if($user->staffMember)
+                    <option value="{{ $user->staffMember->id }}" selected>
+                        {{ $user->staffMember->name }} ({{ $user->staffMember->store?->name }})
+                    </option>
+                @endif
+                @foreach($unlinkedStaffMembers ?? [] as $sm)
+                    <option value="{{ $sm->id }}">
+                        {{ $sm->name }} ({{ $sm->store?->name }})
+                    </option>
+                @endforeach
+            </select>
+        </div>
+
         <button class="btn btn-success"><i class="bi bi-floppy-fill"></i> {{ __('messages.btn.save') }}</button>
         <a href="{{ route('users.index') }}" class="btn btn-secondary"><i class="bi bi-x-circle"></i> {{ __('messages.btn.cancel') }}</a>
     </form>
 </div>
 
-<script>
-const roleSelect = document.querySelector('select[name="role"]');
-const storeDiv = document.getElementById('store-select');
-const storeSelect = document.getElementById('store_id');
-
-function toggleStoreSelect() {
-    if(roleSelect.value === 'SELLER') {
-        storeDiv.style.display = 'block';
-        storeSelect.setAttribute('required', true);
-    } else {
-        storeDiv.style.display = 'none';
-        storeSelect.removeAttribute('required');
-    }
-}
-
-roleSelect.addEventListener('change', toggleStoreSelect);
-
-// Initialisation
-toggleStoreSelect();
-</script>
 @endsection

@@ -99,18 +99,22 @@ class SendSaleTelegramNotification
 
         $message .= "\n💰 <b>Total:</b> \${$sale->total}";
 
-        // Daily revenue summary
+        // Daily revenue summary (excluding voucher payments)
         if ($storeId) {
             $today = now()->startOfDay();
-            $todayRevenue = \App\Models\Sale::where('store_id', $storeId)
-                ->whereDate('created_at', $today)
-                ->sum('total');
+            $todayRevenue = \App\Models\Sale::sumRealRevenue(
+                \App\Models\Sale::where('store_id', $storeId)
+                    ->whereDate('created_at', $today)
+                    ->get()
+            );
 
             // Same day last year
             $lastYearSameDay = now()->subYear()->startOfDay();
-            $lastYearRevenue = \App\Models\Sale::where('store_id', $storeId)
-                ->whereDate('created_at', $lastYearSameDay)
-                ->sum('total');
+            $lastYearRevenue = \App\Models\Sale::sumRealRevenue(
+                \App\Models\Sale::where('store_id', $storeId)
+                    ->whereDate('created_at', $lastYearSameDay)
+                    ->get()
+            );
 
             $message .= "\n\n━━━━━━━━━━━━━━━━━━━━";
             $message .= "\n📊 <b>Today's revenue:</b> \$" . number_format($todayRevenue, 2);

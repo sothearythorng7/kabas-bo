@@ -105,9 +105,10 @@ class ResellerController extends Controller
             ->get();
 
         // === FACTURES ===
-        // Factures en attente de paiement
+        // Factures de sales reports en attente de paiement
         $unpaidInvoices = ResellerInvoice::whereIn('status', ['unpaid', 'partially_paid'])
-            ->with(['reseller', 'store', 'resellerStockDelivery', 'salesReport', 'payments'])
+            ->whereNotNull('sales_report_id')
+            ->with(['reseller', 'store', 'salesReport', 'payments'])
             ->latest()
             ->get();
 
@@ -545,5 +546,28 @@ public function show(Request $request, $id)
     {
         $reseller->delete();
         return redirect()->route('resellers.index')->with('success', 'Reseller deleted.');
+    }
+
+    /**
+     * Update reseller billing/contact information
+     */
+    public function updateInfo(Request $request, Reseller $reseller)
+    {
+        $data = $request->validate([
+            'name' => 'required|string|max:255',
+            'address' => 'nullable|string|max:255',
+            'address2' => 'nullable|string|max:255',
+            'city' => 'nullable|string|max:255',
+            'postal_code' => 'nullable|string|max:50',
+            'country' => 'nullable|string|max:100',
+            'phone' => 'nullable|string|max:50',
+            'email' => 'nullable|email|max:255',
+            'tax_id' => 'nullable|string|max:100',
+        ]);
+
+        $reseller->update($data);
+
+        return redirect()->route('resellers.show', ['reseller' => $reseller->id, 'tab' => 'info'])
+            ->with('success', __('messages.resellers.info_updated'));
     }
 }

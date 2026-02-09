@@ -9,7 +9,7 @@ use Carbon\Carbon;
 class UserSchedule extends Model
 {
     protected $fillable = [
-        'user_id',
+        'staff_member_id',
         'day_of_week',
         'start_time',
         'end_time',
@@ -20,9 +20,9 @@ class UserSchedule extends Model
         'is_working_day' => 'boolean',
     ];
 
-    public function user(): BelongsTo
+    public function staffMember(): BelongsTo
     {
-        return $this->belongsTo(User::class);
+        return $this->belongsTo(StaffMember::class);
     }
 
     public function getDayName(): string

@@ -6,7 +6,7 @@
                 <h5 class="mb-0">{{ __('messages.staff.upload_document') }}</h5>
             </div>
             <div class="card-body">
-                <form action="{{ route('staff.documents.upload', $user) }}" method="POST" enctype="multipart/form-data">
+                <form action="{{ route('staff.documents.upload', $staffMember) }}" method="POST" enctype="multipart/form-data">
                     @csrf
                     <div class="mb-3">
                         <label for="type" class="form-label">{{ __('messages.staff.document_type') }} *</label>
@@ -43,7 +43,7 @@
                 <h5 class="mb-0">{{ __('messages.staff.documents') }}</h5>
             </div>
             <div class="card-body">
-                @if($user->documents->isEmpty())
+                @if($staffMember->documents->isEmpty())
                     <p class="text-muted text-center">{{ __('messages.staff.no_documents') }}</p>
                 @else
                     <div class="table-responsive">
@@ -58,7 +58,7 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                @foreach($user->documents as $document)
+                                @foreach($staffMember->documents as $document)
                                     <tr>
                                         <td>
                                             @php

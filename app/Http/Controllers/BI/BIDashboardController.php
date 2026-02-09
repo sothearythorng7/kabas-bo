@@ -48,13 +48,15 @@ class BIDashboardController extends Controller
         $topResellersByRevenue = $this->getTopResellersByRevenue($startDate, $endDate);
 
         // === KPI GLOBAUX ===
-        // Chiffre d'affaires total
-        $totalRevenue = Sale::whereBetween('created_at', [$startDate, $endDate])->sum('total');
+        // Chiffre d'affaires total (excluding voucher payments - already counted at creation)
+        $allSales = Sale::whereBetween('created_at', [$startDate, $endDate])->get();
+        $totalRevenue = Sale::sumRealRevenue($allSales);
         $totalRevenueByStore = [];
         foreach ($stores as $store) {
-            $totalRevenueByStore[$store->id] = Sale::where('store_id', $store->id)
+            $storeSalesForRevenue = Sale::where('store_id', $store->id)
                 ->whereBetween('created_at', [$startDate, $endDate])
-                ->sum('total');
+                ->get();
+            $totalRevenueByStore[$store->id] = Sale::sumRealRevenue($storeSalesForRevenue);
         }
 
         // Nombre de ventes
@@ -103,7 +105,9 @@ class BIDashboardController extends Controller
         $previousPeriodStart = $this->getPreviousPeriodStart($period, $startDate);
         $previousPeriodEnd = $startDate->copy()->subSecond();
 
-        $previousRevenue = Sale::whereBetween('created_at', [$previousPeriodStart, $previousPeriodEnd])->sum('total');
+        $previousRevenue = Sale::sumRealRevenue(
+            Sale::whereBetween('created_at', [$previousPeriodStart, $previousPeriodEnd])->get()
+        );
         $revenueGrowth = $previousRevenue > 0 ? (($totalRevenue - $previousRevenue) / $previousRevenue) * 100 : 0;
 
         $previousSales = Sale::whereBetween('created_at', [$previousPeriodStart, $previousPeriodEnd])->count();
@@ -423,8 +427,9 @@ class BIDashboardController extends Controller
             $startOfMonth = $date->copy()->startOfMonth();
             $endOfMonth = $date->copy()->endOfMonth();
 
-            $revenue = Sale::whereBetween('created_at', [$startOfMonth, $endOfMonth])->sum('total');
-            $sales = Sale::whereBetween('created_at', [$startOfMonth, $endOfMonth])->count();
+            $monthlySales = Sale::whereBetween('created_at', [$startOfMonth, $endOfMonth])->get();
+            $revenue = Sale::sumRealRevenue($monthlySales);
+            $sales = $monthlySales->count();
 
             $data[] = [
                 'month' => $date->translatedFormat('M Y'),

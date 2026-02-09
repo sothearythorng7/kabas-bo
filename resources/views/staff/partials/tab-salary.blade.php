@@ -7,53 +7,109 @@
     <div class="col-12 mb-3">
         <div class="card border-primary">
             <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
-                <h5 class="mb-0"><i class="bi bi-calculator"></i> {{ __('messages.staff.net_to_pay') }}</h5>
+                <h5 class="mb-0"><i class="bi bi-calculator"></i> {{ __('messages.staff.payroll_summary') }}</h5>
                 <div>
                     <input type="month" id="payroll_month" class="form-control form-control-sm d-inline-block" style="width: auto;"
                            value="{{ $payrollData['month'] }}"
-                           onchange="window.location.href='{{ route('staff.show', $user) }}?tab=salary&payroll_month=' + this.value">
+                           onchange="window.location.href='{{ route('staff.show', $staffMember) }}?tab=salary&payroll_month=' + this.value">
                 </div>
             </div>
             <div class="card-body">
-                @if($user->currentSalary)
+                @if($staffMember->currentSalary)
                     @php
-                        $alreadyPaid = $user->salaryPayments->contains('period', $payrollData['month']);
+                        $alreadyPaid = $staffMember->salaryPayments->contains('period', $payrollData['month']);
                     @endphp
 
-                    <div class="row align-items-center">
-                        <div class="col-md-7">
+                    <div class="row align-items-start">
+                        <div class="col-md-8">
                             <table class="table table-sm table-borderless mb-0">
+                                {{-- === GAINS === --}}
                                 <tr>
-                                    <td class="text-muted">{{ __('messages.staff.base_salary') }}</td>
-                                    <td class="text-end fw-bold">{{ number_format($payrollData['base_salary'], 2) }} {{ $payrollData['currency'] }}</td>
+                                    <td colspan="2" class="text-uppercase small fw-bold text-muted pb-0"><i class="bi bi-plus-circle"></i> {{ __('messages.staff.earnings') }}</td>
                                 </tr>
                                 <tr>
-                                    <td class="text-muted">
+                                    <td class="text-muted">{{ __('messages.staff.base_salary') }}</td>
+                                    <td class="text-end fw-bold" id="line_base_salary">+ {{ number_format($payrollData['base_salary'], 2) }} {{ $payrollData['currency'] }}</td>
+                                </tr>
+                                <tr class="{{ $payrollData['overtime_amount'] > 0 ? '' : 'text-muted' }}">
+                                    <td>{{ __('messages.staff.overtime') }}</td>
+                                    <td class="text-end {{ $payrollData['overtime_amount'] > 0 ? 'text-success fw-bold' : '' }}">+ {{ number_format($payrollData['overtime_amount'], 2) }} {{ $payrollData['currency'] }}</td>
+                                </tr>
+                                <tr class="{{ $payrollData['bonus_amount'] > 0 ? '' : 'text-muted' }}">
+                                    <td>{{ __('messages.staff.bonus') }}</td>
+                                    <td class="text-end {{ $payrollData['bonus_amount'] > 0 ? 'text-success fw-bold' : '' }}">+ {{ number_format($payrollData['bonus_amount'], 2) }} {{ $payrollData['currency'] }}</td>
+                                </tr>
+                                <tr class="{{ $payrollData['commission_amount'] > 0 ? '' : 'text-muted' }}">
+                                    <td>
+                                        {{ __('messages.staff.commission') }}
+                                        @if(!empty($commissionSummary['details']) && $commissionSummary['details']->count() > 0)
+                                            <button type="button" class="btn btn-sm btn-link p-0 ms-1" data-bs-toggle="collapse" data-bs-target="#commissionDetails">
+                                                <i class="bi bi-info-circle"></i>
+                                            </button>
+                                        @endif
+                                    </td>
+                                    <td class="text-end {{ $payrollData['commission_amount'] > 0 ? 'text-success fw-bold' : '' }}">+ {{ number_format($payrollData['commission_amount'], 2) }} {{ $payrollData['currency'] }}</td>
+                                </tr>
+                                @if(!empty($commissionSummary['details']) && $commissionSummary['details']->count() > 0)
+                                <tr class="collapse" id="commissionDetails">
+                                    <td colspan="2">
+                                        <div class="ps-3 small text-muted">
+                                            @foreach($commissionSummary['details'] as $detail)
+                                                <div class="d-flex justify-content-between">
+                                                    <span>{{ $detail->employeeCommission?->getSourceName() }} - {{ __('messages.staff.turnover') }}: {{ number_format($detail->base_amount, 2) }} &times; {{ number_format($detail->employeeCommission?->percentage, 2) }}%</span>
+                                                    <span>= {{ number_format($detail->commission_amount, 2) }}</span>
+                                                </div>
+                                            @endforeach
+                                        </div>
+                                    </td>
+                                </tr>
+                                @endif
+
+                                {{-- === SALAIRE BRUT === --}}
+                                <tr class="border-top">
+                                    <td class="fw-bold">{{ __('messages.staff.gross_salary') }}</td>
+                                    <td class="text-end fw-bold">{{ number_format($payrollData['gross_salary'], 2) }} {{ $payrollData['currency'] }}</td>
+                                </tr>
+
+                                {{-- === DEDUCTIONS === --}}
+                                <tr>
+                                    <td colspan="2" class="text-uppercase small fw-bold text-muted pt-2 pb-0"><i class="bi bi-dash-circle"></i> {{ __('messages.staff.deductions') }}</td>
+                                </tr>
+                                <tr class="{{ $payrollData['unjustified_days'] > 0 ? '' : 'text-muted' }}">
+                                    <td>
                                         {{ __('messages.staff.unjustified_absences') }}
-                                        <span class="badge bg-danger">{{ $payrollData['unjustified_days'] }} {{ __('messages.staff.days_abbr') }}</span>
-                                        <span class="text-muted">×</span>
+                                        @if($payrollData['unjustified_days'] > 0)
+                                            <span class="badge bg-danger">{{ $payrollData['unjustified_days'] }} {{ __('messages.staff.days_abbr') }}</span>
+                                        @endif
+                                        <span class="text-muted">&times;</span>
                                         <input type="number" id="daily_rate" class="form-control form-control-sm d-inline-block" style="width: 100px;"
                                                value="{{ $payrollData['suggested_daily_rate'] }}" step="0.01" min="0">
                                     </td>
-                                    <td class="text-end text-danger" id="deduction_absences">
+                                    <td class="text-end {{ $payrollData['unjustified_days'] > 0 ? 'text-danger fw-bold' : '' }}" id="deduction_absences">
                                         - {{ number_format($payrollData['unjustified_days'] * $payrollData['suggested_daily_rate'], 2) }} {{ $payrollData['currency'] }}
                                     </td>
                                 </tr>
-                                <tr>
-                                    <td class="text-muted">{{ __('messages.staff.advances_deduction') }}</td>
-                                    <td class="text-end text-danger" id="deduction_advances">
+                                <tr class="{{ $payrollData['advances_total'] > 0 ? '' : 'text-muted' }}">
+                                    <td>{{ __('messages.staff.advances_deduction') }}</td>
+                                    <td class="text-end {{ $payrollData['advances_total'] > 0 ? 'text-danger fw-bold' : '' }}" id="deduction_advances">
                                         - {{ number_format($payrollData['advances_total'], 2) }} {{ $payrollData['currency'] }}
                                     </td>
                                 </tr>
-                                <tr class="border-top">
+                                <tr class="{{ $payrollData['penalty_amount'] > 0 ? '' : 'text-muted' }}">
+                                    <td>{{ __('messages.staff.penalty') }}</td>
+                                    <td class="text-end {{ $payrollData['penalty_amount'] > 0 ? 'text-danger fw-bold' : '' }}">- {{ number_format($payrollData['penalty_amount'], 2) }} {{ $payrollData['currency'] }}</td>
+                                </tr>
+
+                                {{-- === NET === --}}
+                                <tr class="border-top border-2">
                                     <td class="fw-bold fs-5">{{ __('messages.staff.net_to_pay') }}</td>
                                     <td class="text-end fw-bold fs-4 text-success" id="net_salary">
-                                        {{ number_format($payrollData['base_salary'] - ($payrollData['unjustified_days'] * $payrollData['suggested_daily_rate']) - $payrollData['advances_total'], 2) }} {{ $payrollData['currency'] }}
+                                        {{ number_format($payrollData['net_amount'], 2) }} {{ $payrollData['currency'] }}
                                     </td>
                                 </tr>
                             </table>
                         </div>
-                        <div class="col-md-5 text-center border-start">
+                        <div class="col-md-4 text-center border-start">
                             @if($alreadyPaid)
                                 <div class="text-success mb-2">
                                     <i class="bi bi-check-circle-fill fs-1"></i>
@@ -71,8 +127,8 @@
                     {{-- Modal de validation --}}
                     @if(!$alreadyPaid)
                     <div class="modal fade" id="validatePaymentModal" tabindex="-1">
-                        <div class="modal-dialog">
-                            <form action="{{ route('staff.payments.store', $user) }}" method="POST" id="paymentForm">
+                        <div class="modal-dialog modal-lg">
+                            <form action="{{ route('staff.payments.store', $staffMember) }}" method="POST" id="paymentForm">
                                 @csrf
                                 <input type="hidden" name="period" value="{{ $payrollData['month'] }}">
                                 <input type="hidden" name="base_salary" value="{{ $payrollData['base_salary'] }}">
@@ -80,7 +136,11 @@
                                 <input type="hidden" name="unjustified_days" value="{{ $payrollData['unjustified_days'] }}">
                                 <input type="hidden" name="daily_rate" id="form_daily_rate" value="{{ $payrollData['suggested_daily_rate'] }}">
                                 <input type="hidden" name="advances_deduction" value="{{ $payrollData['advances_total'] }}">
-                                <input type="hidden" name="net_amount" id="form_net_amount" value="{{ $payrollData['base_salary'] - ($payrollData['unjustified_days'] * $payrollData['suggested_daily_rate']) - $payrollData['advances_total'] }}">
+                                <input type="hidden" name="overtime_amount" value="{{ $payrollData['overtime_amount'] }}">
+                                <input type="hidden" name="bonus_amount" value="{{ $payrollData['bonus_amount'] }}">
+                                <input type="hidden" name="penalty_amount" value="{{ $payrollData['penalty_amount'] }}">
+                                <input type="hidden" name="commission_amount" value="{{ $payrollData['commission_amount'] }}">
+                                <input type="hidden" name="net_amount" id="form_net_amount" value="{{ $payrollData['net_amount'] }}">
 
                                 <div class="modal-content">
                                     <div class="modal-header bg-success text-white">
@@ -88,12 +148,54 @@
                                         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                                     </div>
                                     <div class="modal-body">
-                                        <div class="alert alert-info">
-                                            <div class="d-flex justify-content-between">
-                                                <span>{{ __('messages.staff.net_to_pay') }}:</span>
-                                                <strong id="modal_net_amount">{{ number_format($payrollData['base_salary'] - ($payrollData['unjustified_days'] * $payrollData['suggested_daily_rate']) - $payrollData['advances_total'], 2) }} {{ $payrollData['currency'] }}</strong>
-                                            </div>
-                                        </div>
+                                        {{-- Recap complet --}}
+                                        <table class="table table-sm table-borderless mb-3">
+                                            {{-- Gains --}}
+                                            <tr>
+                                                <td colspan="2" class="text-uppercase small fw-bold text-muted pb-0"><i class="bi bi-plus-circle"></i> {{ __('messages.staff.earnings') }}</td>
+                                            </tr>
+                                            <tr>
+                                                <td>{{ __('messages.staff.base_salary') }}</td>
+                                                <td class="text-end">+ {{ number_format($payrollData['base_salary'], 2) }} {{ $payrollData['currency'] }}</td>
+                                            </tr>
+                                            <tr class="{{ $payrollData['overtime_amount'] > 0 ? '' : 'text-muted' }}">
+                                                <td>{{ __('messages.staff.overtime') }}</td>
+                                                <td class="text-end {{ $payrollData['overtime_amount'] > 0 ? 'text-success' : '' }}">+ {{ number_format($payrollData['overtime_amount'], 2) }} {{ $payrollData['currency'] }}</td>
+                                            </tr>
+                                            <tr class="{{ $payrollData['bonus_amount'] > 0 ? '' : 'text-muted' }}">
+                                                <td>{{ __('messages.staff.bonus') }}</td>
+                                                <td class="text-end {{ $payrollData['bonus_amount'] > 0 ? 'text-success' : '' }}">+ {{ number_format($payrollData['bonus_amount'], 2) }} {{ $payrollData['currency'] }}</td>
+                                            </tr>
+                                            <tr class="{{ $payrollData['commission_amount'] > 0 ? '' : 'text-muted' }}">
+                                                <td>{{ __('messages.staff.commission') }}</td>
+                                                <td class="text-end {{ $payrollData['commission_amount'] > 0 ? 'text-success' : '' }}">+ {{ number_format($payrollData['commission_amount'], 2) }} {{ $payrollData['currency'] }}</td>
+                                            </tr>
+                                            <tr class="border-top fw-bold">
+                                                <td>{{ __('messages.staff.gross_salary') }}</td>
+                                                <td class="text-end">{{ number_format($payrollData['gross_salary'], 2) }} {{ $payrollData['currency'] }}</td>
+                                            </tr>
+                                            {{-- Déductions --}}
+                                            <tr>
+                                                <td colspan="2" class="text-uppercase small fw-bold text-muted pt-2 pb-0"><i class="bi bi-dash-circle"></i> {{ __('messages.staff.deductions') }}</td>
+                                            </tr>
+                                            <tr class="{{ $payrollData['unjustified_days'] > 0 ? 'text-danger' : 'text-muted' }}">
+                                                <td>{{ __('messages.staff.unjustified_absences') }} ({{ $payrollData['unjustified_days'] }} {{ __('messages.staff.days_abbr') }})</td>
+                                                <td class="text-end" id="modal_deduction_absences">- {{ number_format($payrollData['unjustified_days'] * $payrollData['suggested_daily_rate'], 2) }} {{ $payrollData['currency'] }}</td>
+                                            </tr>
+                                            <tr class="{{ $payrollData['advances_total'] > 0 ? 'text-danger' : 'text-muted' }}">
+                                                <td>{{ __('messages.staff.advances_deduction') }}</td>
+                                                <td class="text-end">- {{ number_format($payrollData['advances_total'], 2) }} {{ $payrollData['currency'] }}</td>
+                                            </tr>
+                                            <tr class="{{ $payrollData['penalty_amount'] > 0 ? 'text-danger' : 'text-muted' }}">
+                                                <td>{{ __('messages.staff.penalty') }}</td>
+                                                <td class="text-end">- {{ number_format($payrollData['penalty_amount'], 2) }} {{ $payrollData['currency'] }}</td>
+                                            </tr>
+                                            {{-- Net --}}
+                                            <tr class="border-top border-2 fw-bold fs-5">
+                                                <td>{{ __('messages.staff.net_to_pay') }}</td>
+                                                <td class="text-end text-success" id="modal_net_amount">{{ number_format($payrollData['net_amount'], 2) }} {{ $payrollData['currency'] }}</td>
+                                            </tr>
+                                        </table>
 
                                         <div class="mb-3">
                                             <label for="payment_store" class="form-label">{{ __('messages.staff.payment_from_store') }} *</label>
@@ -135,9 +237,9 @@
                 <h5 class="mb-0">{{ __('messages.staff.current_salary') }}</h5>
             </div>
             <div class="card-body text-center">
-                @if($user->currentSalary)
-                    <h2 class="mb-0">{{ number_format($user->currentSalary->base_salary, 2) }} {{ $user->currentSalary->currency }}</h2>
-                    <small class="text-muted">{{ __('messages.staff.effective_from') }}: {{ $user->currentSalary->effective_from->format('d/m/Y') }}</small>
+                @if($staffMember->currentSalary)
+                    <h2 class="mb-0">{{ number_format($staffMember->currentSalary->base_salary, 2) }} {{ $staffMember->currentSalary->currency }}</h2>
+                    <small class="text-muted">{{ __('messages.staff.effective_from') }}: {{ $staffMember->currentSalary->effective_from->format('d/m/Y') }}</small>
                 @else
                     <p class="text-muted mb-0">{{ __('messages.staff.no_salary_defined') }}</p>
                 @endif
@@ -150,19 +252,19 @@
                 <h5 class="mb-0">{{ __('messages.staff.set_salary') }}</h5>
             </div>
             <div class="card-body">
-                <form action="{{ route('staff.salary.update', $user) }}" method="POST">
+                <form action="{{ route('staff.salary.update', $staffMember) }}" method="POST">
                     @csrf
                     <div class="mb-3">
                         <label for="base_salary" class="form-label">{{ __('messages.staff.base_salary') }} *</label>
                         <input type="number" step="0.01" class="form-control" id="base_salary" name="base_salary"
-                               value="{{ old('base_salary', $user->currentSalary?->base_salary) }}" required min="0">
+                               value="{{ old('base_salary', $staffMember->currentSalary?->base_salary) }}" required min="0">
                     </div>
                     <div class="mb-3">
                         <label for="currency" class="form-label">{{ __('messages.staff.currency') }} *</label>
                         <select class="form-select" id="currency" name="currency" required>
-                            <option value="USD" {{ old('currency', $user->currentSalary?->currency) === 'USD' ? 'selected' : '' }}>USD</option>
-                            <option value="EUR" {{ old('currency', $user->currentSalary?->currency) === 'EUR' ? 'selected' : '' }}>EUR</option>
-                            <option value="XAF" {{ old('currency', $user->currentSalary?->currency) === 'XAF' ? 'selected' : '' }}>XAF</option>
+                            <option value="USD" {{ old('currency', $staffMember->currentSalary?->currency) === 'USD' ? 'selected' : '' }}>USD</option>
+                            <option value="EUR" {{ old('currency', $staffMember->currentSalary?->currency) === 'EUR' ? 'selected' : '' }}>EUR</option>
+                            <option value="XAF" {{ old('currency', $staffMember->currentSalary?->currency) === 'XAF' ? 'selected' : '' }}>XAF</option>
                         </select>
                     </div>
                     <div class="mb-3">
@@ -183,7 +285,7 @@
                 <h5 class="mb-0">{{ __('messages.staff.request_advance') }}</h5>
             </div>
             <div class="card-body">
-                <form action="{{ route('staff.advances.store', $user) }}" method="POST">
+                <form action="{{ route('staff.advances.store', $staffMember) }}" method="POST">
                     @csrf
                     <div class="mb-3">
                         <label for="amount" class="form-label">{{ __('messages.staff.amount') }} *</label>
@@ -217,7 +319,7 @@
                 <h5 class="mb-0">{{ __('messages.staff.salary_history') }}</h5>
             </div>
             <div class="card-body">
-                @if($user->salaries->isEmpty())
+                @if($staffMember->salaries->isEmpty())
                     <p class="text-muted text-center">{{ __('messages.staff.no_salary_history') }}</p>
                 @else
                     <div class="table-responsive">
@@ -230,7 +332,7 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                @foreach($user->salaries->take(5) as $salary)
+                                @foreach($staffMember->salaries->take(5) as $salary)
                                     <tr>
                                         <td>{{ $salary->effective_from->format('d/m/Y') }}</td>
                                         <td class="text-end">{{ number_format($salary->base_salary, 2) }} {{ $salary->currency }}</td>
@@ -250,7 +352,7 @@
                 <h5 class="mb-0">{{ __('messages.staff.advances') }}</h5>
             </div>
             <div class="card-body">
-                @if($user->salaryAdvances->isEmpty())
+                @if($staffMember->salaryAdvances->isEmpty())
                     <p class="text-muted text-center">{{ __('messages.staff.no_advances') }}</p>
                 @else
                     <div class="table-responsive">
@@ -265,7 +367,7 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                @foreach($user->salaryAdvances as $advance)
+                                @foreach($staffMember->salaryAdvances as $advance)
                                     <tr>
                                         <td>{{ $advance->requested_at->format('d/m/Y H:i') }}</td>
                                         <td class="text-end"><strong>{{ number_format($advance->amount, 2) }}</strong></td>
@@ -336,13 +438,17 @@
     </div>
 </div>
 
-@if($user->currentSalary)
+@if($staffMember->currentSalary)
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const dailyRateInput = document.getElementById('daily_rate');
     const baseSalary = {{ $payrollData['base_salary'] }};
     const unjustifiedDays = {{ $payrollData['unjustified_days'] }};
     const advancesTotal = {{ $payrollData['advances_total'] }};
+    const overtimeAmount = {{ $payrollData['overtime_amount'] }};
+    const bonusAmount = {{ $payrollData['bonus_amount'] }};
+    const penaltyAmount = {{ $payrollData['penalty_amount'] }};
+    const commissionAmount = {{ $payrollData['commission_amount'] }};
     const currency = '{{ $payrollData['currency'] }}';
 
     function formatNumber(num) {
@@ -352,7 +458,9 @@ document.addEventListener('DOMContentLoaded', function() {
     function recalculate() {
         const dailyRate = parseFloat(dailyRateInput.value) || 0;
         const deductionAbsences = unjustifiedDays * dailyRate;
-        const netSalary = baseSalary - deductionAbsences - advancesTotal;
+        const grossSalary = baseSalary + overtimeAmount + bonusAmount + commissionAmount;
+        const totalDeductions = deductionAbsences + advancesTotal + penaltyAmount;
+        const netSalary = grossSalary - totalDeductions;
 
         document.getElementById('deduction_absences').textContent = '- ' + formatNumber(deductionAbsences) + ' ' + currency;
         document.getElementById('net_salary').textContent = formatNumber(netSalary) + ' ' + currency;
@@ -361,10 +469,12 @@ document.addEventListener('DOMContentLoaded', function() {
         const formDailyRate = document.getElementById('form_daily_rate');
         const formNetAmount = document.getElementById('form_net_amount');
         const modalNetAmount = document.getElementById('modal_net_amount');
+        const modalDeductionAbsences = document.getElementById('modal_deduction_absences');
 
         if (formDailyRate) formDailyRate.value = dailyRate.toFixed(2);
         if (formNetAmount) formNetAmount.value = netSalary.toFixed(2);
         if (modalNetAmount) modalNetAmount.textContent = formatNumber(netSalary) + ' ' + currency;
+        if (modalDeductionAbsences) modalDeductionAbsences.textContent = '- ' + formatNumber(deductionAbsences) + ' ' + currency;
 
         // Change color based on positive/negative
         const netElement = document.getElementById('net_salary');

@@ -164,17 +164,27 @@
     <div class="bill-to">
         <div class="bill-to-title">BILL TO</div>
         <div class="bill-to-content">
-            {{ $reseller->name }}<br>
-            @if($reseller->contacts->count() > 0)
-                @php $contact = $reseller->contacts->first(); @endphp
-                @if($contact->email){{ $contact->email }}<br>@endif
-                @if($contact->phone){{ $contact->phone }}<br>@endif
-            @endif
-            @if($reseller->address ?? false)
+            <strong>{{ $reseller->name }}</strong><br>
+            @if($reseller->address)
                 {{ $reseller->address }}<br>
             @endif
-            @if($reseller->vat_number ?? false)
-                <strong>Vat Tin : {{ $reseller->vat_number }}</strong>
+            @if($reseller->address2)
+                {{ $reseller->address2 }}<br>
+            @endif
+            @if($reseller->city || $reseller->postal_code)
+                {{ $reseller->postal_code }} {{ $reseller->city }}<br>
+            @endif
+            @if($reseller->country)
+                {{ $reseller->country }}<br>
+            @endif
+            @if($reseller->phone)
+                {{ $reseller->phone }}<br>
+            @endif
+            @if($reseller->email)
+                {{ $reseller->email }}<br>
+            @endif
+            @if($reseller->tax_id)
+                <strong>Tax ID: {{ $reseller->tax_id }}</strong>
             @endif
         </div>
     </div>
@@ -197,11 +207,14 @@
     <table>
         <thead>
             <tr>
-                <th style="width: 30px;">#</th>
+                <th style="width: 25px;">#</th>
                 <th>Barcode</th>
-                <th>Product Description</th>
-                <th class="text-center">QTY</th>
-                <th class="text-right">Unit Price</th>
+                <th>Product</th>
+                <th class="text-center">Old Stock</th>
+                <th class="text-center">Refill</th>
+                <th class="text-center">QTY Sold</th>
+                <th class="text-center">Stock</th>
+                <th class="text-right">Price</th>
                 <th class="text-right">Amount</th>
             </tr>
         </thead>
@@ -218,15 +231,18 @@
                     <td>{{ $index + 1 }}</td>
                     <td>{{ $item->product->ean ?? '-' }}</td>
                     <td>{{ $item->product->name[app()->getLocale()] ?? reset($item->product->name) }}</td>
+                    <td class="text-center">{{ $item->old_stock }}</td>
+                    <td class="text-center">{{ $item->refill }}</td>
                     <td class="text-center">{{ $qty }}</td>
+                    <td class="text-center">{{ $item->stock_on_hand }}</td>
                     <td class="text-right">$ {{ number_format($unitPrice, 2) }}</td>
                     <td class="text-right">$ {{ number_format($amount, 2) }}</td>
                 </tr>
             @endforeach
             <tr class="total-row">
-                <td colspan="3" class="text-right">TOTAL QTY</td>
+                <td colspan="5" class="text-right">TOTAL QTY</td>
                 <td class="text-center">{{ $totalQty }}</td>
-                <td class="text-right">TOTAL</td>
+                <td colspan="2" class="text-right">TOTAL</td>
                 <td class="text-right">$ {{ number_format($totalAmount, 2) }}</td>
             </tr>
         </tbody>

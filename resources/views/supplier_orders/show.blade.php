@@ -176,11 +176,29 @@
                                     <strong>{{ __('messages.Total theoretical amount') }}:</strong>
                                     <span class="badge bg-info">${{ number_format($order->expectedAmount(), 2) }}</span>
                                 </p>
+                                <p>
+                                    <strong>{{ __('messages.supplier_order.deposit') }}:</strong>
+                                    @if($order->deposit > 0)
+                                        <span class="badge bg-warning text-dark">- ${{ number_format($order->deposit, 2) }}</span>
+                                    @else
+                                        <span class="text-muted">$0.00</span>
+                                    @endif
+                                    <button type="button" class="btn btn-sm btn-outline-secondary ms-2" data-bs-toggle="modal" data-bs-target="#editDepositModal">
+                                        <i class="bi bi-pencil"></i>
+                                    </button>
+                                </p>
                                 @if($order->status === 'received')
                                 <p>
                                     <strong>{{ __('messages.Total invoiced amount') }}:</strong>
                                     <span class="badge bg-primary">${{ number_format($order->invoicedAmount(), 2) }}</span>
                                 </p>
+                                @if($order->deposit > 0)
+                                <p>
+                                    <strong>{{ __('messages.supplier_order.remaining_to_pay') }}:</strong>
+                                    @php $remainingToPay = $order->invoicedAmount() - $order->deposit; @endphp
+                                    <span class="badge bg-{{ $remainingToPay <= 0 ? 'success' : 'danger' }}">${{ number_format(max(0, $remainingToPay), 2) }}</span>
+                                </p>
+                                @endif
                                 <p>
                                     <strong>{{ __('messages.Payment status') }}:</strong>
                                     @if($order->is_paid)
@@ -191,6 +209,35 @@
                                 </p>
                                 @endif
                         </div>
+                    </div>
+                </div>
+
+                {{-- Modal Edit Deposit --}}
+                <div class="modal fade" id="editDepositModal" tabindex="-1" aria-hidden="true">
+                    <div class="modal-dialog modal-dialog-centered" style="max-width: 400px;">
+                        <form action="{{ route('supplier-orders.updateDeposit', [$supplier, $order]) }}" method="POST">
+                            @csrf
+                            @method('PUT')
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title">{{ __('messages.supplier_order.edit_deposit') }}</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <div class="mb-3">
+                                        <label for="deposit" class="form-label">{{ __('messages.supplier_order.deposit') }}</label>
+                                        <div class="input-group">
+                                            <span class="input-group-text">$</span>
+                                            <input type="number" step="0.01" min="0" name="deposit" id="deposit" class="form-control" value="{{ $order->deposit }}">
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ __('messages.btn.cancel') }}</button>
+                                    <button type="submit" class="btn btn-primary">{{ __('messages.btn.save') }}</button>
+                                </div>
+                            </div>
+                        </form>
                     </div>
                 </div>
                 @endif

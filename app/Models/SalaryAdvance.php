@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class SalaryAdvance extends Model
 {
     protected $fillable = [
-        'user_id',
+        'staff_member_id',
         'amount',
         'reason',
         'status',
@@ -24,9 +24,9 @@ class SalaryAdvance extends Model
         'amount' => 'decimal:2',
     ];
 
-    public function user(): BelongsTo
+    public function staffMember(): BelongsTo
     {
-        return $this->belongsTo(User::class);
+        return $this->belongsTo(StaffMember::class);
     }
 
     public function approver(): BelongsTo

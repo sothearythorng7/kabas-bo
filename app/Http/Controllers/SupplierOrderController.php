@@ -75,12 +75,14 @@ class SupplierOrderController extends Controller
             'products' => 'required|array',
             'products.*.quantity' => 'nullable|integer|min:0',
             'destination_store_id' => 'required|exists:stores,id',
+            'deposit' => 'nullable|numeric|min:0',
         ]);
 
         $order = $supplier->supplierOrders()->create([
             'status' => 'pending',
             'destination_store_id' => $request->destination_store_id,
             'order_type' => SupplierOrder::ORDER_TYPE_PRODUCT,
+            'deposit' => $request->input('deposit', 0),
         ]);
 
         $syncData = [];
@@ -121,7 +123,7 @@ class SupplierOrderController extends Controller
 
         $order = $supplier->supplierOrders()->create([
             'status' => 'pending',
-            'destination_store_id' => null, // Pas de store pour les matières premières
+            'destination_store_id' => 3, // Warehouse pour les matières premières
             'order_type' => SupplierOrder::ORDER_TYPE_RAW_MATERIAL,
         ]);
 
@@ -173,9 +175,13 @@ class SupplierOrderController extends Controller
             'products' => 'required|array',
             'products.*.quantity' => 'nullable|integer|min:0',
             'destination_store_id' => 'required|exists:stores,id',
+            'deposit' => 'nullable|numeric|min:0',
         ]);
 
-        $order->update(['destination_store_id' => $request->destination_store_id]);
+        $order->update([
+            'destination_store_id' => $request->destination_store_id,
+            'deposit' => $request->input('deposit', 0),
+        ]);
         $order->products()->detach();
 
         foreach ($request->products as $productId => $productData) {
@@ -195,6 +201,21 @@ class SupplierOrderController extends Controller
         }
 
         return redirect()->route('suppliers.edit', $supplier)->with('success', __('messages.supplier_order.updated'));
+    }
+
+    /**
+     * Update the deposit amount for an order
+     */
+    public function updateDeposit(Request $request, Supplier $supplier, SupplierOrder $order)
+    {
+        $request->validate([
+            'deposit' => 'required|numeric|min:0',
+        ]);
+
+        $order->update(['deposit' => $request->deposit]);
+
+        return redirect()->route('supplier-orders.show', [$supplier, $order])
+            ->with('success', __('messages.supplier_order.deposit_updated'));
     }
 
     public function destroy(Supplier $supplier, SupplierOrder $order)
@@ -269,14 +290,17 @@ class SupplierOrderController extends Controller
 
         foreach ($request->input('products', []) as $productId => $qtyReceived) {
             $qtyReceived = (int) $qtyReceived;
-            if ($qtyReceived <= 0) continue;
 
             $product = Product::find($productId);
             if (!$product) continue;
 
+            // Always update pivot (even for qty=0 to avoid NULL)
             $order->products()->updateExistingPivot($productId, [
                 'quantity_received' => $qtyReceived,
             ]);
+
+            // Only create stock batch for qty > 0
+            if ($qtyReceived <= 0) continue;
 
             $batch = StockBatch::create([
                 'product_id'               => $productId,

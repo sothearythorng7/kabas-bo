@@ -16,6 +16,8 @@ export const useUserStore = defineStore('user', {
       if (!u) return false;
       this.user = u;
       this.lastActive = Date.now();
+      // Stocker le storeId pour la synchronisation automatique du catalogue
+      localStorage.setItem('pos_store_id', u.store_id);
       const shift = await db.shifts.where({ user_id: u.id, ended_at: null }).first();
       this.activeShift = shift || null;
       await syncCatalog(u.store_id);

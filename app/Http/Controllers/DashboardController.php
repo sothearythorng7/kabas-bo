@@ -7,6 +7,7 @@ use App\Models\SupplierOrder;
 use App\Models\Product;
 use App\Models\Sale;
 use App\Models\Store;
+use App\Models\WebsiteOrder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
@@ -98,36 +99,32 @@ class DashboardController extends Controller
         $endOfMonth = $selectedDate->copy()->endOfMonth();
 
         // Siem Reap (store_id = 2) - Daily
-        $revenueSiemReapDaily = Sale::where('store_id', 2)
+        $salesSiemReapDaily = Sale::where('store_id', 2)
             ->whereBetween('created_at', [$startOfDay, $endOfDay])
-            ->sum('total');
-        $salesCountSiemReapDaily = Sale::where('store_id', 2)
-            ->whereBetween('created_at', [$startOfDay, $endOfDay])
-            ->count();
+            ->get();
+        $revenueSiemReapDaily = Sale::sumRealRevenue($salesSiemReapDaily);
+        $salesCountSiemReapDaily = $salesSiemReapDaily->count();
 
         // Siem Reap (store_id = 2) - Monthly
-        $revenueSiemReapMonthly = Sale::where('store_id', 2)
+        $salesSiemReapMonthly = Sale::where('store_id', 2)
             ->whereBetween('created_at', [$startOfMonth, $endOfMonth])
-            ->sum('total');
-        $salesCountSiemReapMonthly = Sale::where('store_id', 2)
-            ->whereBetween('created_at', [$startOfMonth, $endOfMonth])
-            ->count();
+            ->get();
+        $revenueSiemReapMonthly = Sale::sumRealRevenue($salesSiemReapMonthly);
+        $salesCountSiemReapMonthly = $salesSiemReapMonthly->count();
 
         // Phnom Penh (store_id = 1) - Daily
-        $revenuePhnomPenhDaily = Sale::where('store_id', 1)
+        $salesPhnomPenhDaily = Sale::where('store_id', 1)
             ->whereBetween('created_at', [$startOfDay, $endOfDay])
-            ->sum('total');
-        $salesCountPhnomPenhDaily = Sale::where('store_id', 1)
-            ->whereBetween('created_at', [$startOfDay, $endOfDay])
-            ->count();
+            ->get();
+        $revenuePhnomPenhDaily = Sale::sumRealRevenue($salesPhnomPenhDaily);
+        $salesCountPhnomPenhDaily = $salesPhnomPenhDaily->count();
 
         // Phnom Penh (store_id = 1) - Monthly
-        $revenuePhnomPenhMonthly = Sale::where('store_id', 1)
+        $salesPhnomPenhMonthly = Sale::where('store_id', 1)
             ->whereBetween('created_at', [$startOfMonth, $endOfMonth])
-            ->sum('total');
-        $salesCountPhnomPenhMonthly = Sale::where('store_id', 1)
-            ->whereBetween('created_at', [$startOfMonth, $endOfMonth])
-            ->count();
+            ->get();
+        $revenuePhnomPenhMonthly = Sale::sumRealRevenue($salesPhnomPenhMonthly);
+        $salesCountPhnomPenhMonthly = $salesPhnomPenhMonthly->count();
 
         // Données pour le graphique des factures par statut
         $invoicesByStatus = [
@@ -152,23 +149,42 @@ class DashboardController extends Controller
             $endOfMonth = $date->copy()->endOfMonth();
 
             // Total tous magasins
-            $monthlyRevenue[] = Sale::whereBetween('created_at', [$startOfMonth, $endOfMonth])->sum('total');
+            $monthlyRevenue[] = Sale::sumRealRevenue(
+                Sale::whereBetween('created_at', [$startOfMonth, $endOfMonth])->get()
+            );
 
             // Siem Reap (store_id = 2)
-            $monthlyRevenueSiemReap[] = Sale::where('store_id', 2)
-                ->whereBetween('created_at', [$startOfMonth, $endOfMonth])
-                ->sum('total');
+            $monthlyRevenueSiemReap[] = Sale::sumRealRevenue(
+                Sale::where('store_id', 2)
+                    ->whereBetween('created_at', [$startOfMonth, $endOfMonth])
+                    ->get()
+            );
 
             // Phnom Penh (store_id = 1)
-            $monthlyRevenuePhnomPenh[] = Sale::where('store_id', 1)
-                ->whereBetween('created_at', [$startOfMonth, $endOfMonth])
-                ->sum('total');
+            $monthlyRevenuePhnomPenh[] = Sale::sumRealRevenue(
+                Sale::where('store_id', 1)
+                    ->whereBetween('created_at', [$startOfMonth, $endOfMonth])
+                    ->get()
+            );
         }
+
+        // Commandes du site web (paiement accepté) ventilées par statut
+        $websiteOrdersByStatus = WebsiteOrder::where('payment_status', 'paid')
+            ->selectRaw('status, count(*) as count, sum(total) as total')
+            ->groupBy('status')
+            ->orderByRaw("FIELD(status, 'pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled')")
+            ->get();
+
+        $websiteOrdersPaidTotal = $websiteOrdersByStatus->sum('count');
+        $websiteOrdersPaidAmount = $websiteOrdersByStatus->sum('total');
 
         return view('dashboard', compact(
             'selectedDate',
             'invoicesToPayCount',
             'invoicesToPayTotal',
+            'websiteOrdersByStatus',
+            'websiteOrdersPaidTotal',
+            'websiteOrdersPaidAmount',
             'productsWithoutImages',
             'productsWithoutDescriptionFr',
             'productsWithoutDescriptionEn',
@@ -319,8 +335,8 @@ class DashboardController extends Controller
             ->orderByDesc('created_at')
             ->get();
 
-        // Calculer les totaux
-        $totalRevenue = $sales->sum('total');
+        // Calculer les totaux (excluding voucher payments)
+        $totalRevenue = Sale::sumRealRevenue($sales);
         $totalBeforeDiscount = 0;
         $totalDiscounts = 0;
 

@@ -9,6 +9,11 @@ function renderMenu($items, $level = 0) {
                 continue; // Passer cet élément de menu
             }
         }
+        if (isset($item['allowed_roles']) && $user) {
+            if (!$user->hasAnyRole($item['allowed_roles'])) {
+                continue; // Seuls les rôles autorisés peuvent voir ce menu
+            }
+        }
 
         $hasSub = isset($item['submenu']) || isset($item['dynamic_submenu']);
         $submenuId = 'submenu-' . md5($item['label'] . $level);

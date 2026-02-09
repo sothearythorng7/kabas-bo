@@ -8,16 +8,16 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class UserDocument extends Model
 {
     protected $fillable = [
-        'user_id',
+        'staff_member_id',
         'type',
         'path',
         'original_name',
         'uploaded_by',
     ];
 
-    public function user(): BelongsTo
+    public function staffMember(): BelongsTo
     {
-        return $this->belongsTo(User::class);
+        return $this->belongsTo(StaffMember::class);
     }
 
     public function uploader(): BelongsTo

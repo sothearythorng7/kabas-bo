@@ -30,7 +30,7 @@
                 <h5 class="mb-0">{{ __('messages.staff.request_leave') }}</h5>
             </div>
             <div class="card-body">
-                <form action="{{ route('staff.leaves.store', $user) }}" method="POST">
+                <form action="{{ route('staff.leaves.store', $staffMember) }}" method="POST">
                     @csrf
                     <div class="mb-3">
                         <label for="leave_type" class="form-label">{{ __('messages.staff.leave_type') }} *</label>
@@ -68,7 +68,7 @@
                 <h5 class="mb-0">{{ __('messages.staff.leaves_history') }}</h5>
             </div>
             <div class="card-body">
-                @if($user->leaves->isEmpty())
+                @if($staffMember->leaves->isEmpty())
                     <p class="text-muted text-center">{{ __('messages.staff.no_leaves') }}</p>
                 @else
                     <div class="table-responsive">
@@ -84,7 +84,7 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                @foreach($user->leaves as $leave)
+                                @foreach($staffMember->leaves as $leave)
                                     <tr>
                                         <td>
                                             <span class="badge bg-{{ $leave->getTypeBadgeClass() }}">

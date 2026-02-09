@@ -9,19 +9,27 @@ use Carbon\Carbon;
 class SalaryPayment extends Model
 {
     protected $fillable = [
-        'user_id',
+        'staff_member_id',
         'period',
         'base_salary',
         'daily_rate',
         'unjustified_days',
         'absence_deduction',
         'advances_deduction',
+        'overtime_amount',
+        'bonus_amount',
+        'penalty_amount',
+        'commission_amount',
+        'gross_salary',
         'net_amount',
         'currency',
         'notes',
         'paid_by',
         'store_id',
         'financial_transaction_id',
+        'is_transferred',
+        'transferred_at',
+        'transfer_reference',
     ];
 
     protected $casts = [
@@ -29,12 +37,19 @@ class SalaryPayment extends Model
         'daily_rate' => 'decimal:2',
         'absence_deduction' => 'decimal:2',
         'advances_deduction' => 'decimal:2',
+        'overtime_amount' => 'decimal:2',
+        'bonus_amount' => 'decimal:2',
+        'penalty_amount' => 'decimal:2',
+        'commission_amount' => 'decimal:2',
+        'gross_salary' => 'decimal:2',
         'net_amount' => 'decimal:2',
+        'is_transferred' => 'boolean',
+        'transferred_at' => 'datetime',
     ];
 
-    public function user(): BelongsTo
+    public function staffMember(): BelongsTo
     {
-        return $this->belongsTo(User::class);
+        return $this->belongsTo(StaffMember::class);
     }
 
     public function payer(): BelongsTo
@@ -59,6 +74,16 @@ class SalaryPayment extends Model
 
     public function getTotalDeductionsAttribute(): float
     {
-        return $this->absence_deduction + $this->advances_deduction;
+        return $this->absence_deduction + $this->advances_deduction + $this->penalty_amount;
+    }
+
+    public function getTotalAdditionsAttribute(): float
+    {
+        return $this->overtime_amount + $this->bonus_amount + $this->commission_amount;
+    }
+
+    public function getGrossSalaryCalculatedAttribute(): float
+    {
+        return $this->base_salary + $this->total_additions;
     }
 }

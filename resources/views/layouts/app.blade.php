@@ -29,6 +29,25 @@
                             <i class="bi bi-person-circle"></i> {{ Auth::user()->name }}
                         </a>
                         <ul class="dropdown-menu dropdown-menu-end">
+                            @if(Auth::user()->staffMember)
+                            <li>
+                                <a class="dropdown-item" href="{{ route('my-leaves.index') }}">
+                                    <i class="bi bi-calendar-x me-1"></i> {{ __('messages.my_leaves.menu_title') }}
+                                    @php
+                                        $pendingCount = Auth::user()->staffMember->leaves()->where('status', 'pending')->count();
+                                    @endphp
+                                    @if($pendingCount > 0)
+                                        <span class="badge bg-warning text-dark ms-1">{{ $pendingCount }}</span>
+                                    @endif
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item" href="{{ route('my-planning.index') }}">
+                                    <i class="bi bi-calendar-week me-1"></i> {{ __('messages.my_planning.menu_title') }}
+                                </a>
+                            </li>
+                            @endif
+                            <li><hr class="dropdown-divider"></li>
                             <li>
                                 <form action="{{ route('logout') }}" method="POST">
                                     @csrf
@@ -46,6 +65,7 @@
 
     <div class="container-fluid mt-3">
         @include('partials.flash-messages')
+        @include('partials.admin-alerts')
         @yield('content')
     </div>
 </div>

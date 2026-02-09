@@ -1953,6 +1953,11 @@ function showSaleValidationModal(sale) {
                 $("#sale-confirm").prop("disabled", true);
                 $("#btn-add-payment").prop("disabled", false);
             }
+
+            // Update calculator display if function exists
+            if (typeof updateCalculatorDisplay === 'function') {
+                updateCalculatorDisplay();
+            }
         }
 
         function renderPaymentsList() {
@@ -1987,95 +1992,143 @@ function showSaleValidationModal(sale) {
             });
         }
 
+        const RIEL_RATE = 4000; // 1 USD = 4000 KHR
+
         const modalHtml = `
             <div class="modal fade" id="saleValidateModal" tabindex="-1">
                 <div class="modal-dialog modal-lg">
                     <div class="modal-content p-3">
-                        <h5>Sale Validation ${sale.label}</h5>
+                        <h5 class="mb-3">Sale Validation ${sale.label}</h5>
 
-                        <div class="row mb-3">
-                            <div class="col-6">
-                                <div class="alert alert-info mb-0">
-                                    <strong>Total Amount:</strong> $${total.toFixed(2)}
+                        <div class="row">
+                            <!-- Left Column: Payments -->
+                            <div class="col-7">
+                                <div class="row mb-3">
+                                    <div class="col-6">
+                                        <div class="alert alert-info mb-0 py-2">
+                                            <strong>Total:</strong> $${total.toFixed(2)}
+                                        </div>
+                                    </div>
+                                    <div class="col-6">
+                                        <div class="alert alert-warning mb-0 py-2">
+                                            <strong>Remaining:</strong> $<span id="remaining-amount">${total.toFixed(2)}</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                ${discountSummary.length?`
+                                    <div class="mb-2">
+                                        <h6 class="small">Discounts Applied:</h6>
+                                        <table class="table table-sm table-bordered mb-2">
+                                            <thead><tr><th>Discount</th><th>Value</th></tr></thead>
+                                            <tbody>
+                                                ${discountSummary.map(d=>`<tr><td>${d.label}</td><td>${d.type==='percent'?d.value+'%':d.value.toFixed(2)}</td></tr>`).join('')}
+                                            </tbody>
+                                        </table>
+                                    </div>`:''}
+
+                                <div class="mb-2">
+                                    <h6 class="small">Payments:</h6>
+                                    <table class="table table-sm table-striped mb-0">
+                                        <thead>
+                                            <tr>
+                                                <th>Method</th>
+                                                <th class="text-end">Amount</th>
+                                                <th class="text-end" style="width:60px"></th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="payments-list">
+                                            <tr><td colspan="3" class="text-center text-muted small">No payments yet</td></tr>
+                                        </tbody>
+                                        <tfoot>
+                                            <tr class="table-light">
+                                                <th>Total Paid:</th>
+                                                <th class="text-end">$<span id="total-paid">0.00</span></th>
+                                                <th></th>
+                                            </tr>
+                                        </tfoot>
+                                    </table>
+                                </div>
+
+                                <div id="payment-section" class="border p-2 mb-3 bg-light">
+                                    <h6 class="small mb-2">Add Payment:</h6>
+                                    <div class="row g-2">
+                                        <div class="col-6">
+                                            <select class="form-select form-select-sm" id="payment-method-select">
+                                                ${payments.map(p=>`<option value="${p.code}">${p.name}</option>`).join('')}
+                                            </select>
+                                        </div>
+                                        <div class="col-6">
+                                            <div class="input-group input-group-sm">
+                                                <span class="input-group-text">$</span>
+                                                <input type="number" class="form-control" id="payment-amount-input"
+                                                       step="0.01" min="0" max="${total}" value="${total.toFixed(2)}">
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div id="voucher-input-section" class="mt-2 d-none">
+                                        <div class="input-group input-group-sm">
+                                            <input type="text" class="form-control" id="voucher-code-input" placeholder="KBA123456789" maxlength="12">
+                                            <button class="btn btn-outline-secondary" type="button" id="btn-validate-voucher-payment">Validate</button>
+                                        </div>
+                                        <div id="voucher-validation-result" class="mt-1 small"></div>
+                                    </div>
+                                    <div class="mt-2 text-end">
+                                        <button class="btn btn-primary btn-sm" id="btn-add-payment">
+                                            <i class="bi bi-plus-circle"></i> Add
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div class="text-end">
+                                    <button class="btn btn-secondary btn-sm me-1" id="sale-cancel">Cancel</button>
+                                    <button class="btn btn-success btn-sm" id="sale-confirm" disabled>Validate Sale</button>
                                 </div>
                             </div>
-                            <div class="col-6">
-                                <div class="alert alert-warning mb-0">
-                                    <strong>Remaining:</strong> $<span id="remaining-amount">${total.toFixed(2)}</span>
-                                </div>
-                            </div>
-                        </div>
 
-                        ${discountSummary.length?`
-                            <div class="mb-3">
-                                <h6>Discounts Applied:</h6>
-                                <table class="table table-sm table-bordered">
-                                    <thead><tr><th>Discount</th><th>Value</th></tr></thead>
-                                    <tbody>
-                                        ${discountSummary.map(d=>`<tr><td>${d.label}</td><td>${d.type==='percent'?d.value+'%':d.value.toFixed(2)}</td></tr>`).join('')}
-                                    </tbody>
-                                </table>
-                            </div>`:''}
+                            <!-- Right Column: Change Calculator -->
+                            <div class="col-5">
+                                <div class="border rounded p-2 bg-light h-100">
+                                    <h6 class="text-center mb-2"><i class="bi bi-calculator"></i> Change Calculator</h6>
 
-                        <div class="mb-3">
-                            <h6>Payments:</h6>
-                            <table class="table table-sm table-striped">
-                                <thead>
-                                    <tr>
-                                        <th>Payment Method</th>
-                                        <th class="text-end">Amount</th>
-                                        <th class="text-end">Action</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="payments-list">
-                                    <tr><td colspan="3" class="text-center text-muted">No payments added yet</td></tr>
-                                </tbody>
-                                <tfoot>
-                                    <tr class="table-light">
-                                        <th>Total Paid:</th>
-                                        <th class="text-end">$<span id="total-paid">0.00</span></th>
-                                        <th></th>
-                                    </tr>
-                                </tfoot>
-                            </table>
-                        </div>
+                                    <div class="mb-2">
+                                        <label class="form-label small mb-1">Amount Given by Customer ($)</label>
+                                        <input type="text" class="form-control form-control-lg text-end fw-bold"
+                                               id="cash-given-input" value="0.00" readonly>
+                                    </div>
 
-                        <div id="payment-section" class="border p-3 mb-3 bg-light">
-                            <h6>Add Payment:</h6>
-                            <div class="row g-2">
-                                <div class="col-6">
-                                    <label class="form-label">Payment Method</label>
-                                    <select class="form-select" id="payment-method-select">
-                                        ${payments.map(p=>`<option value="${p.code}">${p.name}</option>`).join('')}
-                                    </select>
-                                </div>
-                                <div class="col-6">
-                                    <label class="form-label">Amount</label>
-                                    <div class="input-group">
-                                        <span class="input-group-text">$</span>
-                                        <input type="number" class="form-control" id="payment-amount-input"
-                                               step="0.01" min="0" max="${total}" value="${total.toFixed(2)}">
+                                    <div class="row g-1 mb-2" id="calculator-keypad">
+                                        <div class="col-4"><button class="btn btn-outline-secondary w-100 py-2 calc-key" data-key="7">7</button></div>
+                                        <div class="col-4"><button class="btn btn-outline-secondary w-100 py-2 calc-key" data-key="8">8</button></div>
+                                        <div class="col-4"><button class="btn btn-outline-secondary w-100 py-2 calc-key" data-key="9">9</button></div>
+                                        <div class="col-4"><button class="btn btn-outline-secondary w-100 py-2 calc-key" data-key="4">4</button></div>
+                                        <div class="col-4"><button class="btn btn-outline-secondary w-100 py-2 calc-key" data-key="5">5</button></div>
+                                        <div class="col-4"><button class="btn btn-outline-secondary w-100 py-2 calc-key" data-key="6">6</button></div>
+                                        <div class="col-4"><button class="btn btn-outline-secondary w-100 py-2 calc-key" data-key="1">1</button></div>
+                                        <div class="col-4"><button class="btn btn-outline-secondary w-100 py-2 calc-key" data-key="2">2</button></div>
+                                        <div class="col-4"><button class="btn btn-outline-secondary w-100 py-2 calc-key" data-key="3">3</button></div>
+                                        <div class="col-4"><button class="btn btn-outline-secondary w-100 py-2 calc-key" data-key="0">0</button></div>
+                                        <div class="col-4"><button class="btn btn-outline-secondary w-100 py-2 calc-key" data-key=".">.</button></div>
+                                        <div class="col-4"><button class="btn btn-danger w-100 py-2 calc-key" data-key="C">C</button></div>
+                                    </div>
+
+                                    <div class="border-top pt-2">
+                                        <div class="d-flex justify-content-between align-items-center mb-1">
+                                            <span class="small text-muted">To Pay:</span>
+                                            <span class="fw-bold" id="calc-to-pay">$${total.toFixed(2)}</span>
+                                        </div>
+                                        <div class="d-flex justify-content-between align-items-center mb-2">
+                                            <span class="small text-muted">Given:</span>
+                                            <span class="fw-bold" id="calc-given">$0.00</span>
+                                        </div>
+                                        <div class="alert alert-success py-2 mb-1 text-center">
+                                            <div class="small text-muted">Change Due</div>
+                                            <div class="fs-4 fw-bold" id="change-usd">$0.00</div>
+                                            <div class="text-muted" id="change-riel">0 ៛</div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
-                            <div id="voucher-input-section" class="mt-2 d-none">
-                                <label class="form-label">Voucher Code</label>
-                                <div class="input-group">
-                                    <input type="text" class="form-control" id="voucher-code-input" placeholder="KBA123456789" maxlength="12">
-                                    <button class="btn btn-outline-secondary" type="button" id="btn-validate-voucher-payment">Validate</button>
-                                </div>
-                                <div id="voucher-validation-result" class="mt-1 small"></div>
-                            </div>
-                            <div class="mt-2 text-end">
-                                <button class="btn btn-primary btn-sm" id="btn-add-payment">
-                                    <i class="bi bi-plus-circle"></i> Add Payment
-                                </button>
-                            </div>
-                        </div>
-
-                        <div class="text-end">
-                            <button class="btn btn-secondary me-1" id="sale-cancel">Cancel</button>
-                            <button class="btn btn-success" id="sale-confirm" disabled>Validate Sale</button>
                         </div>
                     </div>
                 </div>
@@ -2088,6 +2141,64 @@ function showSaleValidationModal(sale) {
 
         // Voucher validation state
         let validatedVoucher = null;
+
+        // Calculator state
+        let calcInput = "0";
+
+        function updateCalculatorDisplay() {
+            const given = parseFloat(calcInput) || 0;
+            const totalPaid = splitPayments.reduce((sum, p) => sum + p.amount, 0);
+            const toPay = Math.max(0, total - totalPaid);
+
+            $("#cash-given-input").val(calcInput);
+            $("#calc-to-pay").text("$" + toPay.toFixed(2));
+            $("#calc-given").text("$" + given.toFixed(2));
+
+            const changeUsd = Math.max(0, given - toPay);
+            const changeRiel = Math.round(changeUsd * RIEL_RATE);
+
+            $("#change-usd").text("$" + changeUsd.toFixed(2));
+            $("#change-riel").text(changeRiel.toLocaleString() + " ៛");
+
+            // Highlight if change is due
+            if (changeUsd > 0) {
+                $("#change-usd").closest(".alert").removeClass("alert-success").addClass("alert-warning");
+            } else {
+                $("#change-usd").closest(".alert").removeClass("alert-warning").addClass("alert-success");
+            }
+        }
+
+        // Calculator keypad events
+        $(document).on("click", "#calculator-keypad .calc-key", function() {
+            const key = $(this).data("key").toString();
+
+            if (key === "C") {
+                calcInput = "0";
+            } else if (key === ".") {
+                if (!calcInput.includes(".")) {
+                    calcInput += ".";
+                }
+            } else {
+                if (calcInput === "0") {
+                    calcInput = key;
+                } else {
+                    // Limit to 2 decimal places
+                    if (calcInput.includes(".")) {
+                        const parts = calcInput.split(".");
+                        if (parts[1].length < 2) {
+                            calcInput += key;
+                        }
+                    } else {
+                        calcInput += key;
+                    }
+                }
+            }
+
+            updateCalculatorDisplay();
+        });
+
+        // Initialize calculator display
+        updateCalculatorDisplay();
 
         // Show/hide voucher input based on payment method
         $("#payment-method-select").on("change", function() {

@@ -133,6 +133,16 @@
                 <td class="text-center">{{ $totalQtyReceived > 0 ? number_format($totalQtyReceived, 0) : '-' }}</td>
                 <td class="text-right">$ {{ number_format($totalAmount, 2) }}</td>
             </tr>
+            @if($order->deposit > 0)
+            <tr>
+                <td colspan="5" class="total-label">{{ __('messages.supplier_order.deposit') }}</td>
+                <td class="text-right" style="color: #ff9800;">- $ {{ number_format($order->deposit, 2) }}</td>
+            </tr>
+            <tr class="total-row" style="background-color: #e3f2fd;">
+                <td colspan="5" class="total-label">{{ __('messages.supplier_order.remaining_to_pay') }}</td>
+                <td class="text-right">$ {{ number_format(max(0, $totalAmount - $order->deposit), 2) }}</td>
+            </tr>
+            @endif
         </tfoot>
     </table>
     @else
@@ -149,7 +159,6 @@
                 <th>Name</th>
                 <th>Brand</th>
                 <th>Purchase Price</th>
-                <th>Price</th>
                 <th>Qty ordered</th>
                 <th>Qty received</th>
                 <th class="text-right">Total</th>
@@ -171,7 +180,6 @@
                     <td>{{ $product->name[app()->getLocale()] ?? reset($product->name) }}</td>
                     <td>{{ $product->brand?->name ?? '-' }}</td>
                     <td>$ {{ number_format($purchasePrice, 2) }}</td>
-                    <td>$ {{ number_format($product->price, 2) }}</td>
                     <td>{{ $qtyOrdered }}</td>
                     <td>{{ $qtyReceived > 0 ? $qtyReceived : '-' }}</td>
                     <td class="text-right">$ {{ number_format($lineTotal, 2) }}</td>
@@ -180,11 +188,21 @@
         </tbody>
         <tfoot>
             <tr class="total-row">
-                <td colspan="5" class="total-label">TOTAL</td>
+                <td colspan="4" class="total-label">TOTAL</td>
                 <td class="text-center">{{ $totalQtyOrdered }}</td>
                 <td class="text-center">{{ $totalQtyReceived > 0 ? $totalQtyReceived : '-' }}</td>
                 <td class="text-right">$ {{ number_format($totalAmount, 2) }}</td>
             </tr>
+            @if($order->deposit > 0)
+            <tr>
+                <td colspan="6" class="total-label">{{ __('messages.supplier_order.deposit') }}</td>
+                <td class="text-right" style="color: #ff9800;">- $ {{ number_format($order->deposit, 2) }}</td>
+            </tr>
+            <tr class="total-row" style="background-color: #e3f2fd;">
+                <td colspan="6" class="total-label">{{ __('messages.supplier_order.remaining_to_pay') }}</td>
+                <td class="text-right">$ {{ number_format(max(0, $totalAmount - $order->deposit), 2) }}</td>
+            </tr>
+            @endif
         </tfoot>
     </table>
     @endif

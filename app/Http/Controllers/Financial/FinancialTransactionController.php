@@ -29,7 +29,7 @@ class FinancialTransactionController extends Controller
         }
 
         // Filtre par comptes (array d'IDs)
-        if ($request->filled('account_ids')) {
+        if ($request->filled('account_ids') && count($request->account_ids) > 0) {
             $query->whereIn('account_id', $request->account_ids);
         }
 
@@ -42,7 +42,7 @@ class FinancialTransactionController extends Controller
         }
 
         // Filtre par méthode de paiement (array d'IDs)
-        if ($request->filled('payment_method_ids')) {
+        if ($request->filled('payment_method_ids') && count($request->payment_method_ids) > 0) {
             $query->whereIn('payment_method_id', $request->payment_method_ids);
         }
 
@@ -63,10 +63,10 @@ class FinancialTransactionController extends Controller
         // Appliquer les mêmes filtres que pour l'affichage
         if ($request->filled('date_from')) $query->whereDate('transaction_date', '>=', $request->date_from);
         if ($request->filled('date_to')) $query->whereDate('transaction_date', '<=', $request->date_to);
-        if ($request->filled('account_ids')) $query->whereIn('account_id', $request->account_ids);
+        if ($request->filled('account_ids') && count($request->account_ids) > 0) $query->whereIn('account_id', $request->account_ids);
         if ($request->filled('amount_min')) $query->where('amount', '>=', $request->amount_min);
         if ($request->filled('amount_max')) $query->where('amount', '<=', $request->amount_max);
-        if ($request->filled('payment_method_ids')) $query->whereIn('payment_method_id', $request->payment_method_ids);
+        if ($request->filled('payment_method_ids') && count($request->payment_method_ids) > 0) $query->whereIn('payment_method_id', $request->payment_method_ids);
 
         $transactions = $query->latest()->get();
 

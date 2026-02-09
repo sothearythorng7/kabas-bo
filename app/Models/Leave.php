@@ -9,10 +9,13 @@ use Carbon\Carbon;
 class Leave extends Model
 {
     protected $fillable = [
-        'user_id',
+        'staff_member_id',
         'type',
         'start_date',
         'end_date',
+        'start_half_day',
+        'end_half_day',
+        'leave_quota_id',
         'status',
         'reason',
         'approved_by',
@@ -22,12 +25,14 @@ class Leave extends Model
     protected $casts = [
         'start_date' => 'date',
         'end_date' => 'date',
+        'start_half_day' => 'boolean',
+        'end_half_day' => 'boolean',
         'approved_at' => 'datetime',
     ];
 
-    public function user(): BelongsTo
+    public function staffMember(): BelongsTo
     {
-        return $this->belongsTo(User::class);
+        return $this->belongsTo(StaffMember::class);
     }
 
     public function approver(): BelongsTo
@@ -35,9 +40,24 @@ class Leave extends Model
         return $this->belongsTo(User::class, 'approved_by');
     }
 
-    public function getDaysCount(): int
+    public function leaveQuota(): BelongsTo
     {
-        return $this->start_date->diffInDays($this->end_date) + 1;
+        return $this->belongsTo(LeaveQuota::class);
+    }
+
+    public function getDaysCount(): float
+    {
+        $days = $this->start_date->diffInDays($this->end_date) + 1;
+
+        // Subtract half days if applicable
+        if ($this->start_half_day) {
+            $days -= 0.5;
+        }
+        if ($this->end_half_day) {
+            $days -= 0.5;
+        }
+
+        return max(0.5, $days);
     }
 
     public function getTypeBadgeClass(): string

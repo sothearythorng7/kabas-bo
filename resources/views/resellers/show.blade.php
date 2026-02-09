@@ -10,8 +10,15 @@
 
     {{-- Onglets --}}
     <ul class="nav nav-tabs" id="resellerTabs" role="tablist">
+        @if($resellerType !== 'shop')
         <li class="nav-item" role="presentation">
-            <button class="nav-link active" id="contacts-tab" data-bs-toggle="tab" data-bs-target="#contacts" type="button" role="tab" aria-controls="contacts" aria-selected="true">
+            <button class="nav-link active" id="info-tab" data-bs-toggle="tab" data-bs-target="#info" type="button" role="tab" aria-controls="info" aria-selected="true">
+                <i class="bi bi-info-circle"></i> {{ __('messages.resellers.info') }}
+            </button>
+        </li>
+        @endif
+        <li class="nav-item" role="presentation">
+            <button class="nav-link {{ $resellerType === 'shop' ? 'active' : '' }}" id="contacts-tab" data-bs-toggle="tab" data-bs-target="#contacts" type="button" role="tab" aria-controls="contacts" aria-selected="{{ $resellerType === 'shop' ? 'true' : 'false' }}">
                 {{ __('messages.resellers.contacts') }}
             </button>
         </li>
@@ -63,8 +70,92 @@
 
     <div class="tab-content mt-3" id="resellerTabsContent">
 
+        {{-- Onglet Informations --}}
+        @if($resellerType !== 'shop')
+        <div class="tab-pane fade show active" id="info" role="tabpanel" aria-labelledby="info-tab">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-building"></i> {{ __('messages.resellers.billing_info') }}</h5>
+                </div>
+                <div class="card-body">
+                    <form action="{{ route('resellers.update-info', $reseller->id) }}" method="POST">
+                        @csrf
+                        @method('PUT')
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="name" class="form-label">{{ __('messages.resellers.company_name') }} <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" id="name" name="name" value="{{ old('name', $reseller->name) }}" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="tax_id" class="form-label">{{ __('messages.resellers.tax_id') }}</label>
+                                    <input type="text" class="form-control" id="tax_id" name="tax_id" value="{{ old('tax_id', $reseller->tax_id) }}" placeholder="VAT / Tax ID">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="address" class="form-label">{{ __('messages.resellers.address') }}</label>
+                                    <input type="text" class="form-control" id="address" name="address" value="{{ old('address', $reseller->address) }}">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="address2" class="form-label">{{ __('messages.resellers.address2') }}</label>
+                                    <input type="text" class="form-control" id="address2" name="address2" value="{{ old('address2', $reseller->address2) }}">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="city" class="form-label">{{ __('messages.resellers.city') }}</label>
+                                    <input type="text" class="form-control" id="city" name="city" value="{{ old('city', $reseller->city) }}">
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="postal_code" class="form-label">{{ __('messages.resellers.postal_code') }}</label>
+                                    <input type="text" class="form-control" id="postal_code" name="postal_code" value="{{ old('postal_code', $reseller->postal_code) }}">
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="country" class="form-label">{{ __('messages.resellers.country') }}</label>
+                                    <input type="text" class="form-control" id="country" name="country" value="{{ old('country', $reseller->country) }}">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="phone" class="form-label">{{ __('messages.resellers.phone') }}</label>
+                                    <input type="text" class="form-control" id="phone" name="phone" value="{{ old('phone', $reseller->phone) }}">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="email" class="form-label">{{ __('messages.resellers.email') }}</label>
+                                    <input type="email" class="form-control" id="email" name="email" value="{{ old('email', $reseller->email) }}">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="text-end">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-check-lg"></i> {{ __('messages.btn.save') }}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        @endif
+
         {{-- Onglet Contacts --}}
-        <div class="tab-pane fade show active" id="contacts" role="tabpanel" aria-labelledby="contacts-tab">
+        <div class="tab-pane fade {{ $resellerType === 'shop' ? 'show active' : '' }}" id="contacts" role="tabpanel" aria-labelledby="contacts-tab">
             <div class="d-flex justify-content-between align-items-center mb-3">
                 <h3>{{ __('messages.resellers.contacts') }}</h3>
                 @if($resellerType !== 'shop')

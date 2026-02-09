@@ -17,6 +17,7 @@
                     <th>{{ __('messages.user_edit.name') }}</th>
                     <th>{{ __('messages.user_edit.email') }}</th>
                     <th>{{ __('messages.user_edit.role') }}</th>
+                    <th>{{ __('messages.staff.linked_staff') }}</th>
                     <th>{{ __('messages.user_edit.language') }}</th>
                 </tr>
             </thead>
@@ -50,6 +51,15 @@
                     <td>{{ $user->name }}</td>
                     <td>{{ $user->email }}</td>
                     <td>{{ $user->roles->pluck('name')->implode(', ') }}</td>
+                    <td>
+                        @if($user->staffMember)
+                            <a href="{{ route('staff.show', $user->staffMember) }}" class="text-decoration-none">
+                                <i class="bi bi-person-vcard"></i> {{ $user->staffMember->name }}
+                            </a>
+                        @else
+                            <span class="text-muted">-</span>
+                        @endif
+                    </td>
                     <td>{{ $user->locale }}</td>
                 </tr>
                 @endforeach

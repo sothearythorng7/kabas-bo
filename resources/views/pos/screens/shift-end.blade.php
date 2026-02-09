@@ -180,6 +180,14 @@ function initShiftEnd() {
 
     $(document).off("click", "#visitors-next").on("click", "#visitors-next", function() {
         visitorsCount = parseInt(visitorsBuffer) || 0;
+
+        // Warn if no visitors entered
+        if (visitorsCount === 0) {
+            if (!confirm("{{ __('messages.No visitors entered. Are you sure you want to continue?') }}")) {
+                return;
+            }
+        }
+
         showStep("step-cash");
         cashBuffer = "";
         $("#shift-end-input").val("");

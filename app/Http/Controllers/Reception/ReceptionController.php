@@ -255,6 +255,15 @@ class ReceptionController extends Controller
                 ->with('error', 'Order cannot be finalized');
         }
 
+        // Set any untouched products (NULL quantity_received) to 0
+        foreach ($order->products as $product) {
+            if (is_null($product->pivot->quantity_received)) {
+                $order->products()->updateExistingPivot($product->id, [
+                    'quantity_received' => 0,
+                ]);
+            }
+        }
+
         // Change status based on supplier type
         if ($order->supplier->type === 'consignment') {
             $order->status = 'received';
@@ -415,6 +424,15 @@ class ReceptionController extends Controller
         if ($order->status !== 'waiting_reception') {
             return redirect()->route('reception.factory-orders')
                 ->with('error', 'Order cannot be finalized');
+        }
+
+        // Set any untouched raw materials (NULL quantity_received) to 0
+        foreach ($order->rawMaterials as $material) {
+            if (is_null($material->pivot->quantity_received)) {
+                $order->rawMaterials()->updateExistingPivot($material->id, [
+                    'quantity_received' => 0,
+                ]);
+            }
         }
 
         // Change status based on supplier type

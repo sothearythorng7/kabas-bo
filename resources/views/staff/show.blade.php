@@ -5,29 +5,29 @@
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
             <h1 class="crud_title mb-0">
-                {{ $user->name }}
-                @if($user->contract_status === 'terminated')
+                {{ $staffMember->name }}
+                @if($staffMember->contract_status === 'terminated')
                     <span class="badge bg-danger ms-2">{{ __('messages.staff.contract_status.terminated') }}</span>
                 @else
                     <span class="badge bg-success ms-2">{{ __('messages.staff.contract_status.active') }}</span>
                 @endif
             </h1>
-            @if($user->contract_status === 'terminated' && $user->contract_end_date)
+            @if($staffMember->contract_status === 'terminated' && $staffMember->contract_end_date)
                 <small class="text-muted">
-                    {{ __('messages.staff.terminated_on') }}: {{ $user->contract_end_date->format('d/m/Y') }}
-                    @if($user->termination_reason)
-                        - {{ $user->termination_reason }}
+                    {{ __('messages.staff.terminated_on') }}: {{ $staffMember->contract_end_date->format('d/m/Y') }}
+                    @if($staffMember->termination_reason)
+                        - {{ $staffMember->termination_reason }}
                     @endif
                 </small>
             @endif
         </div>
         <div>
-            @if($user->contract_status === 'active')
+            @if($staffMember->contract_status === 'active')
                 <button type="button" class="btn btn-danger me-2" data-bs-toggle="modal" data-bs-target="#terminateModal">
                     <i class="bi bi-person-x"></i> {{ __('messages.staff.terminate_contract') }}
                 </button>
             @else
-                <form action="{{ route('staff.reactivate', $user) }}" method="POST" class="d-inline">
+                <form action="{{ route('staff.reactivate', $staffMember) }}" method="POST" class="d-inline">
                     @csrf
                     <button type="submit" class="btn btn-success me-2" onclick="return confirm('{{ __('messages.staff.confirm_reactivate') }}')">
                         <i class="bi bi-person-check"></i> {{ __('messages.staff.reactivate_contract') }}
@@ -64,22 +64,22 @@
         <li class="nav-item" role="presentation">
             <button class="nav-link {{ $tab === 'documents' ? 'active' : '' }}" id="documents-tab" data-bs-toggle="tab" data-bs-target="#documents" type="button" role="tab">
                 <i class="bi bi-folder"></i> {{ __('messages.staff.tab_documents') }}
-                <span class="badge bg-{{ $user->documents->count() > 0 ? 'primary' : 'secondary' }}">{{ $user->documents->count() }}</span>
+                <span class="badge bg-{{ $staffMember->documents->count() > 0 ? 'primary' : 'secondary' }}">{{ $staffMember->documents->count() }}</span>
             </button>
         </li>
         <li class="nav-item" role="presentation">
             <button class="nav-link {{ $tab === 'salary' ? 'active' : '' }}" id="salary-tab" data-bs-toggle="tab" data-bs-target="#salary" type="button" role="tab">
                 <i class="bi bi-cash-stack"></i> {{ __('messages.staff.tab_salary') }}
-                @if($user->salaryAdvances->where('status', 'pending')->count() > 0)
-                    <span class="badge bg-warning text-dark">{{ $user->salaryAdvances->where('status', 'pending')->count() }}</span>
+                @if($staffMember->salaryAdvances->where('status', 'pending')->count() > 0)
+                    <span class="badge bg-warning text-dark">{{ $staffMember->salaryAdvances->where('status', 'pending')->count() }}</span>
                 @endif
             </button>
         </li>
         <li class="nav-item" role="presentation">
             <button class="nav-link {{ $tab === 'leaves' ? 'active' : '' }}" id="leaves-tab" data-bs-toggle="tab" data-bs-target="#leaves" type="button" role="tab">
                 <i class="bi bi-calendar-x"></i> {{ __('messages.staff.tab_leaves') }}
-                @if($user->leaves->where('status', 'pending')->count() > 0)
-                    <span class="badge bg-warning text-dark">{{ $user->leaves->where('status', 'pending')->count() }}</span>
+                @if($staffMember->leaves->where('status', 'pending')->count() > 0)
+                    <span class="badge bg-warning text-dark">{{ $staffMember->leaves->where('status', 'pending')->count() }}</span>
                 @endif
             </button>
         </li>
@@ -91,7 +91,38 @@
         <li class="nav-item" role="presentation">
             <button class="nav-link {{ $tab === 'payroll' ? 'active' : '' }}" id="payroll-tab" data-bs-toggle="tab" data-bs-target="#payroll" type="button" role="tab">
                 <i class="bi bi-wallet2"></i> {{ __('messages.staff.tab_payroll') }}
-                <span class="badge bg-{{ $user->salaryPayments->count() > 0 ? 'success' : 'secondary' }}">{{ $user->salaryPayments->count() }}</span>
+                <span class="badge bg-{{ $staffMember->salaryPayments->count() > 0 ? 'success' : 'secondary' }}">{{ $staffMember->salaryPayments->count() }}</span>
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link {{ $tab === 'quotas' ? 'active' : '' }}" id="quotas-tab" data-bs-toggle="tab" data-bs-target="#quotas" type="button" role="tab">
+                <i class="bi bi-calendar-check"></i> {{ __('messages.staff.tab_quotas') }}
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link {{ $tab === 'commissions' ? 'active' : '' }}" id="commissions-tab" data-bs-toggle="tab" data-bs-target="#commissions" type="button" role="tab">
+                <i class="bi bi-percent"></i> {{ __('messages.staff.tab_commissions') }}
+                @if($staffMember->employeeCommissions->where('is_active', true)->count() > 0)
+                    <span class="badge bg-success">{{ $staffMember->employeeCommissions->where('is_active', true)->count() }}</span>
+                @endif
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link {{ $tab === 'adjustments' ? 'active' : '' }}" id="adjustments-tab" data-bs-toggle="tab" data-bs-target="#adjustments" type="button" role="tab">
+                <i class="bi bi-sliders"></i> {{ __('messages.staff.tab_adjustments') }}
+                @if($staffMember->salaryAdjustments->where('status', 'pending')->count() > 0)
+                    <span class="badge bg-warning text-dark">{{ $staffMember->salaryAdjustments->where('status', 'pending')->count() }}</span>
+                @endif
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link {{ $tab === 'planning' ? 'active' : '' }}" id="planning-tab" data-bs-toggle="tab" data-bs-target="#planning" type="button" role="tab">
+                <i class="bi bi-calendar-week"></i> {{ __('messages.staff.tab_planning') }}
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link {{ $tab === 'performance' ? 'active' : '' }}" id="performance-tab" data-bs-toggle="tab" data-bs-target="#performance" type="button" role="tab">
+                <i class="bi bi-graph-up"></i> {{ __('messages.staff.tab_performance') }}
             </button>
         </li>
     </ul>
@@ -126,15 +157,40 @@
         <div class="tab-pane fade {{ $tab === 'payroll' ? 'show active' : '' }}" id="payroll" role="tabpanel">
             @include('staff.partials.tab-payroll')
         </div>
+
+        {{-- Onglet Quotas --}}
+        <div class="tab-pane fade {{ $tab === 'quotas' ? 'show active' : '' }}" id="quotas" role="tabpanel">
+            @include('staff.partials.tab-quotas')
+        </div>
+
+        {{-- Onglet Commissions --}}
+        <div class="tab-pane fade {{ $tab === 'commissions' ? 'show active' : '' }}" id="commissions" role="tabpanel">
+            @include('staff.partials.tab-commissions')
+        </div>
+
+        {{-- Onglet Ajustements --}}
+        <div class="tab-pane fade {{ $tab === 'adjustments' ? 'show active' : '' }}" id="adjustments" role="tabpanel">
+            @include('staff.partials.tab-adjustments')
+        </div>
+
+        {{-- Onglet Planning --}}
+        <div class="tab-pane fade {{ $tab === 'planning' ? 'show active' : '' }}" id="planning" role="tabpanel">
+            @include('staff.partials.tab-user-planning')
+        </div>
+
+        {{-- Onglet Performance --}}
+        <div class="tab-pane fade {{ $tab === 'performance' ? 'show active' : '' }}" id="performance" role="tabpanel">
+            @include('staff.partials.tab-performance')
+        </div>
     </div>
 </div>
 
 {{-- Modal Termination --}}
-@if($user->contract_status === 'active')
+@if($staffMember->contract_status === 'active')
 <div class="modal fade" id="terminateModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
-            <form action="{{ route('staff.terminate', $user) }}" method="POST">
+            <form action="{{ route('staff.terminate', $staffMember) }}" method="POST">
                 @csrf
                 <div class="modal-header bg-danger text-white">
                     <h5 class="modal-title">

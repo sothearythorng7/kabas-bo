@@ -2,11 +2,15 @@
 
 namespace App\Http\Controllers;
 
+use App\Mail\OrderCancelledMail;
+use App\Mail\OrderConfirmationMail;
+use App\Mail\OrderShippedMail;
 use App\Models\WebsiteOrder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 
 class WebsiteOrderController extends Controller
 {
@@ -15,7 +19,8 @@ class WebsiteOrderController extends Controller
 
     public function index(Request $request)
     {
-        $query = WebsiteOrder::orderBy('created_at', 'desc');
+        $query = WebsiteOrder::where('source', 'website')
+            ->orderBy('created_at', 'desc');
 
         if ($request->filled('search')) {
             $query->search($request->search);
@@ -32,9 +37,9 @@ class WebsiteOrderController extends Controller
         $orders = $query->paginate(20)->withQueryString();
 
         $counts = [
-            'total' => WebsiteOrder::count(),
-            'pending' => WebsiteOrder::where('status', 'pending')->count(),
-            'processing' => WebsiteOrder::where('status', 'processing')->count(),
+            'total' => WebsiteOrder::where('source', 'website')->count(),
+            'pending' => WebsiteOrder::where('source', 'website')->where('status', 'pending')->count(),
+            'processing' => WebsiteOrder::where('source', 'website')->where('status', 'processing')->count(),
         ];
 
         return view('website-orders.index', compact('orders', 'counts'));
@@ -51,10 +56,16 @@ class WebsiteOrderController extends Controller
     {
         $request->validate([
             'status' => 'required|in:' . implode(',', WebsiteOrder::statuses()),
+            'tracking_url' => 'nullable|url|max:2000',
         ]);
 
         $newStatus = $request->status;
         $oldStatus = $order->status;
+
+        // Save tracking URL if provided
+        if ($request->filled('tracking_url')) {
+            $order->update(['tracking_url' => $request->tracking_url]);
+        }
 
         // If cancelling a paid order → refund PayWay + reverse stock + reverse financial
         if ($newStatus === 'cancelled' && $oldStatus !== 'cancelled' && $order->payment_status === 'paid') {
@@ -96,6 +107,8 @@ class WebsiteOrderController extends Controller
                 'payway_refund' => $refundResult['success'] ? 'success' : ($refundResult['error'] ?? 'failed'),
             ]);
 
+            $this->sendOrderEmail($order, 'cancelled');
+
             if ($refundResult['success']) {
                 return back()->with('success', __('messages.website_order.cancelled_with_reversal'));
             }
@@ -107,6 +120,8 @@ class WebsiteOrderController extends Controller
         }
 
         $order->update(['status' => $newStatus]);
+
+        $this->sendOrderEmail($order, $newStatus);
 
         return back()->with('success', __('messages.website_order.status_updated'));
     }
@@ -120,6 +135,40 @@ class WebsiteOrderController extends Controller
         $order->update(['admin_notes' => $request->admin_notes]);
 
         return back()->with('success', __('messages.website_order.notes_updated'));
+    }
+
+    /**
+     * Send transactional email based on the new order status.
+     */
+    protected function sendOrderEmail(WebsiteOrder $order, string $status): void
+    {
+        $email = $order->contact_email;
+
+        if (! $email) {
+            return;
+        }
+
+        $mailable = match ($status) {
+            'confirmed' => new OrderConfirmationMail($order->load('items')),
+            'shipped' => new OrderShippedMail($order->load('items')),
+            'cancelled' => new OrderCancelledMail($order->load('items')),
+            default => null,
+        };
+
+        if (! $mailable) {
+            return;
+        }
+
+        try {
+            Mail::to($email)->send($mailable);
+        } catch (\Exception $e) {
+            Log::error('Failed to send order email', [
+                'order_number' => $order->order_number,
+                'status' => $status,
+                'email' => $email,
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
 
     /**

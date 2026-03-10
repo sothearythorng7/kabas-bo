@@ -46,43 +46,121 @@
     <!-- Products list -->
     <div class="text-sm text-muted mb-4">{{ __('messages.reception.products_to_receive') }}</div>
 
-    @foreach($movement->items as $item)
-        @php
-            $product = $item->product;
-            $productName = $product->name[app()->getLocale()] ?? $product->name['en'] ?? reset($product->name);
-            $thumbnail = $product->images->first() ? asset('storage/' . $product->images->first()->path) : asset('images/placeholder.png');
-        @endphp
-        <div class="product-item">
-            <img src="{{ $thumbnail }}" alt="" class="product-image">
-            <div class="product-info">
-                <div class="product-name">{{ $productName }}</div>
-                <div class="product-meta">EAN: {{ $product->ean }}</div>
-            </div>
-            <div style="text-align: right;">
-                <div style="font-size: 20px; font-weight: 600;">{{ $item->quantity }}</div>
-                <div class="text-sm text-muted">{{ __('messages.reception.units') }}</div>
-            </div>
-        </div>
-    @endforeach
+    <form id="receiveForm" action="{{ route('reception.transfers.receive', $movement) }}" method="POST">
+        @csrf
 
-    <!-- Total -->
-    <div class="card" style="margin-top: 16px; background: var(--primary); color: white;">
-        <div class="flex justify-between items-center">
-            <span>{{ __('messages.reception.total_products') }}</span>
-            <span style="font-size: 24px; font-weight: 600;">{{ $movement->items->sum('quantity') }}</span>
+        @foreach($movement->items as $item)
+            @php
+                $product = $item->product;
+                $productName = $product->name[app()->getLocale()] ?? $product->name['en'] ?? reset($product->name);
+                $thumbnail = $product->images->first() ? asset('storage/' . $product->images->first()->path) : asset('images/placeholder.png');
+            @endphp
+            <div class="product-item">
+                <img src="{{ $thumbnail }}" alt="" class="product-image">
+                <div class="product-info" style="flex: 1; min-width: 0;">
+                    <div class="product-name">{{ $productName }}</div>
+                    <div class="product-meta">EAN: {{ $product->ean }}</div>
+                    <div class="product-meta text-muted">{{ __('messages.reception.sent') }}: {{ $item->quantity }}</div>
+                </div>
+                <div style="text-align: right; display: flex; align-items: center; gap: 8px;">
+                    <button type="button" class="qty-btn qty-minus" data-item="{{ $item->id }}" style="width: 36px; height: 36px; border-radius: 50%; border: 2px solid var(--border); background: white; font-size: 20px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center;">−</button>
+                    <input type="number"
+                           name="items[{{ $item->id }}]"
+                           value="{{ $item->quantity }}"
+                           min="0"
+                           max="{{ $item->quantity }}"
+                           class="qty-input"
+                           data-item="{{ $item->id }}"
+                           data-original="{{ $item->quantity }}"
+                           style="width: 56px; text-align: center; font-size: 20px; font-weight: 600; border: 2px solid var(--border); border-radius: 8px; padding: 4px;"
+                    >
+                    <button type="button" class="qty-btn qty-plus" data-item="{{ $item->id }}" style="width: 36px; height: 36px; border-radius: 50%; border: 2px solid var(--border); background: white; font-size: 20px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center;">+</button>
+                </div>
+            </div>
+        @endforeach
+
+        <!-- Total -->
+        <div class="card" style="margin-top: 16px; background: var(--primary); color: white;">
+            <div class="flex justify-between items-center">
+                <span>{{ __('messages.reception.total_products') }}</span>
+                <span id="totalQty" style="font-size: 24px; font-weight: 600;">{{ $movement->items->sum('quantity') }}</span>
+            </div>
         </div>
-    </div>
+    </form>
 </div>
 
 <div class="sticky-bottom">
-    <form action="{{ route('reception.transfers.receive', $movement) }}" method="POST">
-        @csrf
-        <button type="submit" class="btn btn-success" onclick="return confirm('{{ __('messages.reception.confirm_receive') }}')">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width: 24px; height: 24px;">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-            </svg>
-            {{ __('messages.reception.confirm_reception') }}
-        </button>
-    </form>
+    <button type="submit" form="receiveForm" class="btn btn-success" onclick="return confirm('{{ __('messages.reception.confirm_receive') }}')">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width: 24px; height: 24px;">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+        </svg>
+        {{ __('messages.reception.confirm_reception') }}
+    </button>
 </div>
+@endsection
+
+@section('scripts')
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    function updateTotal() {
+        let total = 0;
+        document.querySelectorAll('.qty-input').forEach(function(input) {
+            total += parseInt(input.value) || 0;
+        });
+        document.getElementById('totalQty').textContent = total;
+    }
+
+    function highlightChanged(input) {
+        const original = parseInt(input.dataset.original);
+        const current = parseInt(input.value) || 0;
+        const productItem = input.closest('.product-item');
+        if (current !== original) {
+            input.style.borderColor = '#dc3545';
+            input.style.color = '#dc3545';
+            productItem.style.background = '#fff5f5';
+        } else {
+            input.style.borderColor = 'var(--border)';
+            input.style.color = 'inherit';
+            productItem.style.background = '';
+        }
+    }
+
+    document.querySelectorAll('.qty-minus').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            const input = document.querySelector('.qty-input[data-item="' + this.dataset.item + '"]');
+            const val = parseInt(input.value) || 0;
+            if (val > 0) {
+                input.value = val - 1;
+                updateTotal();
+                highlightChanged(input);
+            }
+        });
+    });
+
+    document.querySelectorAll('.qty-plus').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            const input = document.querySelector('.qty-input[data-item="' + this.dataset.item + '"]');
+            const val = parseInt(input.value) || 0;
+            const max = parseInt(input.max);
+            if (val < max) {
+                input.value = val + 1;
+                updateTotal();
+                highlightChanged(input);
+            }
+        });
+    });
+
+    document.querySelectorAll('.qty-input').forEach(function(input) {
+        input.addEventListener('change', function() {
+            const max = parseInt(this.max);
+            let val = parseInt(this.value) || 0;
+            if (val < 0) val = 0;
+            if (val > max) val = max;
+            this.value = val;
+            updateTotal();
+            highlightChanged(this);
+        });
+    });
+});
+</script>
 @endsection

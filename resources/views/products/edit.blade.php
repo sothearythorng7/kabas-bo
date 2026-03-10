@@ -74,6 +74,11 @@
                 </span>
             </button>
         </li>
+        <li class="nav-item">
+            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-seo" type="button" role="tab">
+                <i class="bi bi-search"></i> {{ __('messages.product.tab_seo') }}
+            </button>
+        </li>
     </ul>
 
     {{-- Dropdown version mobile --}}
@@ -87,6 +92,7 @@
             <option value="#tab-descriptions">{{ __('messages.product.tab_descriptions') }}</option>
             <option value="#tab-variations">{{ __('messages.product.tab_variations') }} ({{ $product->variations->count() ?? 0 }})</option>
             <option value="#tab-barcodes">{{ __('messages.product.tab_barcodes') ?? 'Codes-barres' }} ({{ $product->barcodes->count() ?? 0 }})</option>
+            <option value="#tab-seo">{{ __('messages.product.tab_seo') }}</option>
         </select>
     </div>
 
@@ -121,6 +127,16 @@
                         @error('price_btob') <div class="invalid-feedback">{{ $message }}</div> @enderror
                     </div>
                 </div>
+                <div class="row">
+                    <div class="col-md-3 mb-3">
+                        <label class="form-label">{{ __('messages.product.shipping_weight') }}</label>
+                        <div class="input-group">
+                            <input type="number" step="1" min="0" name="shipping_weight"
+                                   class="form-control" value="{{ old('shipping_weight', $product->shipping_weight) }}">
+                            <span class="input-group-text">g</span>
+                        </div>
+                    </div>
+                </div>
 
                 {{-- Name per locale --}}
                 @php $locales = config('app.website_locales'); $i=0; @endphp
@@ -152,7 +168,11 @@
 
                 <div class="form-check form-switch mb-2">
                     <input class="form-check-input" type="checkbox" name="is_active" id="is_active" value="1" {{ old('is_active', $product->is_active) ? 'checked' : '' }}>
-                    <label class="form-check-label" for="is_active">{{ __('messages.product.active') }}</label>
+                    <label class="form-check-label" for="is_active">{{ __('messages.product.active_website') }}</label>
+                </div>
+                <div class="form-check form-switch mb-2">
+                    <input class="form-check-input" type="checkbox" name="is_active_pos" id="is_active_pos" value="1" {{ old('is_active_pos', $product->is_active_pos) ? 'checked' : '' }}>
+                    <label class="form-check-label" for="is_active_pos">{{ __('messages.product.active_pos') }}</label>
                 </div>
                 <div class="form-check form-switch mb-2">
                     <input class="form-check-input" type="checkbox" name="is_best_seller" id="is_best_seller" value="1" {{ old('is_best_seller', $product->is_best_seller) ? 'checked' : '' }}>
@@ -644,6 +664,63 @@
                     @endforelse
                 </tbody>
             </table>
+        </div>
+
+        {{-- SEO --}}
+        <div class="tab-pane fade" id="tab-seo" role="tabpanel">
+            <form action="{{ route('products.seo.update', $product) }}" method="POST">
+                @csrf @method('PUT')
+                <p class="text-muted mb-3">{{ __('messages.product.seo_help') }}</p>
+                @php $locales = config('app.website_locales'); $i=0; @endphp
+                <ul class="nav nav-tabs" role="tablist">
+                    @foreach($locales as $locale)
+                        <li class="nav-item">
+                            <button class="nav-link @if($i===0) active @endif" data-bs-toggle="tab" data-bs-target="#seo-{{ $locale }}" type="button" role="tab">{{ strtoupper($locale) }}</button>
+                        </li>
+                        @php $i++; @endphp
+                    @endforeach
+                </ul>
+                <div class="tab-content mt-3">
+                    @php $i=0; @endphp
+                    @foreach($locales as $locale)
+                        <div class="tab-pane fade @if($i===0) show active @endif" id="seo-{{ $locale }}" role="tabpanel">
+                            <div class="mb-3">
+                                <label class="form-label">{{ __('messages.product.seo_title') }} ({{ strtoupper($locale) }})</label>
+                                <input type="text" name="seo_title[{{ $locale }}]" class="form-control"
+                                       value="{{ old("seo_title.$locale", $product->seo_title[$locale] ?? '') }}"
+                                       maxlength="70" placeholder="{{ $product->name[$locale] ?? '' }}">
+                                <small class="text-muted">{{ __('messages.product.seo_title_help') }}</small>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">{{ __('messages.product.seo_meta_description') }} ({{ strtoupper($locale) }})</label>
+                                <textarea name="meta_description[{{ $locale }}]" class="form-control" rows="3"
+                                          maxlength="160" placeholder="{{ __('messages.product.seo_meta_placeholder') }}">{{ old("meta_description.$locale", $product->meta_description[$locale] ?? '') }}</textarea>
+                                <small class="text-muted">{{ __('messages.product.seo_meta_help') }}</small>
+                            </div>
+
+                            {{-- Aperçu Google --}}
+                            <div class="card bg-light mb-3">
+                                <div class="card-body py-2 px-3">
+                                    <small class="text-muted d-block mb-1">{{ __('messages.product.seo_preview') }}</small>
+                                    <div style="font-family: Arial, sans-serif;">
+                                        <div style="font-size: 18px; color: #1a0dab; margin-bottom: 2px;" id="seo-preview-title-{{ $locale }}">
+                                            {{ $product->seo_title[$locale] ?? $product->name[$locale] ?? 'Product Title' }}
+                                        </div>
+                                        <div style="font-size: 13px; color: #006621; margin-bottom: 2px;">
+                                            {{ $product->publicUrl($locale) }}
+                                        </div>
+                                        <div style="font-size: 13px; color: #545454;" id="seo-preview-desc-{{ $locale }}">
+                                            {{ $product->meta_description[$locale] ?? __('messages.product.seo_no_description') }}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        @php $i++; @endphp
+                    @endforeach
+                </div>
+                <button class="btn btn-success">{{ __('messages.btn.save') }}</button>
+            </form>
         </div>
 
         <script>

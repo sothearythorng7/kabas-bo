@@ -3,7 +3,17 @@
 @section('content')
 <div class="container mt-4">
     <div class="d-flex justify-content-between align-items-center mb-3">
-        <h1 class="crud_title mb-0">{{ __('messages.website_order.order_detail') }} {{ $order->order_number }}</h1>
+        <div>
+            <h1 class="crud_title mb-0">
+                {{ __('messages.website_order.order_detail') }} {{ $order->order_number }}
+                @if($order->is_special_order)
+                    <span class="badge bg-dark fs-6">{{ __('messages.special_order.badge') }}</span>
+                @endif
+            </h1>
+            @if($order->is_special_order && $order->createdByUser)
+                <small class="text-muted">{{ __('messages.special_order.created_by') }}: {{ $order->createdByUser->name }}</small>
+            @endif
+        </div>
         <a href="{{ route('website-orders.index') }}" class="btn btn-secondary">
             <i class="bi bi-arrow-left"></i> {{ __('messages.website_order.back_to_list') }}
         </a>
@@ -206,10 +216,10 @@
                     <i class="bi bi-arrow-repeat"></i> {{ __('messages.website_order.update_status') }}
                 </div>
                 <div class="card-body">
-                    <form action="{{ route('website-orders.update-status', $order) }}" method="POST">
+                    <form action="{{ route('website-orders.update-status', $order) }}" method="POST" id="statusForm">
                         @csrf
                         <div class="mb-2">
-                            <select name="status" class="form-select">
+                            <select name="status" class="form-select" id="statusSelect">
                                 @foreach(\App\Models\WebsiteOrder::statuses() as $status)
                                     <option value="{{ $status }}" {{ $order->status === $status ? 'selected' : '' }}>
                                         {{ __('messages.website_order.status_' . $status) }}
@@ -217,12 +227,87 @@
                                 @endforeach
                             </select>
                         </div>
+                        <div class="mb-2">
+                            <label for="tracking_url" class="form-label small text-muted mb-1">
+                                <i class="bi bi-truck"></i> {{ __('messages.website_order.tracking_url') }}
+                            </label>
+                            <input type="url" name="tracking_url" id="tracking_url" class="form-control form-control-sm"
+                                   value="{{ $order->tracking_url }}"
+                                   placeholder="{{ __('messages.website_order.tracking_url_placeholder') }}">
+                        </div>
                         <button type="submit" class="btn btn-primary btn-sm w-100">
                             <i class="bi bi-check"></i> {{ __('messages.website_order.save_status') }}
                         </button>
                     </form>
                 </div>
             </div>
+
+            <!-- Tracking info (if set) -->
+            @if($order->tracking_url)
+            <div class="card mb-3">
+                <div class="card-header bg-light">
+                    <i class="bi bi-truck"></i> {{ __('messages.website_order.tracking') }}
+                </div>
+                <div class="card-body">
+                    <a href="{{ $order->tracking_url }}" target="_blank" rel="noopener">
+                        <i class="bi bi-box-arrow-up-right"></i> {{ __('messages.website_order.track_shipment') }}
+                    </a>
+                </div>
+            </div>
+            @endif
+
+            <!-- Payment Link (special orders) -->
+            @if($order->is_special_order)
+            <div class="card mb-3">
+                <div class="card-header bg-light">
+                    <i class="bi bi-link-45deg"></i> {{ __('messages.special_order.payment_link') }}
+                </div>
+                <div class="card-body">
+                    @if($order->payment_link_url)
+                        <div class="mb-2">
+                            <div class="input-group input-group-sm">
+                                <input type="text" class="form-control" value="{{ $order->payment_link_url }}" id="paymentLinkUrl" readonly>
+                                <button class="btn btn-outline-secondary" type="button" onclick="navigator.clipboard.writeText(document.getElementById('paymentLinkUrl').value);this.innerHTML='<i class=\'bi bi-check\'></i>';">
+                                    <i class="bi bi-clipboard"></i>
+                                </button>
+                            </div>
+                        </div>
+                        @if($order->payment_link_expires_at)
+                            <small class="d-block mb-2 {{ $order->payment_link_expired ? 'text-danger' : 'text-muted' }}">
+                                @if($order->payment_link_expired)
+                                    <i class="bi bi-exclamation-triangle"></i> {{ __('messages.special_order.link_expired') }}
+                                    ({{ $order->payment_link_expires_at->format('d/m/Y H:i') }})
+                                @else
+                                    <i class="bi bi-clock"></i> {{ __('messages.special_order.link_expires') }}:
+                                    {{ $order->payment_link_expires_at->format('d/m/Y H:i') }}
+                                @endif
+                            </small>
+                        @endif
+                    @else
+                        <p class="text-muted mb-2">{{ __('messages.special_order.no_link') }}</p>
+                    @endif
+
+                    @if($order->payment_status !== 'paid')
+                        <div class="d-flex gap-2">
+                            <form action="{{ route('special-orders.regenerate-link', $order) }}" method="POST" class="flex-fill">
+                                @csrf
+                                <button type="submit" class="btn btn-outline-primary btn-sm w-100">
+                                    <i class="bi bi-arrow-repeat"></i> {{ __('messages.special_order.regenerate_link') }}
+                                </button>
+                            </form>
+                            @if($order->payment_link_url)
+                                <form action="{{ route('special-orders.send-link-email', $order) }}" method="POST" class="flex-fill">
+                                    @csrf
+                                    <button type="submit" class="btn btn-outline-success btn-sm w-100">
+                                        <i class="bi bi-envelope"></i> {{ __('messages.special_order.send_email') }}
+                                    </button>
+                                </form>
+                            @endif
+                        </div>
+                    @endif
+                </div>
+            </div>
+            @endif
 
             <!-- Customer notes (read-only) -->
             @if($order->customer_notes)
@@ -257,3 +342,18 @@
     </div>
 </div>
 @endsection
+
+@push('scripts')
+<script>
+document.getElementById('statusForm').addEventListener('submit', function(e) {
+    const status = document.getElementById('statusSelect').value;
+    const trackingUrl = document.getElementById('tracking_url').value.trim();
+
+    if (status === 'shipped' && !trackingUrl) {
+        if (!confirm('{{ __('messages.website_order.confirm_ship_no_tracking') }}')) {
+            e.preventDefault();
+        }
+    }
+});
+</script>
+@endpush

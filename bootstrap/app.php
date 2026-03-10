@@ -29,6 +29,9 @@ return Application::configure(basePath: dirname(__DIR__))
         // Garde ton exclusion CSRF existante
         $middleware->validateCsrfTokens(except: [
             'api/pos/*',
+            'webhooks/payway/*',
+            'payway/callback',
+            'pay/check-status',
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

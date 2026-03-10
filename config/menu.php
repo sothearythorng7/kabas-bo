@@ -47,7 +47,7 @@ return [
     [
         'label' => 'messages.menu.stocks',
         'icon'  => 'bi-inboxes',
-        'active_pattern' => 'stocks*',
+        'active_pattern' => 'stocks*|special-orders*',
         'submenu' => [
             [
                 'label' => 'messages.menu.stock_overview',
@@ -66,6 +66,12 @@ return [
                 'icon'  => 'bi-arrow-left-right',
                 'route' => 'stock-movements.index',
                 'active_pattern' => 'stock-movements*',
+            ],
+            [
+                'label' => 'messages.menu.special_orders',
+                'icon'  => 'bi-clipboard2-check',
+                'route' => 'special-orders.index',
+                'active_pattern' => 'special-orders*',
             ],
         ]
     ],
@@ -175,7 +181,7 @@ return [
     [
         'label' => 'Website',
         'icon'  => 'bi-globe',
-        'active_pattern' => 'blog*|contact-messages*|pages*|hero-slides*|home-content*|promotion-bar*|website-orders*',
+        'active_pattern' => 'blog*|contact-messages*|pages*|hero-slides*|home-content*|promotion-bar*|website-orders*|website-tools*|shipping-countries*|shipping-carriers*|shipping-rates*',
         'submenu' => [
             [
                 'label' => 'messages.menu.home_content',
@@ -237,6 +243,30 @@ return [
                 'icon'  => 'bi-image',
                 'route' => 'hero-slides.index',
                 'active_pattern' => 'hero-slides*',
+            ],
+            [
+                'label' => 'messages.menu.website_tools',
+                'icon'  => 'bi-wrench-adjustable',
+                'route' => 'website-tools.index',
+                'active_pattern' => 'website-tools*',
+            ],
+            [
+                'label' => 'messages.menu.shipping_countries',
+                'icon'  => 'bi-globe-americas',
+                'route' => 'shipping-countries.index',
+                'active_pattern' => 'shipping-countries*',
+            ],
+            [
+                'label' => 'messages.menu.shipping_carriers',
+                'icon'  => 'bi-truck',
+                'route' => 'shipping-carriers.index',
+                'active_pattern' => 'shipping-carriers*',
+            ],
+            [
+                'label' => 'messages.menu.shipping_rates',
+                'icon'  => 'bi-currency-dollar',
+                'route' => 'shipping-rates.index',
+                'active_pattern' => 'shipping-rates*',
             ],
         ]
     ],

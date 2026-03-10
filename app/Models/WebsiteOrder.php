@@ -18,6 +18,8 @@ class WebsiteOrder extends Model
         'guest_phone',
         'locale',
         'store_id',
+        'source',
+        'created_by_user_id',
         'shipping_first_name',
         'shipping_last_name',
         'shipping_company',
@@ -36,9 +38,16 @@ class WebsiteOrder extends Model
         'status',
         'payment_status',
         'payment_method',
+        'payment_type',
         'payway_tran_id',
+        'deposit_amount',
+        'deposit_paid',
         'customer_notes',
         'admin_notes',
+        'payment_link_url',
+        'payment_link_expires_at',
+        'payment_token',
+        'tracking_url',
     ];
 
     protected function casts(): array
@@ -49,6 +58,9 @@ class WebsiteOrder extends Model
             'tax' => 'decimal:2',
             'discount' => 'decimal:2',
             'total' => 'decimal:2',
+            'deposit_amount' => 'decimal:2',
+            'deposit_paid' => 'boolean',
+            'payment_link_expires_at' => 'datetime',
         ];
     }
 
@@ -66,6 +78,25 @@ class WebsiteOrder extends Model
     public function latestTransaction()
     {
         return $this->hasOne(WebsitePaymentTransaction::class, 'order_id')->latestOfMany();
+    }
+
+    public function createdByUser()
+    {
+        return $this->belongsTo(User::class, 'created_by_user_id');
+    }
+
+    public function store()
+    {
+        return $this->belongsTo(Store::class);
+    }
+
+    // Remaining balance after deposit
+    public function getRemainingBalanceAttribute(): float
+    {
+        if (!$this->deposit_paid || $this->deposit_amount <= 0) {
+            return (float) $this->total;
+        }
+        return max(0, (float) $this->total - (float) $this->deposit_amount);
     }
 
     // Accessors
@@ -111,6 +142,38 @@ class WebsiteOrder extends Model
               ->orWhere('shipping_first_name', 'like', "%{$search}%")
               ->orWhere('shipping_last_name', 'like', "%{$search}%");
         });
+    }
+
+    public function scopeBySource($query, $source)
+    {
+        return $query->where('source', $source);
+    }
+
+    // Special order helpers
+    public function getIsSpecialOrderAttribute(): bool
+    {
+        return $this->source === 'backoffice';
+    }
+
+    public function getPaymentLinkExpiredAttribute(): bool
+    {
+        return $this->payment_link_expires_at && $this->payment_link_expires_at->isPast();
+    }
+
+    public static function generateOrderNumber(): string
+    {
+        $year = date('Y');
+        $last = static::where('order_number', 'like', "ORD-{$year}-%")
+            ->orderByRaw('CAST(SUBSTRING(order_number, -5) AS UNSIGNED) DESC')
+            ->value('order_number');
+
+        $nextNum = 1;
+        if ($last) {
+            $lastNum = (int) substr($last, -5);
+            $nextNum = $lastNum + 1;
+        }
+
+        return sprintf('ORD-%s-%05d', $year, $nextNum);
     }
 
     // Status helpers

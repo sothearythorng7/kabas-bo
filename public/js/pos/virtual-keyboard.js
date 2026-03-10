@@ -389,6 +389,9 @@
             // Faire defiler pour que l'input soit visible au-dessus du clavier
             if (this.activeInput) {
                 setTimeout(() => {
+                    if (!this.activeInput || !document.body.contains(this.activeInput)) {
+                        return;
+                    }
                     const inputRect = this.activeInput.getBoundingClientRect();
                     const keyboardHeight = this.$overlay.outerHeight();
                     const viewportHeight = window.innerHeight;

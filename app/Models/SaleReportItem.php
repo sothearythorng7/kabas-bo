@@ -11,6 +11,7 @@ class SaleReportItem extends Model
         'product_id',
         'old_stock',
         'refill',
+        'returns',
         'stock_on_hand',
         'quantity_sold',
         'unit_price',

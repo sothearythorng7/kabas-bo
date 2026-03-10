@@ -18,7 +18,7 @@
 </div>
 
 <!-- Tableau des alertes produits -->
-@if(($productsWithoutImages ?? 0) > 0 || ($productsWithoutDescriptionFr ?? 0) > 0 || ($productsWithoutDescriptionEn ?? 0) > 0 || ($productsOutOfStock ?? 0) > 0 || ($productsWithFakeOrEmptyEan ?? 0) > 0 || ($productsWithoutCategories ?? 0) > 0 || ($inactiveProducts ?? 0) > 0)
+@if(($productsWithoutImages ?? 0) > 0 || ($productsWithoutDescriptionFr ?? 0) > 0 || ($productsWithoutDescriptionEn ?? 0) > 0 || ($productsOutOfStock ?? 0) > 0 || ($productsWithFakeOrEmptyEan ?? 0) > 0 || ($productsWithoutCategories ?? 0) > 0 || ($inactiveProducts ?? 0) > 0 || ($productsWithoutWeight ?? 0) > 0)
 <div class="card shadow mb-4">
     <div class="card-header py-3 d-flex justify-content-between align-items-center">
         <h6 class="m-0 font-weight-bold text-danger">
@@ -150,10 +150,78 @@
                         </td>
                     </tr>
                     @endif
+
+                    @if(($productsWithoutWeight ?? 0) > 0)
+                    <tr>
+                        <td>
+                            <i class="bi bi-speedometer text-warning"></i> {{ __('messages.main_dashboard.products_no_weight') }}
+                        </td>
+                        <td class="text-center">
+                            <span class="badge bg-warning text-dark fs-5">{{ $productsWithoutWeight }}</span>
+                        </td>
+                        <td class="text-center">
+                            <a class="btn btn-sm btn-warning" href="{{ route('dashboard.products-issues', ['type' => 'no_weight']) }}">
+                                <i class="bi bi-eye"></i> {{ __('messages.main_dashboard.view_products') }}
+                            </a>
+                        </td>
+                    </tr>
+                    @endif
                 </tbody>
             </table>
         </div>
     </div>
+</div>
+@endif
+
+<!-- Alertes opérationnelles -->
+@if(($resellerInvoicesUnpaid ?? 0) > 0 || ($consignmentInvoicesUnpaid ?? 0) > 0 || ($unreadContactMessages ?? 0) > 0)
+<div class="row mb-4">
+    @if(($resellerInvoicesUnpaid ?? 0) > 0)
+    <div class="col-md-4">
+        <div class="alert alert-warning d-flex align-items-center mb-0 h-100" role="alert">
+            <i class="bi bi-receipt-cutoff fs-3 me-3"></i>
+            <div class="flex-grow-1">
+                <strong>{{ __('messages.main_dashboard.reseller_invoices_unpaid') }}</strong><br>
+                <span class="fs-5 fw-bold">{{ $resellerInvoicesUnpaid }}</span>
+                <small class="text-muted">— ${{ number_format($resellerInvoicesUnpaidTotal, 2) }}</small>
+            </div>
+            <a href="{{ route('reseller-invoices.index') }}" class="btn btn-warning btn-sm ms-2">
+                <i class="bi bi-eye"></i>
+            </a>
+        </div>
+    </div>
+    @endif
+
+    @if(($consignmentInvoicesUnpaid ?? 0) > 0)
+    <div class="col-md-4">
+        <div class="alert alert-danger d-flex align-items-center mb-0 h-100" role="alert">
+            <i class="bi bi-file-earmark-text fs-3 me-3"></i>
+            <div class="flex-grow-1">
+                <strong>{{ __('messages.main_dashboard.consignment_invoices_unpaid') }}</strong><br>
+                <span class="fs-5 fw-bold">{{ $consignmentInvoicesUnpaid }}</span>
+                <small class="text-muted">— ${{ number_format($consignmentInvoicesUnpaidTotal, 2) }}</small>
+            </div>
+            <a href="{{ route('supplier-orders.overview') }}" class="btn btn-danger btn-sm ms-2">
+                <i class="bi bi-eye"></i>
+            </a>
+        </div>
+    </div>
+    @endif
+
+    @if(($unreadContactMessages ?? 0) > 0)
+    <div class="col-md-4">
+        <div class="alert alert-info d-flex align-items-center mb-0 h-100" role="alert">
+            <i class="bi bi-envelope-exclamation fs-3 me-3"></i>
+            <div class="flex-grow-1">
+                <strong>{{ __('messages.main_dashboard.unread_messages') }}</strong><br>
+                <span class="fs-5 fw-bold">{{ $unreadContactMessages }}</span>
+            </div>
+            <a href="{{ route('contact-messages.index') }}" class="btn btn-info btn-sm ms-2">
+                <i class="bi bi-eye"></i>
+            </a>
+        </div>
+    </div>
+    @endif
 </div>
 @endif
 
@@ -205,6 +273,42 @@
             </table>
         </div>
     </div>
+</div>
+@endif
+
+<!-- Alertes commandes spéciales -->
+@if(($specialOrdersPending ?? 0) > 0 || ($specialOrdersToProcess ?? 0) > 0)
+<div class="row mb-4">
+    @if(($specialOrdersPending ?? 0) > 0)
+    <div class="col-md-4">
+        <div class="alert alert-warning d-flex align-items-center mb-0 h-100" role="alert">
+            <i class="bi bi-clipboard2-check fs-3 me-3"></i>
+            <div class="flex-grow-1">
+                <strong>{{ __('messages.main_dashboard.special_orders_pending') }}</strong><br>
+                <span class="fs-5 fw-bold">{{ $specialOrdersPending }}</span>
+                <small class="text-muted">{{ __('messages.main_dashboard.awaiting_payment') }}</small>
+            </div>
+            <a href="{{ route('special-orders.index', ['status' => 'pending', 'payment_status' => 'pending']) }}" class="btn btn-warning btn-sm ms-2">
+                <i class="bi bi-eye"></i>
+            </a>
+        </div>
+    </div>
+    @endif
+    @if(($specialOrdersToProcess ?? 0) > 0)
+    <div class="col-md-4">
+        <div class="alert alert-info d-flex align-items-center mb-0 h-100" role="alert">
+            <i class="bi bi-clipboard2-check fs-3 me-3"></i>
+            <div class="flex-grow-1">
+                <strong>{{ __('messages.main_dashboard.special_orders_to_process') }}</strong><br>
+                <span class="fs-5 fw-bold">{{ $specialOrdersToProcess }}</span>
+                <small class="text-muted">{{ __('messages.main_dashboard.paid_to_ship') }}</small>
+            </div>
+            <a href="{{ route('special-orders.index', ['payment_status' => 'paid']) }}" class="btn btn-info btn-sm ms-2">
+                <i class="bi bi-eye"></i>
+            </a>
+        </div>
+    </div>
+    @endif
 </div>
 @endif
 

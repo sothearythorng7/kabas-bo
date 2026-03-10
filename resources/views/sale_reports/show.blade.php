@@ -38,6 +38,7 @@
                     <th>{{ __('messages.product.name') }}</th>
                     <th class="text-center">{{ __('messages.sale_report.old_stock') }}</th>
                     <th class="text-center">{{ __('messages.sale_report.refill') }}</th>
+                    <th class="text-center">{{ __('messages.sale_report.returns') }}</th>
                     <th class="text-center">{{ __('messages.sale_report.stock_on_hand') }}</th>
                     <th class="text-center">{{ __('messages.sale_report.quantity_sold') }}</th>
                     <th class="text-end">{{ __('messages.sale_report.cost_price') }}</th>
@@ -48,6 +49,7 @@
                 @php
                     $totalOldStock = 0;
                     $totalRefill = 0;
+                    $totalReturns = 0;
                     $totalStockOnHand = 0;
                     $totalQuantitySold = 0;
                     $totalPayAmount = 0;
@@ -57,6 +59,7 @@
                     @php
                         $totalOldStock += $item->old_stock;
                         $totalRefill += $item->refill;
+                        $totalReturns += $item->returns;
                         $totalStockOnHand += $item->stock_on_hand;
                         $totalQuantitySold += $item->quantity_sold;
                         $totalPayAmount += $item->total;
@@ -67,6 +70,7 @@
                         <td>{{ $item->product->name[app()->getLocale()] ?? reset($item->product->name) }}</td>
                         <td class="text-center">{{ $item->old_stock }}</td>
                         <td class="text-center">{{ $item->refill }}</td>
+                        <td class="text-center">{{ $item->returns }}</td>
                         <td class="text-center">{{ $item->stock_on_hand }}</td>
                         <td class="text-center"><strong>{{ $item->quantity_sold }}</strong></td>
                         <td class="text-end">$ {{ number_format($item->unit_price, 2) }}</td>
@@ -79,6 +83,7 @@
                     <td colspan="2"><strong>Total</strong></td>
                     <td class="text-center"><strong>{{ $totalOldStock }}</strong></td>
                     <td class="text-center"><strong>{{ $totalRefill }}</strong></td>
+                    <td class="text-center"><strong>{{ $totalReturns }}</strong></td>
                     <td class="text-center"><strong>{{ $totalStockOnHand }}</strong></td>
                     <td class="text-center"><strong>{{ $totalQuantitySold }}</strong></td>
                     <td></td>

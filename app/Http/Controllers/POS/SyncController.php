@@ -458,8 +458,9 @@ class SyncController extends Controller
             ->groupBy('product_id')
             ->pluck('total_qty', 'product_id'); // [product_id => total]
 
-        // 2) Charger les produits + relations utiles, colonnes ciblées
+        // 2) Charger les produits actifs sur le POS + relations utiles, colonnes ciblées
         $products = Product::query()
+            ->where('is_active_pos', true)
             ->select(['id', 'ean', 'name', 'description', 'slugs', 'price', 'price_btob', 'brand_id'])
             ->with([
                 'brand:id,name',
@@ -802,12 +803,18 @@ class SyncController extends Controller
                     ->get();
                 $products = $products->merge($results);
             }
-            $products = $products->unique('id')
-                ->take($limit)
-                ->load(['brand:id,name', 'primaryImage:id,product_id,path', 'barcodes:id,product_id,barcode']);
+            $products = new \Illuminate\Database\Eloquent\Collection(
+                $products->unique('id')
+                    ->filter(fn ($p) => $p->is_active_pos)
+                    ->take($limit)
+                    ->values()
+                    ->all()
+            );
+            $products->load(['brand:id,name', 'primaryImage:id,product_id,path', 'barcodes:id,product_id,barcode']);
         } else {
             // Fallback SQL - chercher dans ean, name ET product_barcodes
             $products = Product::query()
+                ->where('is_active_pos', true)
                 ->where(function ($q) use ($searchVariants) {
                     foreach ($searchVariants as $variant) {
                         $q->orWhere('ean', 'like', "%{$variant}%");

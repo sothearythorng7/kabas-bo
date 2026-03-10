@@ -4,9 +4,21 @@
 <div class="container mt-4">
     <h1 class="crud_title"><i class="bi bi-truck"></i> {{ __('messages.factory.suppliers') }}</h1>
 
-    <a href="{{ route('factory.suppliers.create') }}" class="btn btn-success mb-3">
-        <i class="bi bi-plus-circle-fill"></i> {{ __('messages.factory.new_supplier') }}
-    </a>
+    <div class="d-flex justify-content-between mb-3">
+        <a href="{{ route('factory.suppliers.create') }}" class="btn btn-success">
+            <i class="bi bi-plus-circle-fill"></i> {{ __('messages.factory.new_supplier') }}
+        </a>
+
+        <form action="{{ route('factory.suppliers.index') }}" method="GET" class="d-flex gap-2">
+            <div class="input-group input-group-sm" style="width: 250px;">
+                <input type="text" name="q" class="form-control" placeholder="{{ __('messages.common.search') }}..." value="{{ request('q') }}">
+                <button class="btn btn-outline-secondary" type="submit"><i class="bi bi-search"></i></button>
+                @if(request('q'))
+                    <a href="{{ route('factory.suppliers.index') }}" class="btn btn-outline-danger"><i class="bi bi-x-lg"></i></a>
+                @endif
+            </div>
+        </form>
+    </div>
 
     <div class="table-responsive" style="overflow: visible;">
         <table class="table table-striped table-hover">

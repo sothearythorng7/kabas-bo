@@ -132,6 +132,8 @@ class ResellerController extends Controller
             }),
         ];
 
+        $paymentMethods = \App\Models\FinancialPaymentMethod::all();
+
         return view('resellers.overview', compact(
             'allResellers',
             'pendingDeliveries',
@@ -140,7 +142,8 @@ class ResellerController extends Controller
             'processedReports',
             'unpaidInvoices',
             'paidInvoices',
-            'stats'
+            'stats',
+            'paymentMethods'
         ));
     }
 
@@ -247,6 +250,14 @@ public function show(Request $request, $id)
             'contacts' => collect(),
             'is_shop' => true,
             'store' => $shop,
+            'address' => null,
+            'address2' => null,
+            'city' => null,
+            'postal_code' => null,
+            'country' => null,
+            'phone' => null,
+            'email' => null,
+            'tax_id' => null,
         ];
 
         $stock = $shop->getCurrentStock();
@@ -322,7 +333,11 @@ public function show(Request $request, $id)
 
         $anomalies = \App\Models\ResellerSalesReportAnomaly::whereHas('report', function($q) use($shopId){
             $q->where('store_id', $shopId);
-        })->latest()->paginate(10);
+        })->with(['product', 'report', 'resolvedBy'])->latest()->paginate(10);
+
+        $pendingDisputesCount = \App\Models\ResellerSalesReportAnomaly::whereHas('report', function($q) use($shopId){
+            $q->where('store_id', $shopId);
+        })->pending()->count();
 
         // Récupérer les retours pour ce shop
         $returns = ResellerStockReturn::where('store_id', $shopId)
@@ -331,7 +346,7 @@ public function show(Request $request, $id)
             ->paginate(10);
 
         return view('resellers.show', compact(
-            'reseller','products','deliveries','stock','salesReports','anomalies','alertStocks','returns','brands'
+            'reseller','products','deliveries','stock','salesReports','anomalies','alertStocks','returns','brands','pendingDisputesCount'
         ));
     }
 
@@ -406,12 +421,16 @@ public function show(Request $request, $id)
         ->paginate(10);
 
     $salesReports = $reseller->type === 'consignment'
-        ? $reseller->reports()->with('items.product')->latest()->paginate(10)
+        ? $reseller->reports()->with('items.product', 'invoice.payments')->latest()->paginate(10)
         : collect();
 
     $anomalies = ResellerSalesReportAnomaly::whereHas('report', function($q) use($reseller){
         $q->where('reseller_id', $reseller->id);
-    })->latest()->paginate(10);
+    })->with(['product', 'report', 'resolvedBy'])->latest()->paginate(10);
+
+    $pendingDisputesCount = ResellerSalesReportAnomaly::whereHas('report', function($q) use($reseller){
+        $q->where('reseller_id', $reseller->id);
+    })->pending()->count();
 
     // Récupérer les retours pour ce reseller
     $returns = ResellerStockReturn::where('reseller_id', $reseller->id)
@@ -425,7 +444,7 @@ public function show(Request $request, $id)
         ->toArray();
 
     return view('resellers.show', compact(
-        'reseller','products','deliveries','stock','salesReports','anomalies','alertStocks','returns','brands','resellerPrices'
+        'reseller','products','deliveries','stock','salesReports','anomalies','alertStocks','returns','brands','resellerPrices','pendingDisputesCount'
     ));
 }
 

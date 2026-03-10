@@ -54,6 +54,8 @@ return [
 
     'url' => env('APP_URL', 'http://localhost'),
 
+    'website_url' => env('WEBSITE_URL', 'https://www.kabasconceptstore.com'),
+
     /*
     |--------------------------------------------------------------------------
     | Site Public URL
@@ -139,6 +141,6 @@ return [
 
     'tiny_mce' => 'mts8jhsme411zd7da0cio6is57y0r9sjhyu59ftpz538zh7x',
 
-    'public_shop_url' => 'http://site.kabas.dev-back.fr',
+    'public_shop_url' => env('PUBLIC_SHOP_URL', 'https://www.kabasconceptstore.com'),
     'public_product_path' => 'product',
 ];

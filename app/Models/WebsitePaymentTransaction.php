@@ -11,6 +11,7 @@ class WebsitePaymentTransaction extends Model
     protected $fillable = [
         'order_id',
         'tran_id',
+        'merchant_ref_no',
         'payment_option',
         'amount',
         'currency',

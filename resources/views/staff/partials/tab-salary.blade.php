@@ -50,6 +50,10 @@
                                     </td>
                                     <td class="text-end {{ $payrollData['commission_amount'] > 0 ? 'text-success fw-bold' : '' }}">+ {{ number_format($payrollData['commission_amount'], 2) }} {{ $payrollData['currency'] }}</td>
                                 </tr>
+                                <tr class="{{ ($payrollData['other_adjustment_amount'] ?? 0) > 0 ? '' : 'text-muted' }}">
+                                    <td>{{ __('messages.staff.other_adjustment') }}</td>
+                                    <td class="text-end {{ ($payrollData['other_adjustment_amount'] ?? 0) > 0 ? 'text-success fw-bold' : '' }}">+ {{ number_format($payrollData['other_adjustment_amount'] ?? 0, 2) }} {{ $payrollData['currency'] }}</td>
+                                </tr>
                                 @if(!empty($commissionSummary['details']) && $commissionSummary['details']->count() > 0)
                                 <tr class="collapse" id="commissionDetails">
                                     <td colspan="2">
@@ -140,6 +144,7 @@
                                 <input type="hidden" name="bonus_amount" value="{{ $payrollData['bonus_amount'] }}">
                                 <input type="hidden" name="penalty_amount" value="{{ $payrollData['penalty_amount'] }}">
                                 <input type="hidden" name="commission_amount" value="{{ $payrollData['commission_amount'] }}">
+                                <input type="hidden" name="other_adjustment_amount" value="{{ $payrollData['other_adjustment_amount'] ?? 0 }}">
                                 <input type="hidden" name="net_amount" id="form_net_amount" value="{{ $payrollData['net_amount'] }}">
 
                                 <div class="modal-content">
@@ -169,6 +174,10 @@
                                             <tr class="{{ $payrollData['commission_amount'] > 0 ? '' : 'text-muted' }}">
                                                 <td>{{ __('messages.staff.commission') }}</td>
                                                 <td class="text-end {{ $payrollData['commission_amount'] > 0 ? 'text-success' : '' }}">+ {{ number_format($payrollData['commission_amount'], 2) }} {{ $payrollData['currency'] }}</td>
+                                            </tr>
+                                            <tr class="{{ ($payrollData['other_adjustment_amount'] ?? 0) > 0 ? '' : 'text-muted' }}">
+                                                <td>{{ __('messages.staff.other_adjustment') }}</td>
+                                                <td class="text-end {{ ($payrollData['other_adjustment_amount'] ?? 0) > 0 ? 'text-success' : '' }}">+ {{ number_format($payrollData['other_adjustment_amount'] ?? 0, 2) }} {{ $payrollData['currency'] }}</td>
                                             </tr>
                                             <tr class="border-top fw-bold">
                                                 <td>{{ __('messages.staff.gross_salary') }}</td>
@@ -449,6 +458,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const bonusAmount = {{ $payrollData['bonus_amount'] }};
     const penaltyAmount = {{ $payrollData['penalty_amount'] }};
     const commissionAmount = {{ $payrollData['commission_amount'] }};
+    const otherAdjustmentAmount = {{ $payrollData['other_adjustment_amount'] ?? 0 }};
     const currency = '{{ $payrollData['currency'] }}';
 
     function formatNumber(num) {
@@ -458,7 +468,7 @@ document.addEventListener('DOMContentLoaded', function() {
     function recalculate() {
         const dailyRate = parseFloat(dailyRateInput.value) || 0;
         const deductionAbsences = unjustifiedDays * dailyRate;
-        const grossSalary = baseSalary + overtimeAmount + bonusAmount + commissionAmount;
+        const grossSalary = baseSalary + overtimeAmount + bonusAmount + commissionAmount + otherAdjustmentAmount;
         const totalDeductions = deductionAbsences + advancesTotal + penaltyAmount;
         const netSalary = grossSalary - totalDeductions;
 

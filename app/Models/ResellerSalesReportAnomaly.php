@@ -10,7 +10,17 @@ class ResellerSalesReportAnomaly extends Model
         'report_id',
         'product_id',
         'quantity',
+        'reported_quantity',
+        'accepted_quantity',
         'description',
+        'status',
+        'resolved_by',
+        'resolved_at',
+        'resolution_note',
+    ];
+
+    protected $casts = [
+        'resolved_at' => 'datetime',
     ];
 
     public function report()
@@ -21,5 +31,20 @@ class ResellerSalesReportAnomaly extends Model
     public function product()
     {
         return $this->belongsTo(Product::class);
+    }
+
+    public function resolvedBy()
+    {
+        return $this->belongsTo(User::class, 'resolved_by');
+    }
+
+    public function scopePending($query)
+    {
+        return $query->where('status', 'pending');
+    }
+
+    public function scopeResolved($query)
+    {
+        return $query->where('status', 'resolved');
     }
 }

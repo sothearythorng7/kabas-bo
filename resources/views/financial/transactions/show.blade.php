@@ -65,10 +65,15 @@
                     <th>{{ __('messages.financial.status') }}</th>
                     <td>{{ ucfirst($transaction->status) }}</td>
                 </tr>
-                @if($transaction->external_reference && !$transaction->sale)
+                @if($transaction->external_reference && !$transaction->sale && str_contains($transaction->external_reference, '/'))
                 <tr>
                     <th>{{ __('messages.financial.order_link') }}</th>
                     <td><a href="{{ url($transaction->external_reference) }}" class="btn btn-success btn-sm">{{ __('messages.financial.view_order') }}</a></td>
+                </tr>
+                @elseif($transaction->external_reference && !$transaction->sale)
+                <tr>
+                    <th>{{ __('messages.financial.order_link') }}</th>
+                    <td>{{ $transaction->external_reference }}</td>
                 </tr>
                 @endif
             </table>

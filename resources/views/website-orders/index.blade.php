@@ -2,7 +2,9 @@
 
 @section('content')
 <div class="container mt-4">
-    <h1 class="crud_title">{{ __('messages.website_order.title') }}</h1>
+    <div class="d-flex justify-content-between align-items-center mb-2">
+        <h1 class="crud_title mb-0">{{ __('messages.website_order.title') }}</h1>
+    </div>
 
     <!-- Summary badges -->
     <div class="d-flex gap-2 mb-3">
@@ -13,7 +15,7 @@
 
     <!-- Filters -->
     <form method="GET" action="{{ route('website-orders.index') }}" class="row g-2 mb-3">
-        <div class="col-md-4">
+        <div class="col-md-3">
             <input type="text" name="search" class="form-control" placeholder="{{ __('messages.website_order.search_placeholder') }}" value="{{ request('search') }}">
         </div>
         <div class="col-md-2">

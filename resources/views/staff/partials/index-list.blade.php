@@ -17,6 +17,9 @@
 {{-- Filtres --}}
 <form action="{{ route('staff.index') }}" method="GET" class="row g-2 mb-4">
     <input type="hidden" name="tab" value="list">
+    <div class="col-md-2">
+        <input type="month" name="period" value="{{ $currentMonth }}" class="form-control">
+    </div>
     <div class="col-md-3">
         <input type="text" name="q" value="{{ request('q') }}" class="form-control"
                placeholder="{{ __('messages.staff.search_placeholder') }}">
@@ -44,15 +47,15 @@
             </option>
         </select>
     </div>
-    <div class="col-md-2">
+    <div class="col-md-1">
         <button type="submit" class="btn btn-primary w-100">
-            <i class="bi bi-search"></i> {{ __('messages.btn.search') }}
+            <i class="bi bi-search"></i>
         </button>
     </div>
-    @if(request('q') || request('store_id') || request('status'))
-    <div class="col-md-2">
+    @if(request('q') || request('store_id') || request('status') || request('period'))
+    <div class="col-md-1">
         <a href="{{ route('staff.index', ['tab' => 'list']) }}" class="btn btn-secondary w-100">
-            <i class="bi bi-x-circle"></i> {{ __('messages.btn.reset') }}
+            <i class="bi bi-x-circle"></i>
         </a>
     </div>
     @endif
@@ -61,6 +64,7 @@
 <form action="{{ route('staff.bulk-payment') }}" method="POST" id="bulkPaymentForm">
     @csrf
     <input type="hidden" name="store_id" id="bulk_store_id" value="">
+    <input type="hidden" name="period" value="{{ $currentMonth }}">
 
     <div class="table-responsive">
         <table class="table table-striped table-hover">

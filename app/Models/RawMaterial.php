@@ -4,10 +4,11 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Laravel\Scout\Searchable;
 
 class RawMaterial extends Model
 {
-    use HasFactory;
+    use HasFactory, Searchable;
 
     protected $fillable = [
         'name',
@@ -26,6 +27,27 @@ class RawMaterial extends Model
         'is_active' => 'boolean',
         'alert_quantity' => 'decimal:2',
     ];
+
+    // ============ Laravel Scout / Meilisearch ============
+
+    public function toSearchableArray()
+    {
+        return [
+            'id' => $this->id,
+            'name' => $this->name,
+            'sku' => $this->sku,
+            'description' => $this->description,
+            'supplier_name' => $this->supplier?->name,
+            'supplier_id' => $this->supplier_id,
+            'is_active' => (bool) $this->is_active,
+            'track_stock' => (bool) $this->track_stock,
+        ];
+    }
+
+    public function searchableAs()
+    {
+        return 'raw_materials';
+    }
 
     /**
      * Fournisseur de cette matière première

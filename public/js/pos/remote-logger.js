@@ -6,12 +6,13 @@
     'use strict';
 
     const LOG_ENDPOINT = '/api/pos/logs';
-    const FLUSH_INTERVAL = 10000; // 10 seconds
-    const MAX_QUEUE_SIZE = 50;
-    const MAX_RETRIES = 3;
+    const FLUSH_INTERVAL = 60000; // 60 seconds (was 10s - reduced to avoid performance overhead)
+    const MAX_QUEUE_SIZE = 100;
+    const MAX_RETRIES = 2;
 
     let logQueue = [];
     let flushTimer = null;
+    let isFlushing = false;
     let isOnline = navigator.onLine;
     let deviceInfo = null;
     let sessionId = null;
@@ -75,14 +76,14 @@
     // Send logs to server
     async function flush(retryCount = 0) {
         if (logQueue.length === 0) return;
+        if (isFlushing) return;
         if (!isOnline) {
-            // Store in localStorage for later
             storeOfflineLogs();
             return;
         }
 
-        const logsToSend = [...logQueue];
-        logQueue = [];
+        isFlushing = true;
+        const logsToSend = logQueue.splice(0, MAX_QUEUE_SIZE);
 
         try {
             const response = await fetch(LOG_ENDPOINT, {
@@ -95,21 +96,24 @@
                 body: JSON.stringify({
                     logs: logsToSend,
                     device_info: deviceInfo
-                })
+                }),
+                signal: AbortSignal.timeout(15000)
             });
 
             if (!response.ok) {
                 throw new Error(`HTTP ${response.status}`);
             }
         } catch (err) {
-            // Put logs back in queue
-            logQueue = logsToSend.concat(logQueue);
+            // Put logs back but cap at MAX_QUEUE_SIZE to avoid unbounded growth
+            logQueue = logsToSend.slice(-50).concat(logQueue).slice(0, MAX_QUEUE_SIZE);
 
             if (retryCount < MAX_RETRIES) {
-                setTimeout(() => flush(retryCount + 1), 5000 * (retryCount + 1));
+                setTimeout(() => flush(retryCount + 1), 10000 * (retryCount + 1));
             } else {
                 storeOfflineLogs();
             }
+        } finally {
+            isFlushing = false;
         }
     }
 
@@ -285,6 +289,11 @@
         window.fetch = async function(...args) {
             const url = typeof args[0] === 'string' ? args[0] : args[0]?.url;
             const startTime = Date.now();
+
+            // Skip logging for the logger's own requests to avoid recursion
+            if (url && url.includes('/api/pos/logs')) {
+                return originalFetch.apply(this, args);
+            }
 
             // Only log POS API calls
             if (url && url.includes('/api/pos/')) {

@@ -137,6 +137,27 @@
 
 @push('scripts')
 <script>
+// ================== LAZY IMAGE LOADING ==================
+const _lazyImageObserver = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+        if (entry.isIntersecting) {
+            const img = entry.target;
+            if (img.dataset.src) {
+                img.src = img.dataset.src;
+                img.removeAttribute('data-src');
+            }
+            _lazyImageObserver.unobserve(img);
+        }
+    });
+}, { rootMargin: '200px' });
+
+function observeLazyImages($container) {
+    const imgs = ($container || $(document)).find('img[data-src]');
+    imgs.each(function() {
+        _lazyImageObserver.observe(this);
+    });
+}
+
 // ================== CONFIGURATION IMPRIMANTE ==================
 const PRINTER_CONFIG = {
     url: "http://localhost:8888",
@@ -424,13 +445,18 @@ window.printReceipt = printReceipt;
  */
 async function printReceipt(ticketData) {
     try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 8000);
+
         const response = await fetch(`${PRINTER_CONFIG.url}/print`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify(ticketData)
+            body: JSON.stringify(ticketData),
+            signal: controller.signal
         });
+        clearTimeout(timeout);
 
         const result = await response.json();
 
@@ -443,8 +469,13 @@ async function printReceipt(ticketData) {
             return false;
         }
     } catch (error) {
-        console.error('Erreur de connexion à l\'imprimante:', error);
-        alert('Erreur de connexion à l\'imprimante. Vérifiez que le service est démarré.');
+        if (error.name === 'AbortError') {
+            console.error('Impression timeout (8s)');
+            alert('Impression timeout - l\'imprimante ne répond pas.');
+        } else {
+            console.error('Erreur de connexion à l\'imprimante:', error);
+            alert('Erreur de connexion à l\'imprimante. Vérifiez que le service est démarré.');
+        }
         return false;
     }
 }
@@ -458,7 +489,8 @@ async function openCashDrawer() {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-            }
+            },
+            signal: AbortSignal.timeout(5000)
         });
         const result = await response.json();
         if (result.status === 'ok') {
@@ -1184,13 +1216,14 @@ function renderCatalog() {
                 <div class="product-card" data-ean="${product.ean}" data-id="${product.id}">
                     <span class="price-badge">$${price}</span>
                     <span class="stock-badge">${stock}</span>
-                    <img src="${imgUrl}" alt="${title}">
+                    <img data-src="${imgUrl}" alt="${title}" loading="lazy" decoding="async" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Crect fill='%23f0f0f0' width='120' height='120'/%3E%3C/svg%3E">
                     <div><small>${title}</small></div>
                 </div>
             </div>
         `);
     });
     $results.append($row);
+    observeLazyImages($results);
 }
 
 // Debounce timer for search
@@ -1297,13 +1330,14 @@ function renderSearchResults(results) {
                 <div class="product-card" data-ean="${product.ean}" data-id="${product.id}">
                     <span class="price-badge">$${price}</span>
                     <span class="stock-badge">${stock}</span>
-                    <img src="${imgUrl}" alt="${title}">
+                    <img data-src="${imgUrl}" alt="${title}" loading="lazy" decoding="async" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Crect fill='%23f0f0f0' width='120' height='120'/%3E%3C/svg%3E">
                     <div><small>${title}</small></div>
                 </div>
             </div>
         `);
     });
     $results.append($row);
+    observeLazyImages($results);
 }
 
 // Recherche avec debounce pour éviter trop de requêtes
@@ -1497,13 +1531,14 @@ function filterByBrand(brandId, brandName) {
                 <div class="product-card" data-ean="${product.ean}" data-id="${product.id}">
                     <span class="price-badge">$${price}</span>
                     <span class="stock-badge">${stock}</span>
-                    <img src="${imgUrl}" alt="${title}">
+                    <img data-src="${imgUrl}" alt="${title}" loading="lazy" decoding="async" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Crect fill='%23f0f0f0' width='120' height='120'/%3E%3C/svg%3E">
                     <div><small>${title}</small></div>
                 </div>
             </div>
         `);
     });
     $results.append($row);
+    observeLazyImages($results);
 
     // Réinitialiser les catégories sélectionnées visuellement
     selectedPath = [];
@@ -2137,6 +2172,15 @@ function showSaleValidationModal(sale) {
         $("body").append(modalHtml);
         const modalEl = document.getElementById("saleValidateModal");
         const modal = new bootstrap.Modal(modalEl, {backdrop:'static',keyboard:false});
+
+        // Cleanup when modal is closed by any means (cancel, validate, backdrop, etc.)
+        let resolved = false;
+        modalEl.addEventListener('hidden.bs.modal', function() {
+            $(document).off("click.calcKeypad");
+            modalEl.remove();
+            if (!resolved) { resolved = true; resolve(false); }
+        }, { once: true });
+
         modal.show();
 
         // Voucher validation state
@@ -2168,8 +2212,8 @@ function showSaleValidationModal(sale) {
             }
         }
 
-        // Calculator keypad events
-        $(document).on("click", "#calculator-keypad .calc-key", function() {
+        // Calculator keypad events (use namespaced event to avoid leaks)
+        $(document).off("click.calcKeypad").on("click.calcKeypad", "#calculator-keypad .calc-key", function() {
             const key = $(this).data("key").toString();
 
             if (key === "C") {
@@ -2308,8 +2352,8 @@ function showSaleValidationModal(sale) {
 
         // Cancel button
         $("#sale-cancel").off("click").on("click",()=>{
+            resolved = true;
             modal.hide();
-            modalEl.remove();
             resolve(false);
         });
 
@@ -2321,8 +2365,8 @@ function showSaleValidationModal(sale) {
                 sale.payment_type = 'FREE';
                 sale.synced = false;
 
+                resolved = true;
                 modal.hide();
-                modalEl.remove();
                 resolve(true);
                 return;
             }
@@ -2344,8 +2388,8 @@ function showSaleValidationModal(sale) {
             sale.payment_type = splitPayments[0].payment_type;
             sale.synced = false;
 
+            resolved = true;
             modal.hide();
-            modalEl.remove();
             resolve(true);
         });
 
@@ -2374,13 +2418,15 @@ function handleSaleValidation(saleId) {
 
         if (sales.length == 0) addNewSale();
 
-        printSale(sale);
+        // Show success immediately, print in background (non-blocking)
+        alert(`Sale ${sale.label} validated and saved!`);
+
+        // Print and open drawer in background - does not block the UI
+        printSale(sale).catch(err => console.error('Background print error:', err));
 
         if (sale.payment_type === "CASH") {
-            openCashDrawer();
+            openCashDrawer().catch(err => console.error('Background drawer error:', err));
         }
-
-        alert(`Sale ${sale.label} validated and saved!`);
     });
 }
 

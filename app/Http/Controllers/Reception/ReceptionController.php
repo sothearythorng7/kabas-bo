@@ -454,6 +454,7 @@ class ReceptionController extends Controller
     {
         $suppliers = Supplier::where('is_active', true)
             ->where('is_raw_material_supplier', false)
+            ->where('type', 'consignment')
             ->orderBy('name')
             ->get();
 

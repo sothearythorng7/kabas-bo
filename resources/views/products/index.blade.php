@@ -57,9 +57,11 @@
                 </th>
                 <th>{{ __('messages.product.price') }}</th>
                 <th>{{ __('messages.product.price_btob') }}</th>
-                <th>{{ __('messages.product.active') }}</th>
+                <th>{{ __('messages.product.active_website') }}</th>
+                <th>{{ __('messages.product.active_pos') }}</th>
                 <th>{{ __('messages.product.best_seller') }}</th>
                 <th>{{ __('messages.product.is_resalable') }}</th>
+                <th class="text-center">{{ __('messages.product.shipping_weight') }}</th>
                 <th class="text-center" style="width:90px;">{{ __('messages.product.photo') }}</th>
             </tr>
         </thead>
@@ -116,9 +118,41 @@
                         -
                     @endif
                 </td>
-                <td style="text-center">{{ $p->is_active ? __('messages.Yes') : __('messages.No') }}</td>
-                <td style="text-center">{{ $p->is_best_seller ? __('messages.Yes') : __('messages.No') }}</td>
-                <td style="text-center">{{ $p->is_resalable ? __('messages.Yes') : __('messages.No') }}</td>
+                <td class="text-center">
+                    <select class="form-select form-select-sm toggle-field {{ $p->is_active ? 'bg-success-subtle' : 'bg-danger-subtle' }}"
+                            data-product-id="{{ $p->id }}" data-field="is_active" style="width:70px;padding:2px 4px;font-size:0.8rem;">
+                        <option value="1" {{ $p->is_active ? 'selected' : '' }}>{{ __('messages.Yes') }}</option>
+                        <option value="0" {{ !$p->is_active ? 'selected' : '' }}>{{ __('messages.No') }}</option>
+                    </select>
+                </td>
+                <td class="text-center">
+                    <select class="form-select form-select-sm toggle-field {{ $p->is_active_pos ? 'bg-success-subtle' : 'bg-danger-subtle' }}"
+                            data-product-id="{{ $p->id }}" data-field="is_active_pos" style="width:70px;padding:2px 4px;font-size:0.8rem;">
+                        <option value="1" {{ $p->is_active_pos ? 'selected' : '' }}>{{ __('messages.Yes') }}</option>
+                        <option value="0" {{ !$p->is_active_pos ? 'selected' : '' }}>{{ __('messages.No') }}</option>
+                    </select>
+                </td>
+                <td class="text-center">
+                    <select class="form-select form-select-sm toggle-field {{ $p->is_best_seller ? 'bg-success-subtle' : '' }}"
+                            data-product-id="{{ $p->id }}" data-field="is_best_seller" style="width:70px;padding:2px 4px;font-size:0.8rem;">
+                        <option value="1" {{ $p->is_best_seller ? 'selected' : '' }}>{{ __('messages.Yes') }}</option>
+                        <option value="0" {{ !$p->is_best_seller ? 'selected' : '' }}>{{ __('messages.No') }}</option>
+                    </select>
+                </td>
+                <td class="text-center">
+                    <select class="form-select form-select-sm toggle-field {{ $p->is_resalable ? 'bg-success-subtle' : '' }}"
+                            data-product-id="{{ $p->id }}" data-field="is_resalable" style="width:70px;padding:2px 4px;font-size:0.8rem;">
+                        <option value="1" {{ $p->is_resalable ? 'selected' : '' }}>{{ __('messages.Yes') }}</option>
+                        <option value="0" {{ !$p->is_resalable ? 'selected' : '' }}>{{ __('messages.No') }}</option>
+                    </select>
+                </td>
+                <td class="text-center">
+                    <input type="number" class="form-control form-control-sm inline-weight"
+                           data-product-id="{{ $p->id }}"
+                           value="{{ $p->shipping_weight }}"
+                           min="0" placeholder="-"
+                           style="width:80px;padding:2px 4px;font-size:0.8rem;text-align:center;">
+                </td>
                 <td class="text-center">
                     @if($p->images_count > 0)
                         <span class="badge bg-success">{{ $p->images_count }}</span>
@@ -151,10 +185,68 @@
 
 @push('scripts')
 <script>
+document.addEventListener('DOMContentLoaded', function() {
     var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
     tooltipTriggerList.forEach(function (tooltipTriggerEl) {
         new bootstrap.Tooltip(tooltipTriggerEl)
     })
+
+    var csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+    var baseUrl = '{{ url("products") }}';
+
+    function inlineUpdate(productId, field, value, el, onSuccess) {
+        fetch(baseUrl + '/' + productId + '/toggle-field', {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': csrfToken,
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify({ field: field, value: value })
+        }).then(function(response) {
+            if (response.ok) {
+                if (onSuccess) onSuccess();
+            } else {
+                alert('Error updating field');
+                location.reload();
+            }
+        }).catch(function() {
+            alert('Error updating field');
+            location.reload();
+        });
+    }
+
+    document.querySelectorAll('.toggle-field').forEach(function(select) {
+        select.addEventListener('change', function() {
+            var el = this;
+            var value = parseInt(el.value);
+            var field = el.dataset.field;
+            inlineUpdate(el.dataset.productId, field, value, el, function() {
+                if (field === 'is_active' || field === 'is_active_pos') {
+                    el.className = el.className.replace(/bg-\w+-subtle/g, '');
+                    el.classList.add(value ? 'bg-success-subtle' : 'bg-danger-subtle');
+                } else {
+                    el.className = el.className.replace(/bg-\w+-subtle/g, '');
+                    if (value) el.classList.add('bg-success-subtle');
+                }
+            });
+        });
+    });
+
+    document.querySelectorAll('.inline-weight').forEach(function(input) {
+        var original = input.value;
+        input.addEventListener('change', function() {
+            var el = this;
+            var value = el.value !== '' ? parseInt(el.value) : '';
+            if (String(value) === original) return;
+            inlineUpdate(el.dataset.productId, 'shipping_weight', value, el, function() {
+                original = String(value);
+                el.classList.add('bg-success-subtle');
+                setTimeout(function() { el.classList.remove('bg-success-subtle'); }, 1000);
+            });
+        });
+    });
+});
 </script>
 @endpush
 @endsection

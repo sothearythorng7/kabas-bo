@@ -64,6 +64,16 @@
             <span class="btn-icon">📷</span>
             <span>{{ __('messages.reception.check_price') }}</span>
         </a>
+
+        <a href="{{ route('reception.inventory') }}" class="btn btn-secondary btn-lg">
+            <span class="btn-icon">📋</span>
+            <span>{{ __('messages.reception.inventory') }}</span>
+        </a>
+
+        <a href="{{ route('reception.quick-inventory') }}" class="btn btn-secondary btn-lg">
+            <span class="btn-icon">🔍</span>
+            <span>{{ __('messages.reception.quick_inventory') }}</span>
+        </a>
     </div>
 </div>
 @endsection

@@ -155,95 +155,6 @@ async function syncSalesToBO() {
 let syncIntervalId = setInterval(syncSalesToBO, 30000);
 
 // ============================================
-// Gestion veille/réveil et détection de gel
-// ============================================
-let lastActivityTime = Date.now();
-let lastHeartbeat = Date.now();
-let isAppFrozen = false;
-let heartbeatIntervalId = null;
-
-// Heartbeat pour détecter les gels (vérifie toutes les 5s)
-function startHeartbeat() {
-    if (heartbeatIntervalId) clearInterval(heartbeatIntervalId);
-    lastHeartbeat = Date.now();
-
-    heartbeatIntervalId = setInterval(() => {
-        const now = Date.now();
-        const timeSinceLastHeartbeat = now - lastHeartbeat;
-
-        // Si plus de 10s entre deux heartbeats, l'app était gelée/en veille
-        if (timeSinceLastHeartbeat > 10000) {
-            console.warn(`[POS] App was frozen/sleeping for ${Math.round(timeSinceLastHeartbeat/1000)}s, recovering...`);
-            handleAppWakeUp();
-        }
-        lastHeartbeat = now;
-    }, 5000);
-}
-
-// Gestion du réveil de l'application
-function handleAppWakeUp() {
-    console.log('[POS] Handling app wake-up...');
-    isAppFrozen = false;
-
-    // Réinitialiser le timer de sync
-    clearInterval(syncIntervalId);
-    syncIntervalId = setInterval(syncSalesToBO, 30000);
-
-    // Forcer une sync immédiate
-    setTimeout(() => {
-        syncSalesToBO();
-    }, 1000);
-
-    // Rafraîchir l'UI si nécessaire
-    if (typeof renderSalesTabs === 'function') {
-        try {
-            renderSalesTabs();
-        } catch (e) {
-            console.error('[POS] Error refreshing UI after wake:', e);
-        }
-    }
-
-    // Notification visuelle optionnelle
-    const $indicator = $('#sync-status');
-    if ($indicator.length) {
-        $indicator.removeClass('text-danger').addClass('text-warning');
-        setTimeout(() => $indicator.removeClass('text-warning'), 2000);
-    }
-}
-
-// Gestionnaire de changement de visibilité (onglet actif/inactif, veille)
-document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible') {
-        console.log('[POS] App became visible');
-        const timeSinceActivity = Date.now() - lastActivityTime;
-
-        // Si inactif depuis plus de 30s, considérer comme réveil
-        if (timeSinceActivity > 30000) {
-            handleAppWakeUp();
-        }
-        lastActivityTime = Date.now();
-    } else {
-        console.log('[POS] App became hidden');
-        lastActivityTime = Date.now();
-    }
-});
-
-// Détecter l'activité utilisateur pour réinitialiser le timer
-['touchstart', 'click', 'keydown'].forEach(eventType => {
-    document.addEventListener(eventType, () => {
-        lastActivityTime = Date.now();
-
-        // Si l'app était considérée comme gelée, la réveiller
-        if (isAppFrozen) {
-            handleAppWakeUp();
-        }
-    }, { passive: true });
-});
-
-// Démarrer le heartbeat
-startHeartbeat();
-
-// ============================================
 
 function prepareSalesSync() {
     if (!currentShift) {
@@ -285,7 +196,6 @@ function prepareSalesSync() {
         total: calculateSaleTotal(sale)
     }));
 
-    console.log("JSON ready for synchronization:", JSON.stringify(payload, null, 2));
     return payload;
 }
 
@@ -309,17 +219,19 @@ function calculateSaleTotal(sale) {
 }
 
 
+let _saveSalesTimer = null;
 function saveSalesToLocal() {
     if (!currentShift) return;
     if (!sales) return;
-    const key = `pos_sales_shift_${currentShift.id}`;
-    localStorage.removeItem(key);
-    // Pour chaque vente, recalculer les totaux et sauvegarder
-    sales.forEach(sale => {
-        calculateAndSaveSale(sale, currentShift);
-    });
-
-    console.log("Sales saved in localStorage for shift:", currentShift.id);
+    // Debounce: coalesce rapid successive calls into one write
+    if (_saveSalesTimer) clearTimeout(_saveSalesTimer);
+    _saveSalesTimer = setTimeout(() => {
+        const key = `pos_sales_shift_${currentShift.id}`;
+        localStorage.removeItem(key);
+        sales.forEach(sale => {
+            calculateAndSaveSale(sale, currentShift);
+        });
+    }, 200);
 }
 
 function loadSalesFromLocal() {

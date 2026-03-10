@@ -50,10 +50,10 @@
         </li>
         <li class="nav-item" role="presentation">
             <button class="nav-link" id="anomalies-tab" data-bs-toggle="tab" data-bs-target="#anomalies" type="button" role="tab" aria-controls="anomalies" aria-selected="false">
-                {{ __('messages.resellers.stock_anomalies') }}
-                <span class="badge bg-{{ ($anomalies instanceof \Illuminate\Pagination\LengthAwarePaginator ? $anomalies->total() : $anomalies->count()) > 0 ? 'danger' : 'secondary' }}">
-                    {{ $anomalies instanceof \Illuminate\Pagination\LengthAwarePaginator ? $anomalies->total() : $anomalies->count() }}
-                </span>
+                {{ __('messages.resellers.disputes') }}
+                @if(($pendingDisputesCount ?? 0) > 0)
+                    <span class="badge bg-danger">{{ $pendingDisputesCount }}</span>
+                @endif
             </button>
         </li>
         @endif
@@ -533,6 +533,25 @@
                                                 <i class="bi bi-file-earmark-text-fill"></i> {{ __('messages.btn.invoice') }}
                                             </a>
                                         </li>
+                                        @if(!$invoice || $invoice->payments->sum('amount') <= 0)
+                                        <li><hr class="dropdown-divider"></li>
+                                        <li>
+                                            <a class="dropdown-item" href="{{ route('resellers.reports.edit', [$reseller->id, $report->id]) }}">
+                                                <i class="bi bi-pencil-fill"></i> {{ __('messages.btn.edit') }}
+                                            </a>
+                                        </li>
+                                        <li>
+                                            <form action="{{ route('resellers.reports.destroy', [$reseller->id, $report->id]) }}"
+                                                  method="POST"
+                                                  onsubmit="return confirm('{{ __('messages.resellers.confirm_delete_report') }}')">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button type="submit" class="dropdown-item text-danger">
+                                                    <i class="bi bi-trash-fill"></i> {{ __('messages.btn.delete') }}
+                                                </button>
+                                            </form>
+                                        </li>
+                                        @endif
                                     </ul>
                                 </div>
                             </td>
@@ -569,28 +588,109 @@
             @endif
         </div>
 
-        {{-- Onglet Anomalies --}}
+        {{-- Onglet Litiges / Disputes --}}
         <div class="tab-pane fade" id="anomalies" role="tabpanel" aria-labelledby="anomalies-tab">
+            <h3 class="mb-3">{{ __('messages.resellers.disputes') }}</h3>
             <table class="table table-striped table-hover mt-3">
                 <thead>
                     <tr>
-                        <th class="text-center">ID</th>
-                        <th>{{ __('messages.resellers.created_at') }}</th>
-                        <th>{{ __('messages.resellers.details') }}</th>
+                        <th class="text-center">{{ __('messages.resellers.report_id') }}</th>
+                        <th>{{ __('messages.resellers.product') }}</th>
+                        <th class="text-center">{{ __('messages.resellers.reported_quantity') }}</th>
+                        <th class="text-center">{{ __('messages.resellers.accepted_quantity') }}</th>
+                        <th class="text-center">{{ __('messages.resellers.discrepancy') }}</th>
+                        <th class="text-center">{{ __('messages.resellers.status') }}</th>
+                        <th>{{ __('messages.resellers.date') }}</th>
+                        <th>{{ __('messages.btn.actions') }}</th>
                     </tr>
                 </thead>
                 <tbody>
-                    @foreach($anomalies as $anomaly)
+                    @forelse($anomalies as $anomaly)
                         <tr>
-                            <td class="text-center">{{ $anomaly->id }}</td>
+                            <td class="text-center">#{{ $anomaly->report_id }}</td>
+                            <td>{{ $anomaly->product ? ($anomaly->product->name[app()->getLocale()] ?? reset($anomaly->product->name)) : '-' }}</td>
+                            <td class="text-center">{{ $anomaly->reported_quantity ?? $anomaly->quantity }}</td>
+                            <td class="text-center">{{ $anomaly->accepted_quantity ?? '-' }}</td>
+                            <td class="text-center">
+                                @if($anomaly->reported_quantity !== null && $anomaly->accepted_quantity !== null)
+                                    <span class="text-danger fw-bold">{{ $anomaly->reported_quantity - $anomaly->accepted_quantity }}</span>
+                                @else
+                                    {{ $anomaly->quantity }}
+                                @endif
+                            </td>
+                            <td class="text-center">
+                                @if($anomaly->status === 'resolved')
+                                    <span class="badge bg-success">{{ __('messages.resellers.dispute_resolved') }}</span>
+                                @else
+                                    <span class="badge bg-danger">{{ __('messages.order.pending') }}</span>
+                                @endif
+                            </td>
                             <td>{{ $anomaly->created_at->format('d/m/Y') }}</td>
-                            <td>{{ $anomaly->details ?? '-' }}</td>
+                            <td>
+                                @if($anomaly->status === 'pending')
+                                    <button class="btn btn-sm btn-warning" data-bs-toggle="modal" data-bs-target="#resolveDisputeModal{{ $anomaly->id }}">
+                                        <i class="bi bi-check-circle"></i> {{ __('messages.resellers.resolve_dispute') }}
+                                    </button>
+                                @else
+                                    <small class="text-muted">
+                                        {{ $anomaly->resolvedBy->name ?? '-' }}
+                                        @if($anomaly->resolved_at)
+                                            ({{ $anomaly->resolved_at->format('d/m/Y H:i') }})
+                                        @endif
+                                        @if($anomaly->resolution_note)
+                                            <br><em>{{ $anomaly->resolution_note }}</em>
+                                        @endif
+                                    </small>
+                                @endif
+                            </td>
                         </tr>
-                    @endforeach
+
+                        @if($anomaly->status === 'pending')
+                        {{-- Modal résoudre litige --}}
+                        <div class="modal fade" id="resolveDisputeModal{{ $anomaly->id }}" tabindex="-1" aria-hidden="true">
+                            <div class="modal-dialog">
+                                <form action="{{ route('resellers.disputes.resolve', [$reseller->id, $anomaly->id]) }}" method="POST">
+                                    @csrf
+                                    <div class="modal-content">
+                                        <div class="modal-header">
+                                            <h5 class="modal-title">{{ __('messages.resellers.resolve_dispute') }}</h5>
+                                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                        </div>
+                                        <div class="modal-body">
+                                            <p>
+                                                <strong>{{ __('messages.resellers.product') }}:</strong>
+                                                {{ $anomaly->product ? ($anomaly->product->name[app()->getLocale()] ?? reset($anomaly->product->name)) : '-' }}
+                                            </p>
+                                            <p>
+                                                <strong>{{ __('messages.resellers.reported_quantity') }}:</strong> {{ $anomaly->reported_quantity ?? $anomaly->quantity }}
+                                                &nbsp;|&nbsp;
+                                                <strong>{{ __('messages.resellers.accepted_quantity') }}:</strong> {{ $anomaly->accepted_quantity ?? '-' }}
+                                            </p>
+                                            <div class="mb-3">
+                                                <label class="form-label">{{ __('messages.resellers.resolution_note') }}</label>
+                                                <textarea name="resolution_note" class="form-control" rows="3"></textarea>
+                                            </div>
+                                        </div>
+                                        <div class="modal-footer">
+                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ __('messages.btn.cancel') }}</button>
+                                            <button type="submit" class="btn btn-success">
+                                                <i class="bi bi-check-lg"></i> {{ __('messages.resellers.resolve_dispute') }}
+                                            </button>
+                                        </div>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                        @endif
+                    @empty
+                        <tr>
+                            <td colspan="8" class="text-center text-muted">{{ __('messages.resellers.no_disputes') }}</td>
+                        </tr>
+                    @endforelse
                 </tbody>
             </table>
             @if($anomalies instanceof \Illuminate\Pagination\LengthAwarePaginator)
-                {{ $anomalies->links() }}
+                {{ $anomalies->appends(['tab' => 'anomalies'])->links() }}
             @endif
         </div>
         @endif

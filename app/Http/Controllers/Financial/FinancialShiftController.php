@@ -142,7 +142,7 @@ class FinancialShiftController extends Controller
 
         // Calculate expected cash based on sales
         $salesTotal = $shift->sales()
-            ->where('payment_method', 'cash')
+            ->where('payment_type', 'cash')
             ->sum('total');
 
         $expectedCash = ($shift->opening_cash ?? 0) + $salesTotal + ($shift->cash_in ?? 0) - ($shift->cash_out ?? 0);

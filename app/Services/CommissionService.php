@@ -17,45 +17,69 @@ class CommissionService
         $calculations = [];
         $commissions = $staffMember->employeeCommissions()->active()->get();
 
+        // Commission is based on PREVIOUS month's revenue
+        // e.g., March payroll ($period = "2026-03") → February sales
+        $commissionStart = Carbon::parse($period . '-01')->subMonth()->startOfMonth();
+        $commissionEnd = Carbon::parse($period . '-01')->subMonth()->endOfMonth();
+        $salesPeriod = $commissionStart->format('Y-m');
+
         foreach ($commissions as $commission) {
-            if (!$commission->isActiveForPeriod($period)) {
+            // Check if commission was active during the SALES period (previous month)
+            if (!$commission->isActiveForPeriod($salesPeriod)) {
+                // Remove any stale pending calculation for this period
+                CommissionCalculation::where([
+                    'staff_member_id' => $staffMember->id,
+                    'employee_commission_id' => $commission->id,
+                    'period' => $period,
+                ])->where('status', 'pending')->delete();
                 continue;
             }
 
-            $baseAmount = $this->getBaseAmount($commission, $period);
+            $baseAmount = $this->getBaseAmount($commission, $commissionStart, $commissionEnd);
             $commissionAmount = round($baseAmount * ($commission->percentage / 100), 2);
 
+            $existing = CommissionCalculation::where([
+                'staff_member_id' => $staffMember->id,
+                'employee_commission_id' => $commission->id,
+                'period' => $period,
+            ])->first();
+
             if ($commissionAmount > 0) {
-                $calculation = CommissionCalculation::updateOrCreate(
-                    [
+                if ($existing) {
+                    // Update amounts but preserve status (don't reset approved → pending)
+                    $existing->update([
+                        'base_amount' => $baseAmount,
+                        'commission_amount' => $commissionAmount,
+                    ]);
+                    $calculation = $existing;
+                } else {
+                    $calculation = CommissionCalculation::create([
                         'staff_member_id' => $staffMember->id,
                         'employee_commission_id' => $commission->id,
                         'period' => $period,
-                    ],
-                    [
                         'base_amount' => $baseAmount,
                         'commission_amount' => $commissionAmount,
                         'status' => 'pending',
-                    ]
-                );
+                    ]);
+                }
 
                 $calculations[] = $calculation;
+            } elseif ($existing && $existing->status === 'pending') {
+                // Commission is now $0, remove stale pending record
+                $existing->delete();
             }
         }
 
         return $calculations;
     }
 
-    private function getBaseAmount(EmployeeCommission $commission, string $period): float
+    private function getBaseAmount(EmployeeCommission $commission, Carbon $start, Carbon $end): float
     {
-        $periodStart = Carbon::parse($period . '-01')->startOfMonth();
-        $periodEnd = $periodStart->copy()->endOfMonth();
-
         if ($commission->source_type === 'store_sales') {
-            return $this->calculateStoreCommission($commission, $periodStart, $periodEnd);
+            return $this->calculateStoreCommission($commission, $start, $end);
         }
 
-        return $this->calculateResellerCommission($commission, $periodStart, $periodEnd);
+        return $this->calculateResellerCommission($commission, $start, $end);
     }
 
     private function calculateStoreCommission(EmployeeCommission $commission, Carbon $start, Carbon $end): float

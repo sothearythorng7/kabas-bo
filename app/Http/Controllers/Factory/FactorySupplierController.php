@@ -8,12 +8,23 @@ use Illuminate\Http\Request;
 
 class FactorySupplierController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $suppliers = Supplier::rawMaterialSuppliers()
-            ->withCount('rawMaterials')
-            ->orderBy('name')
-            ->paginate(20);
+        if ($request->filled('q')) {
+            $suppliers = Supplier::search($request->q)
+                ->where('is_raw_material_supplier', true)
+                ->query(function ($builder) {
+                    $builder->withCount('rawMaterials');
+                })
+                ->paginate(20)
+                ->withQueryString();
+        } else {
+            $suppliers = Supplier::rawMaterialSuppliers()
+                ->withCount('rawMaterials')
+                ->orderBy('name')
+                ->paginate(20)
+                ->withQueryString();
+        }
 
         return view('factory.suppliers.index', compact('suppliers'));
     }

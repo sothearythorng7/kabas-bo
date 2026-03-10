@@ -62,9 +62,12 @@
                 <form action="{{ route('staff.commissions.calculate', $staffMember) }}" method="POST">
                     @csrf
                     <div class="mb-3">
-                        <label for="calc_period" class="form-label">{{ __('messages.staff.period') }} *</label>
+                        <label for="calc_period" class="form-label">{{ __('messages.staff.payroll_month') }} *</label>
                         <input type="month" class="form-control" id="calc_period" name="period"
                                value="{{ now()->format('Y-m') }}" required>
+                        <small class="text-muted">
+                            <i class="bi bi-info-circle"></i> {{ __('messages.staff.commission_previous_month_hint') }}
+                        </small>
                     </div>
                     <button type="submit" class="btn btn-success w-100">
                         <i class="bi bi-calculator"></i> {{ __('messages.staff.calculate') }}
@@ -163,7 +166,8 @@
                         <table class="table table-hover">
                             <thead>
                                 <tr>
-                                    <th>{{ __('messages.staff.period') }}</th>
+                                    <th>{{ __('messages.staff.payroll_month') }}</th>
+                                    <th>{{ __('messages.staff.sales_period') }}</th>
                                     <th>{{ __('messages.staff.commission_source') }}</th>
                                     <th class="text-end">{{ __('messages.staff.base_amount') }}</th>
                                     <th class="text-center">{{ __('messages.staff.rate') }}</th>
@@ -176,6 +180,7 @@
                                 @foreach($calculations as $calc)
                                     <tr>
                                         <td><strong>{{ $calc->period_label }}</strong></td>
+                                        <td><span class="text-muted">{{ $calc->sales_period_label }}</span></td>
                                         <td>{{ $calc->employeeCommission->getSourceTypeLabel() }}</td>
                                         <td class="text-end">{{ number_format($calc->base_amount, 2) }}</td>
                                         <td class="text-center">{{ $calc->employeeCommission->percentage }}%</td>

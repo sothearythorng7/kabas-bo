@@ -41,6 +41,7 @@
                             <th>{{ __('messages.product.name') }}</th>
                             <th class="text-center">{{ __('messages.sale_report.old_stock') }}</th>
                             <th class="text-center">{{ __('messages.sale_report.refill') }}</th>
+                            <th class="text-center">{{ __('messages.sale_report.returns') }}</th>
                             <th class="text-center">{{ __('messages.sale_report.stock_on_hand') }}</th>
                             <th class="text-center">{{ __('messages.sale_report.quantity_sold') }}</th>
                             <th class="text-end">{{ __('messages.sale_report.cost_price') }}</th>
@@ -52,6 +53,7 @@
                             @php
                                 $posQuantity = $posSalesQuantities[$product->id] ?? 0;
                                 $refillQty = $refillQuantities[$product->id] ?? 0;
+                                $returnQty = $returnQuantities[$product->id] ?? 0;
                                 $currentStock = $currentStockQuantities[$product->id] ?? 0;
                                 $oldStock = $oldStockQuantities[$product->id] ?? 0;
                                 $costPrice = $product->pivot->purchase_price ?? 0;
@@ -81,6 +83,14 @@
                                 </td>
                                 <td class="text-center" style="width: 100px;">
                                     <input type="number"
+                                           name="products[{{ $product->id }}][returns]"
+                                           min="0"
+                                           value="{{ old('products.' . $product->id . '.returns', $returnQty) }}"
+                                           class="form-control form-control-sm text-center returns-input"
+                                           required>
+                                </td>
+                                <td class="text-center" style="width: 100px;">
+                                    <input type="number"
                                            name="products[{{ $product->id }}][stock_on_hand]"
                                            min="0"
                                            value="{{ old('products.' . $product->id . '.stock_on_hand', $currentStock) }}"
@@ -105,6 +115,7 @@
                             <td colspan="2"><strong>Total</strong></td>
                             <td class="text-center"><strong id="total-old-stock">0</strong></td>
                             <td class="text-center"><strong id="total-refill">0</strong></td>
+                            <td class="text-center"><strong id="total-returns">0</strong></td>
                             <td class="text-center"><strong id="total-stock-on-hand">0</strong></td>
                             <td class="text-center"><strong id="total-quantity-sold">0</strong></td>
                             <td></td>
@@ -164,6 +175,7 @@ document.addEventListener('DOMContentLoaded', function() {
     function calculateRow(row) {
         const oldStock = parseInt(row.querySelector('.old-stock-input').value) || 0;
         const refill = parseInt(row.querySelector('.refill-input').value) || 0;
+        const returns = parseInt(row.querySelector('.returns-input').value) || 0;
         const stockOnHand = parseInt(row.querySelector('.stock-on-hand-input').value) || 0;
         const costPrice = parseFloat(row.dataset.costPrice) || 0;
         const sellingPriceUnit = parseFloat(row.dataset.sellingPriceUnit) || 0;
@@ -177,12 +189,13 @@ document.addEventListener('DOMContentLoaded', function() {
         row.querySelector('.cost-price-cell').textContent = '$ ' + formatMoney(totalCost);
         row.querySelector('.selling-price-cell').textContent = '$ ' + formatMoney(totalSelling);
 
-        return { oldStock, refill, stockOnHand, quantitySold, totalCost, totalSelling };
+        return { oldStock, refill, returns, stockOnHand, quantitySold, totalCost, totalSelling };
     }
 
     function updateTotals() {
         let totalOldStock = 0;
         let totalRefill = 0;
+        let totalReturns = 0;
         let totalStockOnHand = 0;
         let totalQuantitySold = 0;
         let totalPay = 0;
@@ -192,6 +205,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const result = calculateRow(row);
             totalOldStock += result.oldStock;
             totalRefill += result.refill;
+            totalReturns += result.returns;
             totalStockOnHand += result.stockOnHand;
             totalQuantitySold += result.quantitySold;
             totalPay += result.totalCost;
@@ -200,6 +214,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         document.getElementById('total-old-stock').textContent = totalOldStock;
         document.getElementById('total-refill').textContent = totalRefill;
+        document.getElementById('total-returns').textContent = totalReturns;
         document.getElementById('total-stock-on-hand').textContent = totalStockOnHand;
         document.getElementById('total-quantity-sold').textContent = totalQuantitySold;
 

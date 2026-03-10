@@ -9,8 +9,15 @@
             <i class="bi bi-plus-circle-fill"></i> {{ __('messages.factory.new_material') }}
         </a>
 
-        {{-- Filtres --}}
+        {{-- Recherche + Filtres --}}
         <form action="{{ route('factory.raw-materials.index') }}" method="GET" class="d-flex gap-2">
+            <div class="input-group input-group-sm" style="width: 250px;">
+                <input type="text" name="q" class="form-control" placeholder="{{ __('messages.common.search') }}..." value="{{ request('q') }}">
+                <button class="btn btn-outline-secondary" type="submit"><i class="bi bi-search"></i></button>
+                @if(request('q'))
+                    <a href="{{ route('factory.raw-materials.index', request()->except('q')) }}" class="btn btn-outline-danger"><i class="bi bi-x-lg"></i></a>
+                @endif
+            </div>
             <select name="supplier_id" class="form-select form-select-sm" style="width: auto;" onchange="this.form.submit()">
                 <option value="">{{ __('messages.factory.all_suppliers') }}</option>
                 @foreach($suppliers as $supplier)

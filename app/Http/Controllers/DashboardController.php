@@ -2,7 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\ContactMessage;
 use App\Models\GeneralInvoice;
+use App\Models\ResellerInvoice;
+use App\Models\SaleReport;
 use App\Models\SupplierOrder;
 use App\Models\Product;
 use App\Models\Sale;
@@ -90,6 +93,33 @@ class DashboardController extends Controller
         // Produits inactifs
         $inactiveProducts = Product::where('is_active', false)->count();
 
+        // Produits sans poids
+        $productsWithoutWeight = Product::where(function($q) {
+            $q->whereNull('shipping_weight')
+              ->orWhere('shipping_weight', 0);
+        })->where('is_active', true)->count();
+
+        // Reseller invoices en attente de paiement (sales reports consignment)
+        $resellerInvoicesUnpaid = ResellerInvoice::whereIn('status', ['unpaid', 'partially_paid'])
+            ->whereNotNull('sales_report_id')
+            ->count();
+        $resellerInvoicesUnpaidTotal = ResellerInvoice::whereIn('status', ['unpaid', 'partially_paid'])
+            ->whereNotNull('sales_report_id')
+            ->get()
+            ->sum(function ($invoice) {
+                $paid = $invoice->payments()->sum('amount');
+                return $invoice->total_amount - $paid;
+            });
+
+        // Consignment supplier invoices (sale reports) à payer
+        $consignmentInvoicesUnpaid = SaleReport::where('status', 'invoiced')
+            ->where('is_paid', false)->count();
+        $consignmentInvoicesUnpaidTotal = SaleReport::where('status', 'invoiced')
+            ->where('is_paid', false)->sum('total_amount_invoiced');
+
+        // Messages du site web non lus
+        $unreadContactMessages = ContactMessage::unread()->count();
+
         // C.A. du jour sélectionné par magasin
         $startOfDay = $selectedDate->copy()->startOfDay();
         $endOfDay = $selectedDate->copy()->endOfDay();
@@ -168,8 +198,9 @@ class DashboardController extends Controller
             );
         }
 
-        // Commandes du site web (paiement accepté) ventilées par statut
+        // Commandes du site web (paiement accepté) ventilées par statut — uniquement source=website
         $websiteOrdersByStatus = WebsiteOrder::where('payment_status', 'paid')
+            ->where('source', 'website')
             ->selectRaw('status, count(*) as count, sum(total) as total')
             ->groupBy('status')
             ->orderByRaw("FIELD(status, 'pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled')")
@@ -178,6 +209,25 @@ class DashboardController extends Controller
         $websiteOrdersPaidTotal = $websiteOrdersByStatus->sum('count');
         $websiteOrdersPaidAmount = $websiteOrdersByStatus->sum('total');
 
+        // Commandes spéciales ventilées par statut
+        $specialOrdersByStatus = WebsiteOrder::where('source', 'backoffice')
+            ->selectRaw('status, payment_status, count(*) as count, sum(total) as total')
+            ->groupBy('status', 'payment_status')
+            ->orderByRaw("FIELD(status, 'pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled')")
+            ->get();
+
+        $specialOrdersPending = WebsiteOrder::where('source', 'backoffice')
+            ->where('status', 'pending')
+            ->where('payment_status', 'pending')
+            ->count();
+
+        $specialOrdersToProcess = WebsiteOrder::where('source', 'backoffice')
+            ->where('payment_status', 'paid')
+            ->whereNotIn('status', ['delivered', 'cancelled'])
+            ->count();
+
+        $specialOrdersTotal = WebsiteOrder::where('source', 'backoffice')->count();
+
         return view('dashboard', compact(
             'selectedDate',
             'invoicesToPayCount',
@@ -185,6 +235,9 @@ class DashboardController extends Controller
             'websiteOrdersByStatus',
             'websiteOrdersPaidTotal',
             'websiteOrdersPaidAmount',
+            'specialOrdersPending',
+            'specialOrdersToProcess',
+            'specialOrdersTotal',
             'productsWithoutImages',
             'productsWithoutDescriptionFr',
             'productsWithoutDescriptionEn',
@@ -192,6 +245,12 @@ class DashboardController extends Controller
             'productsWithFakeOrEmptyEan',
             'productsWithoutCategories',
             'inactiveProducts',
+            'productsWithoutWeight',
+            'resellerInvoicesUnpaid',
+            'resellerInvoicesUnpaidTotal',
+            'consignmentInvoicesUnpaid',
+            'consignmentInvoicesUnpaidTotal',
+            'unreadContactMessages',
             'revenueSiemReapDaily',
             'salesCountSiemReapDaily',
             'revenueSiemReapMonthly',
@@ -254,6 +313,12 @@ class DashboardController extends Controller
                 $query->where('is_active', false);
                 break;
 
+            case 'no_weight':
+                $query->where('is_active', true)->where(function($q) {
+                    $q->whereNull('shipping_weight')->orWhere('shipping_weight', 0);
+                });
+                break;
+
             case 'all':
             default:
                 // Tous les produits avec au moins un problème
@@ -314,6 +379,11 @@ class DashboardController extends Controller
             // Vérifier si le produit est inactif
             if (!$product->is_active) {
                 $issues[] = 'inactive';
+            }
+
+            // Vérifier si le produit n'a pas de poids
+            if (empty($product->shipping_weight)) {
+                $issues[] = 'no_weight';
             }
 
             $product->issues = $issues;

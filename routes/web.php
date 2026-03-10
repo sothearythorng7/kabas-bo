@@ -103,6 +103,21 @@ Route::prefix('reception')->group(function () {
         Route::get('/check-price', [ReceptionController::class, 'checkPrice'])->name('reception.check-price');
         Route::post('/check-price/lookup', [ReceptionController::class, 'lookupBarcode'])->name('reception.check-price.lookup');
 
+        // Inventory
+        Route::get('/inventory', [ReceptionController::class, 'inventoryIndex'])->name('reception.inventory');
+        Route::post('/inventory/products', [ReceptionController::class, 'inventoryProducts'])->name('reception.inventory.products');
+        Route::post('/inventory/apply', [ReceptionController::class, 'inventoryApply'])->name('reception.inventory.apply');
+        Route::post('/inventory/save-draft', [ReceptionController::class, 'inventorySaveDraft'])->name('reception.inventory.save-draft');
+        Route::post('/inventory/load-draft', [ReceptionController::class, 'inventoryLoadDraft'])->name('reception.inventory.load-draft');
+        Route::post('/inventory/delete-draft', [ReceptionController::class, 'inventoryDeleteDraft'])->name('reception.inventory.delete-draft');
+
+        // Quick Inventory
+        Route::get('/quick-inventory', [ReceptionController::class, 'quickInventoryIndex'])->name('reception.quick-inventory');
+        Route::post('/quick-inventory/brands', [ReceptionController::class, 'quickInventoryBrands'])->name('reception.quick-inventory.brands');
+        Route::post('/quick-inventory/products', [ReceptionController::class, 'quickInventoryProducts'])->name('reception.quick-inventory.products');
+        Route::post('/quick-inventory/search-products', [ReceptionController::class, 'quickInventorySearchProducts'])->name('reception.quick-inventory.search-products');
+        Route::post('/quick-inventory/apply', [ReceptionController::class, 'quickInventoryApply'])->name('reception.quick-inventory.apply');
+
         // Stock Transfers
         Route::get('/transfers', [ReceptionController::class, 'transfersList'])->name('reception.transfers');
         Route::get('/transfers/create', [ReceptionController::class, 'transferCreate'])->name('reception.transfers.create');
@@ -119,6 +134,16 @@ Route::get('/', function () {
 
 Auth::routes();
 Route::get('/home', [App\Http\Controllers\HomeController::class, 'index'])->name('home');
+
+// Temporary route to regenerate all sale report PDFs (remove after use)
+Route::get('/admin/regenerate-all-sale-report-pdfs', function () {
+    set_time_limit(600);
+    \Illuminate\Support\Facades\Artisan::call('view:clear');
+    $output = \Illuminate\Support\Facades\Artisan::output();
+    \Illuminate\Support\Facades\Artisan::call('sale-report:regenerate-pdf', ['--all' => true]);
+    $output .= \Illuminate\Support\Facades\Artisan::output();
+    return '<pre>' . $output . '</pre>';
+})->middleware('auth');
 
 Route::post('/track-url', function (\Illuminate\Http\Request $request) {
     $url = $request->input('url');
@@ -196,6 +221,7 @@ Route::middleware(['auth', SetUserLocale::class, 'bo.access'])->group(function (
         Route::put('products/{product}/variations/{variation}', [ProductController::class, 'variationsUpdate'])->name('products.variations.update');
         Route::delete('products/{product}/variations/{variation}', [ProductController::class, 'variationsDestroy'])->name('products.variations.destroy');
         Route::post('products/{product}/duplicate', [ProductController::class, 'duplicate'])->name('products.duplicate');
+        Route::patch('products/{product}/toggle-field', [ProductController::class, 'toggleField'])->name('products.toggle-field');
 
         // Gift Boxes
         Route::resource('gift-boxes', GiftBoxController::class);
@@ -275,6 +301,10 @@ Route::middleware(['auth', SetUserLocale::class, 'bo.access'])->group(function (
             Route::post('sale-reports/{saleReport}/mark-as-paid', [SaleReportController::class, 'markAsPaid'])
                 ->name('sale-reports.markAsPaid');
 
+            // Supprimer un sale report
+            Route::delete('sale-reports/{saleReport}', [SaleReportController::class, 'destroy'])
+                ->name('sale-reports.destroy');
+
             // Régénérer le PDF
             Route::post('sale-reports/{saleReport}/regenerate-pdf', [SaleReportController::class, 'regeneratePdf'])
                 ->name('sale-reports.regeneratePdf');
@@ -300,6 +330,7 @@ Route::middleware(['auth', SetUserLocale::class, 'bo.access'])->group(function (
         });
 
         Route::put('products/{product}/descriptions', [ProductController::class, 'updateDescriptions'])->name('products.descriptions.update');
+        Route::put('products/{product}/seo', [ProductController::class, 'updateSeo'])->name('products.seo.update');
         Route::get('/stocks', [StockController::class, 'index'])->name('stocks.index');
         Route::get('/stocks/reseller', [StockController::class, 'reseller'])->name('stocks.reseller');
 
@@ -416,7 +447,11 @@ Route::middleware(['auth', SetUserLocale::class, 'bo.access'])->group(function (
         Route::get('resellers/{reseller}/reports/create', [ResellerSalesReportController::class, 'create'])->name('resellers.reports.create');
         Route::post('resellers/{reseller}/reports', [ResellerSalesReportController::class, 'store'])->name('resellers.reports.store');
         Route::get('resellers/{reseller}/reports/{report}', [ResellerSalesReportController::class, 'show'])->name('resellers.reports.show');
+        Route::get('resellers/{reseller}/reports/{report}/edit', [ResellerSalesReportController::class, 'edit'])->name('resellers.reports.edit');
+        Route::put('resellers/{reseller}/reports/{report}', [ResellerSalesReportController::class, 'update'])->name('resellers.reports.update');
+        Route::delete('resellers/{reseller}/reports/{report}', [ResellerSalesReportController::class, 'destroy'])->name('resellers.reports.destroy');
         Route::post('resellers/{reseller}/reports/{report}/payments', [ResellerSalesReportController::class, 'addPayment'])->name('resellers.report.addPayment');
+        Route::post('resellers/{reseller}/disputes/{anomaly}/resolve', [ResellerSalesReportController::class, 'resolveDispute'])->name('resellers.disputes.resolve');
         
         Route::get('resellers/{reseller}/deliveries/{delivery}/edit', [ResellerStockDeliveryController::class, 'edit'])
             ->name('reseller-stock-deliveries.edit');
@@ -439,6 +474,9 @@ Route::middleware(['auth', SetUserLocale::class, 'bo.access'])->group(function (
         Route::get('resellers/{reseller}/deliveries/{delivery}/generate-note', [ResellerStockDeliveryController::class, 'generateDeliveryNote'])
             ->name('reseller-stock-deliveries.generate-note');
 
+        Route::post('resellers/{reseller}/deliveries/{delivery}/update-products', [ResellerStockDeliveryController::class, 'updateProducts'])
+            ->name('reseller-stock-deliveries.update-products');
+
         Route::post('resellers/{reseller}/deliveries/{delivery}/create-invoice', [ResellerStockDeliveryController::class, 'createInvoice'])
             ->name('reseller-stock-deliveries.create-invoice');
 
@@ -460,6 +498,7 @@ Route::middleware(['auth', SetUserLocale::class, 'bo.access'])->group(function (
             Route::get('/', [ResellerInvoiceController::class, 'index'])->name('index');
             Route::get('/{invoice}', [ResellerInvoiceController::class, 'show'])->name('show');
             Route::post('/{invoice}/payments', [ResellerInvoiceController::class, 'addPayment'])->name('addPayment');
+            Route::post('/{invoice}/mark-as-paid', [ResellerInvoiceController::class, 'markAsPaid'])->name('markAsPaid');
         });
 
         Route::get('resellers/{reseller}/deliveries/create', [ResellerStockDeliveryController::class, 'create'])
@@ -692,6 +731,51 @@ Route::middleware(['auth'])->group(function () {
     Route::get('website-orders/{order}', [WebsiteOrderController::class, 'show'])->name('website-orders.show');
     Route::post('website-orders/{order}/status', [WebsiteOrderController::class, 'updateStatus'])->name('website-orders.update-status');
     Route::post('website-orders/{order}/notes', [WebsiteOrderController::class, 'updateNotes'])->name('website-orders.update-notes');
+});
+
+// Special Orders Routes (auth required)
+Route::middleware(['auth'])->group(function () {
+    Route::get('special-orders', [\App\Http\Controllers\SpecialOrderController::class, 'index'])->name('special-orders.index');
+    Route::get('special-orders/create', [\App\Http\Controllers\SpecialOrderController::class, 'create'])->name('special-orders.create');
+    Route::post('special-orders', [\App\Http\Controllers\SpecialOrderController::class, 'store'])->name('special-orders.store');
+    Route::get('special-orders/search-products', [\App\Http\Controllers\SpecialOrderController::class, 'searchProducts'])->name('special-orders.search-products');
+    Route::get('special-orders/{order}', [\App\Http\Controllers\SpecialOrderController::class, 'show'])->name('special-orders.show');
+    Route::get('special-orders/{order}/edit', [\App\Http\Controllers\SpecialOrderController::class, 'edit'])->name('special-orders.edit');
+    Route::put('special-orders/{order}', [\App\Http\Controllers\SpecialOrderController::class, 'update'])->name('special-orders.update');
+    Route::post('special-orders/{order}/regenerate-link', [\App\Http\Controllers\SpecialOrderController::class, 'regenerateLink'])->name('special-orders.regenerate-link');
+    Route::post('special-orders/{order}/send-link-email', [\App\Http\Controllers\SpecialOrderController::class, 'sendLinkEmail'])->name('special-orders.send-link-email');
+    Route::post('special-orders/{order}/mark-paid', [\App\Http\Controllers\SpecialOrderController::class, 'markAsPaid'])->name('special-orders.mark-paid');
+});
+
+// Special Orders — Public routes (no auth, customer-facing)
+Route::get('pay/{order}/{token}', [\App\Http\Controllers\SpecialOrderController::class, 'showPaymentPage'])->name('special-orders.pay');
+Route::post('pay/check-status', [\App\Http\Controllers\SpecialOrderController::class, 'checkPaymentStatus'])->name('special-orders.check-status');
+Route::get('pay/{order}/{token}/success', [\App\Http\Controllers\SpecialOrderController::class, 'showPaymentSuccess'])->name('special-orders.pay.success');
+
+// PayWay webhook callback (no auth, called by PayWay servers)
+Route::post('payway/callback', [\App\Http\Controllers\PaywayWebhookController::class, 'handlePaymentLinkCallback'])->name('payway.callback');
+
+// Website Tools Routes
+Route::middleware(['auth'])->group(function () {
+    Route::get('website-tools', [\App\Http\Controllers\WebsiteToolsController::class, 'index'])->name('website-tools.index');
+    Route::post('website-tools/fix-slugs', [\App\Http\Controllers\WebsiteToolsController::class, 'fixSlugs'])->name('website-tools.fix-slugs');
+    Route::post('website-tools/generate-seo', [\App\Http\Controllers\WebsiteToolsController::class, 'generateSeo'])->name('website-tools.generate-seo');
+});
+
+// Shipping Routes
+Route::middleware(['auth'])->group(function () {
+    Route::get('shipping-countries', [\App\Http\Controllers\ShippingController::class, 'countries'])->name('shipping-countries.index');
+    Route::post('shipping-countries', [\App\Http\Controllers\ShippingController::class, 'updateCountries'])->name('shipping-countries.update');
+    Route::get('shipping-rates', [\App\Http\Controllers\ShippingController::class, 'rates'])->name('shipping-rates.index');
+    Route::post('shipping-rates', [\App\Http\Controllers\ShippingController::class, 'storeRate'])->name('shipping-rates.store');
+    Route::post('shipping-rates/duplicate', [\App\Http\Controllers\ShippingController::class, 'duplicateRates'])->name('shipping-rates.duplicate');
+    Route::put('shipping-rates/{rate}', [\App\Http\Controllers\ShippingController::class, 'updateRate'])->name('shipping-rates.update');
+    Route::delete('shipping-rates/{rate}', [\App\Http\Controllers\ShippingController::class, 'destroyRate'])->name('shipping-rates.destroy');
+
+    Route::get('shipping-carriers', [\App\Http\Controllers\ShippingController::class, 'carriers'])->name('shipping-carriers.index');
+    Route::post('shipping-carriers', [\App\Http\Controllers\ShippingController::class, 'storeCarrier'])->name('shipping-carriers.store');
+    Route::put('shipping-carriers/{carrier}', [\App\Http\Controllers\ShippingController::class, 'updateCarrier'])->name('shipping-carriers.update');
+    Route::delete('shipping-carriers/{carrier}', [\App\Http\Controllers\ShippingController::class, 'destroyCarrier'])->name('shipping-carriers.destroy');
 });
 
 // Home Content Routes

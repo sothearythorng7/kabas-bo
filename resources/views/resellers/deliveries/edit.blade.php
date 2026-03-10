@@ -199,6 +199,224 @@
 
         {{-- Onglet Produits --}}
         <div class="tab-pane fade" id="products" role="tabpanel" aria-labelledby="products-tab">
+            @if($delivery->status === 'draft')
+            {{-- EDITABLE MODE --}}
+            <form action="{{ route('reseller-stock-deliveries.update-products', [$reseller->id, $delivery->id]) }}" method="POST" id="updateProductsForm">
+                @csrf
+
+                <h4 class="mt-3">{{ __('messages.resellers.current_products') }}</h4>
+
+                <!-- Desktop current products -->
+                <div class="d-none d-md-block">
+                    <table class="table table-striped mt-2" id="currentProductsTable">
+                        <thead>
+                            <tr>
+                                <th>{{ __('messages.stock_value.ean') }}</th>
+                                <th>{{ __('messages.product.name') }}</th>
+                                <th>{{ __('messages.product.brand') }}</th>
+                                <th>{{ __('messages.resellers.quantity') }}</th>
+                                <th>{{ __('messages.product.price_btob') }}</th>
+                                <th>{{ __('messages.resellers.line_total') }}</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach($delivery->products as $product)
+                                <tr id="current-row-{{ $product->id }}">
+                                    <td>{{ $product->ean }}</td>
+                                    <td>{{ $product->name[app()->getLocale()] ?? reset($product->name) }}</td>
+                                    <td>{{ $product->brand?->name ?? '-' }}</td>
+                                    <td>
+                                        <input type="number"
+                                            name="products[{{ $product->id }}][quantity]"
+                                            class="form-control form-control-sm current-qty-input"
+                                            data-product-id="{{ $product->id }}"
+                                            min="0"
+                                            max="{{ $product->pivot->quantity + ($product->available_stock ?? 0) }}"
+                                            value="{{ $product->pivot->quantity }}"
+                                            style="width: 80px;">
+                                    </td>
+                                    <td>
+                                        <input type="number" step="0.01"
+                                            name="products[{{ $product->id }}][unit_price]"
+                                            class="form-control form-control-sm current-price-input"
+                                            data-product-id="{{ $product->id }}"
+                                            value="{{ $product->pivot->unit_price }}"
+                                            min="0"
+                                            style="width: 100px;">
+                                    </td>
+                                    <td class="current-line-total" data-product-id="{{ $product->id }}">
+                                        ${{ number_format($product->pivot->quantity * $product->pivot->unit_price, 2) }}
+                                    </td>
+                                    <td>
+                                        <button type="button" class="btn btn-sm btn-danger remove-product-btn" data-product-id="{{ $product->id }}">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </td>
+                                    <input type="hidden" name="products[{{ $product->id }}][id]" value="{{ $product->id }}">
+                                </tr>
+                            @endforeach
+                        </tbody>
+                        <tfoot>
+                            <tr>
+                                <td colspan="5" class="text-end"><strong>{{ __('messages.resellers.total') }}</strong></td>
+                                <td id="grandTotalDesktop"><strong>${{ number_format($delivery->products->sum(fn($p) => $p->pivot->quantity * $p->pivot->unit_price), 2) }}</strong></td>
+                                <td></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+
+                <!-- Mobile current products -->
+                <div class="d-md-none mt-2">
+                    @foreach($delivery->products as $product)
+                        <div class="card shadow-sm mb-3" id="current-card-{{ $product->id }}">
+                            <div class="card-body p-3">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <h5 class="card-title mb-1">{{ $product->name[app()->getLocale()] ?? reset($product->name) }}</h5>
+                                    <button type="button" class="btn btn-sm btn-danger remove-product-btn" data-product-id="{{ $product->id }}">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </div>
+                                <p class="mb-1"><strong>EAN:</strong> {{ $product->ean }}</p>
+                                <p class="mb-1"><strong>{{ __('messages.product.brand') }}:</strong> {{ $product->brand?->name ?? '-' }}</p>
+                                <div class="row g-2 mt-1">
+                                    <div class="col-6">
+                                        <label class="form-label mb-0">{{ __('messages.resellers.quantity') }}</label>
+                                        <input type="number"
+                                            name="products[{{ $product->id }}][quantity]"
+                                            class="form-control form-control-sm current-qty-input"
+                                            data-product-id="{{ $product->id }}"
+                                            min="0"
+                                            max="{{ $product->pivot->quantity + ($product->available_stock ?? 0) }}"
+                                            value="{{ $product->pivot->quantity }}">
+                                    </div>
+                                    <div class="col-6">
+                                        <label class="form-label mb-0">{{ __('messages.product.price_btob') }}</label>
+                                        <input type="number" step="0.01"
+                                            name="products[{{ $product->id }}][unit_price]"
+                                            class="form-control form-control-sm current-price-input"
+                                            data-product-id="{{ $product->id }}"
+                                            value="{{ $product->pivot->unit_price }}"
+                                            min="0">
+                                    </div>
+                                </div>
+                                <p class="mb-0 mt-1"><strong>{{ __('messages.resellers.line_total') }}:</strong> <span class="current-line-total" data-product-id="{{ $product->id }}">${{ number_format($product->pivot->quantity * $product->pivot->unit_price, 2) }}</span></p>
+                                <input type="hidden" name="products[{{ $product->id }}][id]" value="{{ $product->id }}">
+                            </div>
+                        </div>
+                    @endforeach
+                    <div class="text-end mb-3">
+                        <strong>{{ __('messages.resellers.total') }}: <span id="grandTotalMobile">${{ number_format($delivery->products->sum(fn($p) => $p->pivot->quantity * $p->pivot->unit_price), 2) }}</span></strong>
+                    </div>
+                </div>
+
+                {{-- Add new products section --}}
+                @if($warehouseProducts->count() > 0)
+                <hr>
+                <h4>
+                    <a class="text-decoration-none" data-bs-toggle="collapse" href="#addProductsSection" role="button" aria-expanded="false" aria-controls="addProductsSection">
+                        <i class="bi bi-plus-circle"></i> {{ __('messages.resellers.add_products') }}
+                    </a>
+                </h4>
+                <div class="collapse" id="addProductsSection">
+                    <div class="mb-3">
+                        <input type="text" id="newProductFilter" class="form-control" placeholder="{{ __('messages.resellers.search_products') }}">
+                    </div>
+
+                    <!-- Desktop new products -->
+                    <div class="d-none d-md-block">
+                        <table class="table table-striped" id="newProductTable">
+                            <thead>
+                                <tr>
+                                    <th>{{ __('messages.stock_value.ean') }}</th>
+                                    <th>{{ __('messages.product.name') }}</th>
+                                    <th>{{ __('messages.product.brand') }}</th>
+                                    <th>{{ __('messages.resellers.quantity') }}</th>
+                                    <th>{{ __('messages.product.price_btob') }}</th>
+                                    <th>{{ __('messages.resellers.stock_available') }}</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach($warehouseProducts as $product)
+                                    <tr>
+                                        <td>{{ $product->ean }}</td>
+                                        <td>{{ $product->name[app()->getLocale()] ?? reset($product->name) }}</td>
+                                        <td>{{ $product->brand?->name ?? '-' }}</td>
+                                        <td>
+                                            <input type="number"
+                                                name="products[{{ $product->id }}][quantity]"
+                                                class="form-control form-control-sm new-qty-input"
+                                                data-product-id="{{ $product->id }}"
+                                                min="0"
+                                                max="{{ $product->available_stock }}"
+                                                value="0"
+                                                style="width: 80px;">
+                                        </td>
+                                        <td>
+                                            <input type="number" step="0.01"
+                                                name="products[{{ $product->id }}][unit_price]"
+                                                class="form-control form-control-sm new-price-input"
+                                                data-product-id="{{ $product->id }}"
+                                                value="{{ $product->reseller_price }}"
+                                                min="0"
+                                                style="width: 100px;">
+                                        </td>
+                                        <td>{{ $product->available_stock }}</td>
+                                        <input type="hidden" name="products[{{ $product->id }}][id]" value="{{ $product->id }}">
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Mobile new products -->
+                    <div class="d-md-none">
+                        @foreach($warehouseProducts as $product)
+                            <div class="card shadow-sm mb-3 new-product-card">
+                                <div class="card-body p-3">
+                                    <h5 class="card-title mb-1">{{ $product->name[app()->getLocale()] ?? reset($product->name) }}</h5>
+                                    <p class="mb-1"><strong>EAN:</strong> {{ $product->ean }}</p>
+                                    <p class="mb-1"><strong>{{ __('messages.product.brand') }}:</strong> {{ $product->brand?->name ?? '-' }}</p>
+                                    <p class="mb-1"><strong>{{ __('messages.resellers.stock_available') }}:</strong> {{ $product->available_stock }}</p>
+                                    <div class="row g-2 mt-1">
+                                        <div class="col-6">
+                                            <label class="form-label mb-0">{{ __('messages.resellers.quantity') }}</label>
+                                            <input type="number"
+                                                name="products[{{ $product->id }}][quantity]"
+                                                class="form-control form-control-sm new-qty-input"
+                                                data-product-id="{{ $product->id }}"
+                                                min="0"
+                                                max="{{ $product->available_stock }}"
+                                                value="0">
+                                        </div>
+                                        <div class="col-6">
+                                            <label class="form-label mb-0">{{ __('messages.product.price_btob') }}</label>
+                                            <input type="number" step="0.01"
+                                                name="products[{{ $product->id }}][unit_price]"
+                                                class="form-control form-control-sm new-price-input"
+                                                data-product-id="{{ $product->id }}"
+                                                value="{{ $product->reseller_price }}"
+                                                min="0">
+                                        </div>
+                                    </div>
+                                    <input type="hidden" name="products[{{ $product->id }}][id]" value="{{ $product->id }}">
+                                </div>
+                            </div>
+                        @endforeach
+                    </div>
+                </div>
+                @endif
+
+                <div class="mt-3">
+                    <button type="submit" class="btn btn-success">
+                        <i class="bi bi-check-circle"></i> {{ __('messages.resellers.update_products') }}
+                    </button>
+                </div>
+            </form>
+
+            @else
+            {{-- READ-ONLY MODE --}}
             <h3>{{ __('messages.product.products') }} {{ __('messages.resellers.in_delivery') }}</h3>
 
             <!-- Desktop -->
@@ -248,6 +466,7 @@
                     @endforeach
                 </div>
             </div>
+            @endif
         </div>
         @if($resellerType == 'buyer')
         {{-- Onglet Paiements --}}
@@ -476,6 +695,107 @@ document.getElementById('paymentAmount')?.addEventListener('input', function() {
         warning.style.display = 'none';
     }
 });
+</script>
+@endpush
+@endif
+
+@if($delivery->status === 'draft')
+@push('scripts')
+<script>
+(function() {
+    // Filter for new products
+    const filterInput = document.getElementById('newProductFilter');
+    if (filterInput) {
+        filterInput.addEventListener('input', function() {
+            const filter = this.value.toLowerCase();
+            // Desktop rows
+            document.querySelectorAll('#newProductTable tbody tr').forEach(tr => {
+                const ean = tr.cells[0].textContent.toLowerCase();
+                const name = tr.cells[1].textContent.toLowerCase();
+                tr.style.display = (ean.includes(filter) || name.includes(filter)) ? '' : 'none';
+            });
+            // Mobile cards
+            document.querySelectorAll('.new-product-card').forEach(card => {
+                const text = card.textContent.toLowerCase();
+                card.style.display = text.includes(filter) ? '' : 'none';
+            });
+        });
+    }
+
+    // Calculate line totals and grand total
+    function recalcTotals() {
+        let grandTotal = 0;
+
+        // Current products
+        document.querySelectorAll('.current-qty-input').forEach(qtyInput => {
+            const productId = qtyInput.dataset.productId;
+            // Only count from desktop (avoid double-counting)
+            if (!qtyInput.closest('.d-md-none') && !qtyInput.closest('.card')) {
+                const qty = parseInt(qtyInput.value) || 0;
+                const priceInput = document.querySelector(`.current-price-input[data-product-id="${productId}"]`);
+                const price = priceInput ? (parseFloat(priceInput.value) || 0) : 0;
+                const lineTotal = qty * price;
+                grandTotal += lineTotal;
+
+                // Update all line total displays for this product
+                document.querySelectorAll(`.current-line-total[data-product-id="${productId}"]`).forEach(el => {
+                    if (el.tagName === 'TD') {
+                        el.textContent = '$' + lineTotal.toFixed(2);
+                    } else {
+                        el.textContent = '$' + lineTotal.toFixed(2);
+                    }
+                });
+            }
+        });
+
+        const gtDesktop = document.getElementById('grandTotalDesktop');
+        const gtMobile = document.getElementById('grandTotalMobile');
+        if (gtDesktop) gtDesktop.innerHTML = '<strong>$' + grandTotal.toFixed(2) + '</strong>';
+        if (gtMobile) gtMobile.textContent = '$' + grandTotal.toFixed(2);
+    }
+
+    // Sync desktop/mobile inputs for current products
+    document.querySelectorAll('.current-qty-input, .current-price-input').forEach(input => {
+        input.addEventListener('input', function() {
+            const productId = this.dataset.productId;
+            const isQty = this.classList.contains('current-qty-input');
+            const selector = isQty ? '.current-qty-input' : '.current-price-input';
+            document.querySelectorAll(`${selector}[data-product-id="${productId}"]`).forEach(other => {
+                if (other !== this) other.value = this.value;
+            });
+            recalcTotals();
+        });
+    });
+
+    // Sync desktop/mobile inputs for new products
+    document.querySelectorAll('.new-qty-input, .new-price-input').forEach(input => {
+        input.addEventListener('input', function() {
+            const productId = this.dataset.productId;
+            const isQty = this.classList.contains('new-qty-input');
+            const selector = isQty ? '.new-qty-input' : '.new-price-input';
+            document.querySelectorAll(`${selector}[data-product-id="${productId}"]`).forEach(other => {
+                if (other !== this) other.value = this.value;
+            });
+        });
+    });
+
+    // Remove product button
+    document.querySelectorAll('.remove-product-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const productId = this.dataset.productId;
+            // Set quantity to 0 on all inputs for this product
+            document.querySelectorAll(`.current-qty-input[data-product-id="${productId}"]`).forEach(input => {
+                input.value = 0;
+            });
+            // Strikethrough the row/card
+            const row = document.getElementById('current-row-' + productId);
+            if (row) row.style.textDecoration = 'line-through';
+            const card = document.getElementById('current-card-' + productId);
+            if (card) card.style.opacity = '0.5';
+            recalcTotals();
+        });
+    });
+})();
 </script>
 @endpush
 @endif

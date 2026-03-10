@@ -44,6 +44,16 @@
                         @error('price_btob') <div class="invalid-feedback">{{ $message }}</div> @enderror
                     </div>
                 </div>
+                <div class="row">
+                    <div class="col-md-3 mb-3">
+                        <label class="form-label">{{ __('messages.product.shipping_weight') }}</label>
+                        <div class="input-group">
+                            <input type="number" step="1" min="0" name="shipping_weight"
+                                   class="form-control" value="{{ old('shipping_weight') }}">
+                            <span class="input-group-text">g</span>
+                        </div>
+                    </div>
+                </div>
 
                 {{-- Name per locale --}}
                 @php $i=0; @endphp
@@ -74,7 +84,11 @@
 
                 <div class="form-check form-switch mb-2">
                     <input class="form-check-input" type="checkbox" name="is_active" id="is_active" value="1" {{ old('is_active', true) ? 'checked' : '' }}>
-                    <label class="form-check-label" for="is_active">{{ __('messages.product.active') }}</label>
+                    <label class="form-check-label" for="is_active">{{ __('messages.product.active_website') }}</label>
+                </div>
+                <div class="form-check form-switch mb-2">
+                    <input class="form-check-input" type="checkbox" name="is_active_pos" id="is_active_pos" value="1" {{ old('is_active_pos', true) ? 'checked' : '' }}>
+                    <label class="form-check-label" for="is_active_pos">{{ __('messages.product.active_pos') }}</label>
                 </div>
                 <div class="form-check form-switch mb-2">
                     <input class="form-check-input" type="checkbox" name="is_best_seller" id="is_best_seller" value="1" {{ old('is_best_seller', false) ? 'checked' : '' }}>

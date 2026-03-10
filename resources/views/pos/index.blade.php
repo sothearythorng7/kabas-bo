@@ -135,9 +135,6 @@
     <script src="{{ asset('js/pos/tables/CatalogTable.js') }}?v={{ $posVersion }}"></script>
     <script src="{{ asset('js/pos/tables/PaymentsTable.js') }}?v={{ $posVersion }}"></script>
 
-    <!-- Remote Logger (must load before app.js to track all events) -->
-    <script src="{{ asset('js/pos/remote-logger.js') }}?v={{ $posVersion }}"></script>
-
     <!-- App -->
     <script>
         // Base URL for API calls

@@ -230,11 +230,28 @@
                                                         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                                                     </div>
                                                     <div class="modal-body">
+                                                        @php $remainingAmount = max(0, $order->invoicedAmount() - $order->deposit); @endphp
                                                         <div class="mb-3">
                                                             <label class="form-label">
-                                                                {{ __('messages.Amount paid') }} :
-                                                                <strong>${{ $order->invoicedAmount() }}</strong>
+                                                                {{ __('messages.supplier_order.invoiced_amount') }} : <strong>${{ number_format($order->invoicedAmount(), 2) }}</strong>
                                                             </label>
+                                                            @if($order->deposit > 0)
+                                                                <br>
+                                                                <label class="form-label">
+                                                                    {{ __('messages.supplier_order.deposit') }} : <span class="text-warning fw-bold">- ${{ number_format($order->deposit, 2) }}</span>
+                                                                </label>
+                                                                <br>
+                                                                <label class="form-label">
+                                                                    {{ __('messages.supplier_order.remaining_to_pay') }} : <span class="text-success fw-bold">${{ number_format($remainingAmount, 2) }}</span>
+                                                                </label>
+                                                            @endif
+                                                        </div>
+                                                        <div class="mb-3">
+                                                            <label class="form-label">{{ __('messages.Amount paid') }} <span class="text-danger">*</span></label>
+                                                            <div class="input-group input-group-sm">
+                                                                <span class="input-group-text">$</span>
+                                                                <input type="number" name="amount" class="form-control form-control-sm" step="0.01" min="0" value="{{ number_format($remainingAmount, 2, '.', '') }}" required>
+                                                            </div>
                                                         </div>
                                                         <div class="mb-3">
                                                             <label class="form-label">{{ __('messages.general_invoices.payment_date') }} <span class="text-danger">*</span></label>

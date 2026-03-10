@@ -60,7 +60,9 @@ class ResellerSalesReportController extends Controller
             : $reseller;
 
         $stock = $reseller->getCurrentStock();
-        $products = Product::whereIn('id', $stock->keys())->get();
+        // All products ever delivered to this reseller (including those with 0 stock remaining)
+        $allProductIds = $reseller->stockBatches()->distinct()->pluck('product_id');
+        $products = Product::whereIn('id', $allProductIds)->orderBy('name')->get();
 
         return view('resellers.reports.create', compact('resellerObj', 'products', 'stock'))
             ->with('reseller', $resellerObj);
@@ -108,8 +110,6 @@ class ResellerSalesReportController extends Controller
             $totalValue = 0;
 
             foreach ($validated['products'] as $p) {
-                if ($p['quantity'] <= 0) continue;
-
                 $product = $productsData[$p['id']];
                 $quantitySold = $p['quantity'];
 
@@ -119,15 +119,54 @@ class ResellerSalesReportController extends Controller
                 // Refill = deliveries received during period
                 $refill = $refillQuantities[$product->id] ?? 0;
 
-                // Old Stock = Stock on Hand + Quantity Sold - Refill
-                // (Stock at start of period = Stock at end + what was sold - what was received)
-                $oldStock = max(0, $stockOnHand + $quantitySold - $refill);
-
                 // Utiliser le prix B2B pour les revendeurs en consignement
                 $unitPrice = $isShop
                     ? ($product->price_btob ?? $product->price)
                     : ResellerProductPrice::getPriceFor($reseller->id, $product->id);
 
+                // Products with 0 sales: record in report but skip stock deduction
+                if ($quantitySold <= 0) {
+                    $oldStock = max(0, $stockOnHand - $refill);
+
+                    ResellerSalesReportItem::create([
+                        'report_id' => $report->id,
+                        'product_id' => $product->id,
+                        'old_stock' => $oldStock,
+                        'refill' => $refill,
+                        'stock_on_hand' => $stockOnHand,
+                        'quantity_sold' => 0,
+                        'unit_price' => $unitPrice,
+                    ]);
+                    continue;
+                }
+
+                // Calculate available stock for capping
+                $availableStock = $reseller->stockBatches()
+                    ->where('product_id', $product->id)
+                    ->where('quantity', '>', 0)
+                    ->sum('quantity');
+
+                // Cap stock deduction to available stock and create dispute if needed
+                $deductQuantity = min($quantitySold, $availableStock);
+                if ($quantitySold > $availableStock) {
+                    ResellerSalesReportAnomaly::create([
+                        'report_id' => $report->id,
+                        'product_id' => $product->id,
+                        'quantity' => $quantitySold - $deductQuantity,
+                        'reported_quantity' => $quantitySold,
+                        'accepted_quantity' => $deductQuantity,
+                        'description' => $deductQuantity <= 0
+                            ? 'Reported quantity exceeds available stock (no stock available)'
+                            : 'Reported quantity exceeds available stock',
+                        'status' => 'pending',
+                    ]);
+                }
+
+                // Old Stock = Stock on Hand + Reported Quantity Sold - Refill
+                // (Stock at start of period = Stock at end + what was sold - what was received)
+                $oldStock = max(0, $stockOnHand + $quantitySold - $refill);
+
+                // Invoice and report item use the REPORTED quantity (what was actually sold)
                 ResellerSalesReportItem::create([
                     'report_id' => $report->id,
                     'product_id' => $product->id,
@@ -138,10 +177,10 @@ class ResellerSalesReportController extends Controller
                     'unit_price' => $unitPrice,
                 ]);
 
-                $totalValue += $p['quantity'] * $unitPrice;
+                $totalValue += $quantitySold * $unitPrice;
 
-                // Déduction FIFO dans le stock
-                $remaining = $p['quantity'];
+                // FIFO stock deduction (capped at available stock)
+                $remaining = $deductQuantity;
                 $batches = $reseller->stockBatches()
                     ->where('product_id', $product->id)
                     ->where('quantity', '>', 0)
@@ -154,15 +193,6 @@ class ResellerSalesReportController extends Controller
                     $batch->quantity -= $deduct;
                     $batch->save();
                     $remaining -= $deduct;
-                }
-
-                if ($remaining > 0) {
-                    ResellerSalesReportAnomaly::create([
-                        'report_id' => $report->id,
-                        'product_id' => $product->id,
-                        'quantity' => $remaining,
-                        'description' => 'Reported quantity exceeds available stock',
-                    ]);
                 }
             }
 
@@ -201,6 +231,276 @@ class ResellerSalesReportController extends Controller
 
         return redirect()->route('resellers.show', $resellerId)
             ->with('success', 'Sales report recorded, stock updated, and invoice generated.');
+    }
+
+    /**
+     * Vérifie si le rapport peut être modifié/supprimé (non payé)
+     */
+    protected function ensureReportIsEditable(ResellerSalesReport $report): void
+    {
+        $invoice = $report->invoice;
+        if ($invoice && $invoice->payments()->sum('amount') > 0) {
+            abort(403, 'This report has payments and cannot be modified.');
+        }
+    }
+
+    /**
+     * Restaure le stock FIFO pour tous les items d'un rapport
+     */
+    protected function restoreStock($reseller, ResellerSalesReport $report): void
+    {
+        // Load anomalies to know how much was actually deducted vs reported
+        $anomalies = ResellerSalesReportAnomaly::where('report_id', $report->id)
+            ->get()
+            ->keyBy('product_id');
+
+        foreach ($report->items as $item) {
+            if ($item->quantity_sold <= 0) continue;
+
+            // Quantity actually deducted = reported - disputed portion
+            $anomaly = $anomalies->get($item->product_id);
+            $deducted = $anomaly
+                ? ($anomaly->accepted_quantity ?? $item->quantity_sold)
+                : $item->quantity_sold;
+
+            if ($deducted <= 0) continue;
+
+            // Re-add stock to the oldest batch with this product, or create one
+            $batch = $reseller->stockBatches()
+                ->where('product_id', $item->product_id)
+                ->orderBy('created_at')
+                ->first();
+
+            if ($batch) {
+                $batch->quantity += $deducted;
+                $batch->save();
+            } else {
+                $reseller->stockBatches()->create([
+                    'product_id' => $item->product_id,
+                    'quantity' => $deducted,
+                ]);
+            }
+        }
+    }
+
+    /**
+     * Formulaire d'édition d'un sales report (tant qu'il n'est pas payé)
+     */
+    public function edit($resellerId, ResellerSalesReport $report)
+    {
+        $reseller = $this->resolveResellerOrShop($resellerId);
+        $this->ensureReportIsEditable($report);
+
+        $report->load('items');
+
+        $isShop = ($reseller instanceof Store) || ($reseller->is_shop ?? false);
+
+        $resellerObj = $isShop
+            ? (object)[
+                'id' => 'shop-' . $reseller->id,
+                'name' => $reseller->name,
+                'type' => 'shop',
+                'is_shop' => true,
+                'store' => $reseller,
+            ]
+            : $reseller;
+
+        // Stock actuel + quantités vendues dans ce rapport (pour afficher le stock "avant déduction")
+        $currentStock = $reseller->getCurrentStock();
+        $reportItems = $report->items->keyBy('product_id');
+
+        // All products ever delivered
+        $allProductIds = $reseller->stockBatches()->distinct()->pluck('product_id');
+        $products = Product::whereIn('id', $allProductIds)->orderBy('name')->get();
+
+        // Available stock = current stock + what was sold in this report (since we'll reverse it)
+        $stock = [];
+        foreach ($products as $product) {
+            $sold = $reportItems[$product->id]->quantity_sold ?? 0;
+            $stock[$product->id] = ($currentStock[$product->id] ?? 0) + $sold;
+        }
+
+        return view('resellers.reports.edit', compact('resellerObj', 'products', 'stock', 'report', 'reportItems'))
+            ->with('reseller', $resellerObj);
+    }
+
+    /**
+     * Met à jour un sales report (tant qu'il n'est pas payé)
+     */
+    public function update(Request $request, $resellerId, ResellerSalesReport $report)
+    {
+        $reseller = $this->resolveResellerOrShop($resellerId);
+        $this->ensureReportIsEditable($report);
+        $report->load('items');
+
+        $isShop = ($reseller instanceof Store) || ($reseller->is_shop ?? false);
+
+        $validated = $request->validate([
+            'start_date' => 'required|date',
+            'end_date' => 'required|date|after_or_equal:start_date',
+            'products' => 'required|array',
+            'products.*.id' => 'required|exists:products,id',
+            'products.*.quantity' => 'required|integer|min:0',
+        ]);
+
+        DB::transaction(function () use ($reseller, $isShop, $validated, $report, &$totalValue) {
+            // 1. Restore stock from old report
+            $this->restoreStock($reseller, $report);
+
+            // 2. Delete old items and anomalies
+            $report->items()->delete();
+            ResellerSalesReportAnomaly::where('report_id', $report->id)->delete();
+
+            // 3. Update report dates
+            $report->update([
+                'start_date' => $validated['start_date'],
+                'end_date' => $validated['end_date'],
+            ]);
+
+            // 4. Re-create items (same logic as store)
+            $startDate = Carbon::parse($validated['start_date'])->startOfDay();
+            $endDate = Carbon::parse($validated['end_date'])->endOfDay();
+
+            $currentStock = $reseller->getCurrentStock();
+            $refillQuantities = $this->getRefillQuantities($reseller, $isShop, $startDate, $endDate);
+            $productsData = Product::whereIn('id', collect($validated['products'])->pluck('id'))->get()->keyBy('id');
+            $totalValue = 0;
+
+            foreach ($validated['products'] as $p) {
+                $product = $productsData[$p['id']];
+                $quantitySold = $p['quantity'];
+                $stockOnHand = ($currentStock[$product->id] ?? 0);
+                $refill = $refillQuantities[$product->id] ?? 0;
+
+                $unitPrice = $isShop
+                    ? ($product->price_btob ?? $product->price)
+                    : ResellerProductPrice::getPriceFor($reseller->id, $product->id);
+
+                if ($quantitySold <= 0) {
+                    $oldStock = max(0, $stockOnHand - $refill);
+                    ResellerSalesReportItem::create([
+                        'report_id' => $report->id,
+                        'product_id' => $product->id,
+                        'old_stock' => $oldStock,
+                        'refill' => $refill,
+                        'stock_on_hand' => $stockOnHand,
+                        'quantity_sold' => 0,
+                        'unit_price' => $unitPrice,
+                    ]);
+                    continue;
+                }
+
+                $availableStock = $reseller->stockBatches()
+                    ->where('product_id', $product->id)
+                    ->where('quantity', '>', 0)
+                    ->sum('quantity');
+
+                $deductQuantity = min($quantitySold, $availableStock);
+                if ($quantitySold > $availableStock) {
+                    ResellerSalesReportAnomaly::create([
+                        'report_id' => $report->id,
+                        'product_id' => $product->id,
+                        'quantity' => $quantitySold - $deductQuantity,
+                        'reported_quantity' => $quantitySold,
+                        'accepted_quantity' => $deductQuantity,
+                        'description' => $deductQuantity <= 0
+                            ? 'Reported quantity exceeds available stock (no stock available)'
+                            : 'Reported quantity exceeds available stock',
+                        'status' => 'pending',
+                    ]);
+                }
+
+                $oldStock = max(0, $stockOnHand + $quantitySold - $refill);
+
+                ResellerSalesReportItem::create([
+                    'report_id' => $report->id,
+                    'product_id' => $product->id,
+                    'old_stock' => $oldStock,
+                    'refill' => $refill,
+                    'stock_on_hand' => $stockOnHand,
+                    'quantity_sold' => $quantitySold,
+                    'unit_price' => $unitPrice,
+                ]);
+
+                $totalValue += $quantitySold * $unitPrice;
+
+                // FIFO stock deduction (capped at available stock)
+                $remaining = $deductQuantity;
+                $batches = $reseller->stockBatches()
+                    ->where('product_id', $product->id)
+                    ->where('quantity', '>', 0)
+                    ->orderBy('created_at')
+                    ->get();
+
+                foreach ($batches as $batch) {
+                    if ($remaining <= 0) break;
+                    $deduct = min($batch->quantity, $remaining);
+                    $batch->quantity -= $deduct;
+                    $batch->save();
+                    $remaining -= $deduct;
+                }
+            }
+
+            // 5. Update invoice
+            if ($report->invoice) {
+                $report->invoice->update(['total_amount' => $totalValue]);
+
+                // Regenerate PDF
+                $pdf = Pdf::loadView('resellers.reports.invoice', [
+                    'reseller' => $reseller,
+                    'report' => $report->fresh(['items.product']),
+                    'totalValue' => $totalValue,
+                ])->setOptions([
+                    'isHtml5ParserEnabled' => true,
+                    'isRemoteEnabled' => true,
+                    'defaultFont' => 'DejaVu Sans',
+                ]);
+
+                $fileName = "sales_reports/sales_report_{$report->id}.pdf";
+                Storage::put($fileName, $pdf->output());
+                $report->invoice->update(['file_path' => $fileName]);
+            }
+        });
+
+        return redirect()->route('resellers.reports.show', [$resellerId, $report->id])
+            ->with('success', __('messages.resellers.report_updated'));
+    }
+
+    /**
+     * Supprime un sales report (tant qu'il n'est pas payé)
+     */
+    public function destroy($resellerId, ResellerSalesReport $report)
+    {
+        $reseller = $this->resolveResellerOrShop($resellerId);
+        $this->ensureReportIsEditable($report);
+        $report->load('items');
+
+        DB::transaction(function () use ($reseller, $report) {
+            // 1. Restore stock
+            $this->restoreStock($reseller, $report);
+
+            // 2. Delete PDF file
+            if ($report->invoice && $report->invoice->file_path) {
+                Storage::delete($report->invoice->file_path);
+            }
+
+            // 3. Delete invoice
+            if ($report->invoice) {
+                $report->invoice->delete();
+            }
+
+            // 4. Delete anomalies
+            ResellerSalesReportAnomaly::where('report_id', $report->id)->delete();
+
+            // 5. Delete items
+            $report->items()->delete();
+
+            // 6. Delete report
+            $report->delete();
+        });
+
+        return redirect()->route('resellers.show', $resellerId)
+            ->with('success', __('messages.resellers.report_deleted'));
     }
 
     /**
@@ -384,6 +684,25 @@ public function addPayment(Request $request, $resellerId, ResellerSalesReport $r
         'report' => $report->id,
     ])->with('success', 'Paiement enregistré et transaction générée.');
 }
+
+    /**
+     * Resolve a dispute (anomaly)
+     */
+    public function resolveDispute(Request $request, $resellerId, ResellerSalesReportAnomaly $anomaly)
+    {
+        $request->validate([
+            'resolution_note' => 'nullable|string|max:1000',
+        ]);
+
+        $anomaly->update([
+            'status' => 'resolved',
+            'resolved_by' => auth()->id(),
+            'resolved_at' => now(),
+            'resolution_note' => $request->resolution_note,
+        ]);
+
+        return redirect()->back()->with('success', __('messages.resellers.dispute_resolved'));
+    }
 
     /**
      * Get refill quantities (deliveries received) for a reseller during a period

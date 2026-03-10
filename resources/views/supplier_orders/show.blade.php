@@ -95,10 +95,28 @@
                                                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                                                 </div>
                                                 <div class="modal-body">
+                                                    @php $remainingAmount = max(0, $order->invoicedAmount() - $order->deposit); @endphp
                                                     <div class="mb-3">
                                                         <label class="form-label">
-                                                            {{ __('messages.Amount paid') }} : <strong>${{ $order->invoicedAmount() }}</strong>
+                                                            {{ __('messages.supplier_order.invoiced_amount') }} : <strong>${{ number_format($order->invoicedAmount(), 2) }}</strong>
                                                         </label>
+                                                        @if($order->deposit > 0)
+                                                            <br>
+                                                            <label class="form-label">
+                                                                {{ __('messages.supplier_order.deposit') }} : <span class="text-warning fw-bold">- ${{ number_format($order->deposit, 2) }}</span>
+                                                            </label>
+                                                            <br>
+                                                            <label class="form-label">
+                                                                {{ __('messages.supplier_order.remaining_to_pay') }} : <span class="text-success fw-bold">${{ number_format($remainingAmount, 2) }}</span>
+                                                            </label>
+                                                        @endif
+                                                    </div>
+                                                    <div class="mb-3">
+                                                        <label class="form-label">{{ __('messages.Amount paid') }} <span class="text-danger">*</span></label>
+                                                        <div class="input-group input-group-sm">
+                                                            <span class="input-group-text">$</span>
+                                                            <input type="number" name="amount" class="form-control form-control-sm" step="0.01" min="0" value="{{ number_format($remainingAmount, 2, '.', '') }}" required>
+                                                        </div>
                                                     </div>
                                                     <div class="mb-3">
                                                         <label class="form-label">{{ __('messages.general_invoices.payment_date') }} <span class="text-danger">*</span></label>
@@ -230,6 +248,22 @@
                                             <span class="input-group-text">$</span>
                                             <input type="number" step="0.01" min="0" name="deposit" id="deposit" class="form-control" value="{{ $order->deposit }}">
                                         </div>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">{{ __('messages.general_invoices.payment_date') }} <span class="text-danger">*</span></label>
+                                        <input type="date" name="deposit_date" class="form-control form-control-sm" value="{{ now()->format('Y-m-d') }}" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">{{ __('messages.Méthode de paiement') }} <span class="text-danger">*</span></label>
+                                        <select name="deposit_payment_method_id" class="form-select form-select-sm" required>
+                                            @foreach($paymentMethods as $method)
+                                                <option value="{{ $method->id }}">{{ $method->name }}</option>
+                                            @endforeach
+                                        </select>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">{{ __('messages.Payment reference') }}</label>
+                                        <input type="text" name="deposit_reference" class="form-control form-control-sm">
                                     </div>
                                 </div>
                                 <div class="modal-footer">

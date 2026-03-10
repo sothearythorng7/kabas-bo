@@ -13,24 +13,45 @@ class RawMaterialController extends Controller
 {
     public function index(Request $request)
     {
-        $query = RawMaterial::with('supplier')
-            ->withSum('stockBatches as total_stock', 'quantity');
+        if ($request->filled('q')) {
+            // Meilisearch full-text search
+            $searchQuery = RawMaterial::search($request->q)
+                ->query(function ($builder) {
+                    $builder->with('supplier')
+                        ->withSum('stockBatches as total_stock', 'quantity');
+                });
 
-        if ($request->filled('supplier_id')) {
-            $query->where('supplier_id', $request->supplier_id);
+            if ($request->filled('supplier_id')) {
+                $searchQuery->where('supplier_id', (int) $request->supplier_id);
+            }
+
+            if ($request->filled('track_stock')) {
+                $searchQuery->where('track_stock', $request->track_stock === '1');
+            }
+
+            $materials = $searchQuery->paginate(20)->withQueryString();
+        } else {
+            // Classic SQL query
+            $query = RawMaterial::with('supplier')
+                ->withSum('stockBatches as total_stock', 'quantity');
+
+            if ($request->filled('supplier_id')) {
+                $query->where('supplier_id', $request->supplier_id);
+            }
+
+            if ($request->filled('track_stock')) {
+                $query->where('track_stock', $request->track_stock === '1');
+            }
+
+            if ($request->filled('low_stock')) {
+                $query->whereHas('stockBatches', function ($q) {
+                    $q->havingRaw('SUM(quantity) <= raw_materials.alert_quantity');
+                });
+            }
+
+            $materials = $query->orderBy('name')->paginate(20)->withQueryString();
         }
 
-        if ($request->filled('track_stock')) {
-            $query->where('track_stock', $request->track_stock === '1');
-        }
-
-        if ($request->filled('low_stock')) {
-            $query->whereHas('stockBatches', function ($q) {
-                $q->havingRaw('SUM(quantity) <= raw_materials.alert_quantity');
-            });
-        }
-
-        $materials = $query->orderBy('name')->paginate(20)->withQueryString();
         $suppliers = Supplier::active()->rawMaterialSuppliers()->orderBy('name')->get();
 
         return view('factory.raw-materials.index', compact('materials', 'suppliers'));

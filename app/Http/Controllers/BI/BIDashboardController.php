@@ -237,11 +237,8 @@ class BIDashboardController extends Controller
 
     private function getTopProducts(Carbon $startDate, Carbon $endDate, ?int $storeId = null): array
     {
-        $query = SaleItem::select(
-                'product_id',
-                DB::raw('SUM(quantity) as total_quantity'),
-                DB::raw('SUM(price * quantity) as total_revenue')
-            )
+        // Step 1: Get top 10 product IDs by quantity (SQL)
+        $topProductIds = SaleItem::select('product_id', DB::raw('SUM(quantity) as total_quantity'))
             ->whereHas('sale', function($q) use ($startDate, $endDate, $storeId) {
                 $q->whereBetween('created_at', [$startDate, $endDate]);
                 if ($storeId) {
@@ -252,39 +249,68 @@ class BIDashboardController extends Controller
             ->groupBy('product_id')
             ->orderByDesc('total_quantity')
             ->limit(10)
+            ->pluck('total_quantity', 'product_id');
+
+        if ($topProductIds->isEmpty()) {
+            return [];
+        }
+
+        // Step 2: Load items for those products with sale (for net revenue calculation)
+        $items = SaleItem::with('sale.items')
+            ->whereIn('product_id', $topProductIds->keys())
+            ->whereHas('sale', function($q) use ($startDate, $endDate, $storeId) {
+                $q->whereBetween('created_at', [$startDate, $endDate]);
+                if ($storeId) {
+                    $q->where('store_id', $storeId);
+                }
+            })
             ->get();
 
+        // Step 3: Calculate net revenue per product
+        $revenueByProduct = $items->groupBy('product_id')->map(fn($group) => $group->sum(fn($item) => $item->net_revenue));
+
+        // Step 4: Build result
         $products = [];
-        foreach ($query as $item) {
-            $product = Product::with('brand')->find($item->product_id);
+        foreach ($topProductIds as $productId => $totalQuantity) {
+            $product = Product::with('brand')->find($productId);
             if (!$product) continue;
 
-            // Calculer la marge
+            $totalRevenue = $revenueByProduct[$productId] ?? 0;
             $purchasePrice = $this->getProductPurchasePrice($product);
-            $margin = $item->total_revenue - ($purchasePrice * $item->total_quantity);
-            $marginPercent = $item->total_revenue > 0 ? ($margin / $item->total_revenue) * 100 : 0;
+            $margin = $totalRevenue - ($purchasePrice * $totalQuantity);
+            $marginPercent = $totalRevenue > 0 ? ($margin / $totalRevenue) * 100 : 0;
 
             $products[] = [
                 'product' => $product,
-                'quantity' => $item->total_quantity,
-                'revenue' => $item->total_revenue,
+                'quantity' => $totalQuantity,
+                'revenue' => $totalRevenue,
                 'margin' => $margin,
                 'margin_percent' => $marginPercent,
             ];
         }
+
+        usort($products, fn($a, $b) => $b['quantity'] <=> $a['quantity']);
 
         return $products;
     }
 
     private function getProductPurchasePrice(Product $product): float
     {
-        // Essayer de récupérer le prix d'achat depuis les fournisseurs
+        // 1. Try supplier pivot purchase_price
         $supplierPrice = $product->suppliers()->first()?->pivot?->purchase_price;
-        if ($supplierPrice) {
+        if ($supplierPrice && $supplierPrice > 0) {
             return $supplierPrice;
         }
 
-        // Sinon estimer à 50% du prix de vente
+        // 2. Try average from stock_batches unit_price
+        $batchPrice = StockBatch::where('product_id', $product->id)
+            ->where('unit_price', '>', 0)
+            ->avg('unit_price');
+        if ($batchPrice && $batchPrice > 0) {
+            return (float) $batchPrice;
+        }
+
+        // 3. Fallback: estimate at 50% of sale price
         return $product->price * 0.5;
     }
 
@@ -344,18 +370,18 @@ class BIDashboardController extends Controller
 
     private function calculateTotalMargin(Carbon $startDate, Carbon $endDate, ?int $storeId = null): float
     {
-        $query = SaleItem::whereHas('sale', function($q) use ($startDate, $endDate, $storeId) {
+        $items = SaleItem::whereHas('sale', function($q) use ($startDate, $endDate, $storeId) {
             $q->whereBetween('created_at', [$startDate, $endDate]);
             if ($storeId) {
                 $q->where('store_id', $storeId);
             }
-        })->whereNotNull('product_id')->with('product.suppliers')->get();
+        })->whereNotNull('product_id')->with(['product.suppliers', 'sale.items'])->get();
 
         $totalMargin = 0;
-        foreach ($query as $item) {
+        foreach ($items as $item) {
             if (!$item->product) continue;
 
-            $revenue = $item->price * $item->quantity;
+            $revenue = $item->net_revenue;
             $purchasePrice = $this->getProductPurchasePrice($item->product);
             $cost = $purchasePrice * $item->quantity;
             $totalMargin += $revenue - $cost;
@@ -366,57 +392,66 @@ class BIDashboardController extends Controller
 
     private function getTopBrands(Carbon $startDate, Carbon $endDate): array
     {
-        return SaleItem::select(
-                'products.brand_id',
-                DB::raw('SUM(sale_items.quantity) as total_quantity'),
-                DB::raw('SUM(sale_items.price * sale_items.quantity) as total_revenue')
-            )
-            ->join('products', 'sale_items.product_id', '=', 'products.id')
+        $items = SaleItem::with(['sale.items', 'product.brand'])
             ->whereHas('sale', function($q) use ($startDate, $endDate) {
                 $q->whereBetween('created_at', [$startDate, $endDate]);
             })
-            ->whereNotNull('products.brand_id')
-            ->groupBy('products.brand_id')
-            ->orderByDesc('total_revenue')
-            ->limit(10)
-            ->get()
-            ->map(function($item) {
-                $brand = \App\Models\Brand::find($item->brand_id);
-                return [
-                    'brand' => $brand,
-                    'quantity' => $item->total_quantity,
-                    'revenue' => $item->total_revenue,
+            ->whereNotNull('product_id')
+            ->whereHas('product', fn($q) => $q->whereNotNull('brand_id'))
+            ->get();
+
+        $brandData = [];
+        foreach ($items as $item) {
+            if (!$item->product) continue;
+            $brandId = $item->product->brand_id;
+            if (!$brandId) continue;
+
+            if (!isset($brandData[$brandId])) {
+                $brandData[$brandId] = [
+                    'brand' => $item->product->brand,
+                    'quantity' => 0,
+                    'revenue' => 0,
                 ];
-            })
-            ->toArray();
+            }
+
+            $brandData[$brandId]['quantity'] += $item->quantity;
+            $brandData[$brandId]['revenue'] += $item->net_revenue;
+        }
+
+        usort($brandData, fn($a, $b) => $b['revenue'] <=> $a['revenue']);
+        return array_slice($brandData, 0, 10);
     }
 
     private function getTopCategories(Carbon $startDate, Carbon $endDate): array
     {
-        $categoryData = DB::table('sale_items')
-            ->join('sales', 'sale_items.sale_id', '=', 'sales.id')
-            ->join('category_product', 'sale_items.product_id', '=', 'category_product.product_id')
-            ->join('categories', 'category_product.category_id', '=', 'categories.id')
-            ->whereBetween('sales.created_at', [$startDate, $endDate])
-            ->select(
-                'categories.id',
-                DB::raw('SUM(sale_items.quantity) as total_quantity'),
-                DB::raw('SUM(sale_items.price * sale_items.quantity) as total_revenue')
-            )
-            ->groupBy('categories.id')
-            ->orderByDesc('total_revenue')
-            ->limit(10)
+        $items = SaleItem::with(['sale.items', 'product.categories.translations'])
+            ->whereHas('sale', function($q) use ($startDate, $endDate) {
+                $q->whereBetween('created_at', [$startDate, $endDate]);
+            })
+            ->whereNotNull('product_id')
             ->get();
 
-        return $categoryData->map(function($item) {
-            $category = \App\Models\Category::with('translations')->find($item->id);
-            $name = $category?->translation()?->name ?? $category?->translation('fr')?->name ?? 'N/A';
-            return [
-                'name' => $name,
-                'quantity' => $item->total_quantity,
-                'revenue' => $item->total_revenue,
-            ];
-        })->toArray();
+        $categoryData = [];
+        foreach ($items as $item) {
+            if (!$item->product) continue;
+
+            foreach ($item->product->categories as $category) {
+                if (!isset($categoryData[$category->id])) {
+                    $name = $category->translation()?->name ?? $category->translation('fr')?->name ?? 'N/A';
+                    $categoryData[$category->id] = [
+                        'name' => $name,
+                        'quantity' => 0,
+                        'revenue' => 0,
+                    ];
+                }
+
+                $categoryData[$category->id]['quantity'] += $item->quantity;
+                $categoryData[$category->id]['revenue'] += $item->net_revenue;
+            }
+        }
+
+        usort($categoryData, fn($a, $b) => $b['revenue'] <=> $a['revenue']);
+        return array_slice($categoryData, 0, 10);
     }
 
     private function getMonthlyEvolution(): array

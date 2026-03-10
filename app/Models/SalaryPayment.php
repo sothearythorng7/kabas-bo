@@ -20,6 +20,7 @@ class SalaryPayment extends Model
         'bonus_amount',
         'penalty_amount',
         'commission_amount',
+        'other_adjustment_amount',
         'gross_salary',
         'net_amount',
         'currency',
@@ -41,6 +42,7 @@ class SalaryPayment extends Model
         'bonus_amount' => 'decimal:2',
         'penalty_amount' => 'decimal:2',
         'commission_amount' => 'decimal:2',
+        'other_adjustment_amount' => 'decimal:2',
         'gross_salary' => 'decimal:2',
         'net_amount' => 'decimal:2',
         'is_transferred' => 'boolean',
@@ -79,7 +81,7 @@ class SalaryPayment extends Model
 
     public function getTotalAdditionsAttribute(): float
     {
-        return $this->overtime_amount + $this->bonus_amount + $this->commission_amount;
+        return $this->overtime_amount + $this->bonus_amount + $this->commission_amount + $this->other_adjustment_amount;
     }
 
     public function getGrossSalaryCalculatedAttribute(): float

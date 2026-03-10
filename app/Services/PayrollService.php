@@ -57,9 +57,13 @@ class PayrollService
         // Get adjustments (pending + approved)
         $adjustments = $this->getAdjustmentTotals($staffMember, $period);
 
-        // Auto-calculate commissions if none exist for the period
-        $existingCommissions = $staffMember->commissionCalculations()->where('period', $period)->count();
-        if ($existingCommissions === 0 && $staffMember->employeeCommissions()->where('is_active', true)->exists()) {
+        // Recalculate commissions if not yet paid (sales data may have changed)
+        $hasUnpaidCommissions = !$staffMember->commissionCalculations()
+            ->where('period', $period)
+            ->where('status', 'paid')
+            ->exists();
+
+        if ($hasUnpaidCommissions && $staffMember->employeeCommissions()->where('is_active', true)->exists()) {
             $this->commissionService->calculateMonthlyCommissions($staffMember, $period);
         }
 
@@ -73,7 +77,7 @@ class PayrollService
         $dailyRate = round($baseSalary / 30, 2);
         $absenceDeduction = $unjustifiedDays * $dailyRate;
 
-        $totalAdditions = $adjustments['overtime'] + $adjustments['bonus'] + $commissionAmount;
+        $totalAdditions = $adjustments['overtime'] + $adjustments['bonus'] + $adjustments['other'] + $commissionAmount;
         $grossSalary = $baseSalary + $totalAdditions;
 
         $totalDeductions = $absenceDeduction + $advancesTotal + $adjustments['penalty'];
@@ -89,6 +93,7 @@ class PayrollService
             'overtime_amount' => $adjustments['overtime'],
             'bonus_amount' => $adjustments['bonus'],
             'penalty_amount' => $adjustments['penalty'],
+            'other_adjustment_amount' => $adjustments['other'],
             'commission_amount' => $commissionAmount,
             'gross_salary' => $grossSalary,
             'total_deductions' => $totalDeductions,

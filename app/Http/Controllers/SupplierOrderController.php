@@ -204,15 +204,76 @@ class SupplierOrderController extends Controller
     }
 
     /**
-     * Update the deposit amount for an order
+     * Update the deposit amount for an order and record financial transaction
      */
     public function updateDeposit(Request $request, Supplier $supplier, SupplierOrder $order)
     {
         $request->validate([
             'deposit' => 'required|numeric|min:0',
+            'deposit_date' => 'required|date',
+            'deposit_payment_method_id' => 'required|exists:financial_payment_methods,id',
+            'deposit_reference' => 'nullable|string|max:255',
         ]);
 
-        $order->update(['deposit' => $request->deposit]);
+        $newDeposit = (float) $request->deposit;
+        $previousDeposit = (float) $order->deposit;
+        $difference = $newDeposit - $previousDeposit;
+
+        // Record financial transaction if there is a real change
+        if (abs($difference) > 0.001) {
+            $storeId = $order->destination_store_id
+                ?? Store::where('type', 'warehouse')->first()?->id;
+
+            $account = \App\Models\FinancialAccount::where('code', '401')->firstOrFail();
+
+            $lastTransaction = \App\Models\FinancialTransaction::where('store_id', $storeId)
+                ->latest('transaction_date')
+                ->first();
+            $balanceBefore = $lastTransaction?->balance_after ?? 0;
+
+            if ($difference > 0) {
+                // New deposit or increase: debit (money going out)
+                $balanceAfter = $balanceBefore - $difference;
+                \App\Models\FinancialTransaction::create([
+                    'store_id' => $storeId,
+                    'account_id' => $account->id,
+                    'amount' => $difference,
+                    'currency' => 'USD',
+                    'direction' => 'debit',
+                    'balance_before' => $balanceBefore,
+                    'balance_after' => $balanceAfter,
+                    'label' => 'Acompte commande fournisseur : ' . $supplier->name,
+                    'description' => $request->deposit_reference ?? "Acompte de la commande #{$order->id} pour {$supplier->name}",
+                    'status' => 'validated',
+                    'transaction_date' => $request->deposit_date,
+                    'payment_method_id' => $request->deposit_payment_method_id,
+                    'user_id' => auth()->id(),
+                    'external_reference' => route('supplier-orders.show', [$supplier, $order]),
+                ]);
+            } else {
+                // Decrease/correction: credit (money coming back)
+                $correction = abs($difference);
+                $balanceAfter = $balanceBefore + $correction;
+                \App\Models\FinancialTransaction::create([
+                    'store_id' => $storeId,
+                    'account_id' => $account->id,
+                    'amount' => $correction,
+                    'currency' => 'USD',
+                    'direction' => 'credit',
+                    'balance_before' => $balanceBefore,
+                    'balance_after' => $balanceAfter,
+                    'label' => 'Correction acompte commande fournisseur : ' . $supplier->name,
+                    'description' => $request->deposit_reference ?? "Correction acompte commande #{$order->id} pour {$supplier->name}",
+                    'status' => 'validated',
+                    'transaction_date' => $request->deposit_date,
+                    'payment_method_id' => $request->deposit_payment_method_id,
+                    'user_id' => auth()->id(),
+                    'external_reference' => route('supplier-orders.show', [$supplier, $order]),
+                ]);
+            }
+        }
+
+        $order->update(['deposit' => $newDeposit]);
 
         return redirect()->route('supplier-orders.show', [$supplier, $order])
             ->with('success', __('messages.supplier_order.deposit_updated'));
@@ -395,6 +456,12 @@ class SupplierOrderController extends Controller
 
     public function receptionInvoiceForm(Supplier $supplier, SupplierOrder $order)
     {
+        // Consignment orders are memos — no invoice step
+        if ($supplier->isConsignment()) {
+            return redirect()->route('supplier-orders.show', [$supplier, $order])
+                ->with('error', __('messages.supplier_order.consignment_no_invoice'));
+        }
+
         if ($order->isRawMaterialOrder()) {
             $order->load('rawMaterials');
             return view('supplier_orders.invoice_reception_raw_materials', compact('supplier', 'order'));
@@ -406,6 +473,12 @@ class SupplierOrderController extends Controller
 
     public function storeInvoiceReception(Request $request, Supplier $supplier, SupplierOrder $order)
     {
+        // Consignment orders are memos — no invoice step
+        if ($supplier->isConsignment()) {
+            return redirect()->route('supplier-orders.show', [$supplier, $order])
+                ->with('error', __('messages.supplier_order.consignment_no_invoice'));
+        }
+
         // Réception facture matières premières
         if ($order->isRawMaterialOrder()) {
             return $this->storeRawMaterialInvoiceReception($request, $supplier, $order);
@@ -524,11 +597,14 @@ class SupplierOrderController extends Controller
     {
         $perPage = 10;
 
-        // ====== Supplier Orders ======
+        // ====== Supplier Orders (buyers only — consignment orders are memos, not financial) ======
+        $buyerOnly = fn($query) => $query->whereHas('supplier', fn($q) => $q->where('type', 'buyer'));
+
         $orderStatuses = ['pending','waiting_reception','waiting_invoice','received_unpaid','received_paid'];
         $ordersByStatus = [];
         foreach ($orderStatuses as $status) {
             $query = SupplierOrder::with(['supplier','products','destinationStore'])->latest();
+            $buyerOnly($query);
             if ($status === 'received_unpaid') {
                 $query->where('status','received')->where('is_paid',false);
             } elseif ($status === 'received_paid') {
@@ -540,10 +616,12 @@ class SupplierOrderController extends Controller
         }
 
         $totalPendingAmount = SupplierOrder::with('products')
+            ->whereHas('supplier', fn($q) => $q->where('type', 'buyer'))
             ->whereIn('status', ['waiting_reception','waiting_invoice'])
             ->get()
             ->sum(fn($order) => $order->products->sum(fn($p) => ($p->pivot->purchase_price ?? 0) * ($p->pivot->quantity_ordered ?? 0)));
         $totalUnpaidReceivedAmount = SupplierOrder::where('status', 'received')
+            ->whereHas('supplier', fn($q) => $q->where('type', 'buyer'))
             ->where('is_paid', false)
             ->get()
             ->sum(fn($order) => $order->invoicedAmount());
@@ -582,11 +660,17 @@ class SupplierOrderController extends Controller
 
     public function markPaid(Request $request, Supplier $supplier, SupplierOrder $order)
     {
+        // Consignment orders are memos — payment is handled via sale reports
+        if ($supplier->isConsignment()) {
+            return redirect()->back()->with('error', __('messages.supplier_order.consignment_no_payment'));
+        }
+
         $request->validate([
             'payment_date' => 'required|date',
             'payment_method_id' => 'required|exists:financial_payment_methods,id',
             'payment_reference' => 'nullable|string|max:255',
             'payment_proof' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:10240',
+            'amount' => 'required|numeric|min:0',
         ]);
 
         // Upload de la preuve de paiement si fournie
@@ -599,8 +683,8 @@ class SupplierOrderController extends Controller
         $storeId = $order->destination_store_id
             ?? Store::where('type', 'warehouse')->first()?->id;
 
-        // Montant facturé
-        $amount = $order->invoicedAmount();
+        // Montant payé (restant après dépôt, modifiable par l'utilisateur)
+        $amount = (float) $request->amount;
 
         // Récupérer le compte 401
         $account = \App\Models\FinancialAccount::where('code', '401')->firstOrFail();

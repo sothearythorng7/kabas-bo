@@ -89,6 +89,7 @@
                 <th>Product Name</th>
                 <th>Old Stock</th>
                 <th>Refill</th>
+                <th>Returns</th>
                 <th>Stock on<br>Hand</th>
                 <th>Quantity<br>Sold</th>
                 <th>Cost Price</th>
@@ -99,6 +100,7 @@
             @php
                 $totalOldStock = 0;
                 $totalRefill = 0;
+                $totalReturns = 0;
                 $totalStockOnHand = 0;
                 $totalQuantitySold = 0;
                 $totalPayAmount = 0;
@@ -108,6 +110,7 @@
                 @php
                     $totalOldStock += $item->old_stock;
                     $totalRefill += $item->refill;
+                    $totalReturns += $item->returns;
                     $totalStockOnHand += $item->stock_on_hand;
                     $totalQuantitySold += $item->quantity_sold;
                     $totalPayAmount += $item->total;
@@ -118,6 +121,7 @@
                     <td class="left">{{ $item->product->name[app()->getLocale()] ?? reset($item->product->name) }}</td>
                     <td>{{ $item->old_stock }}</td>
                     <td>{{ $item->refill }}</td>
+                    <td>{{ $item->returns }}</td>
                     <td>{{ $item->stock_on_hand }}</td>
                     <td><strong>{{ $item->quantity_sold }}</strong></td>
                     <td class="right">$ {{ number_format($item->unit_price, 2) }}</td>
@@ -128,6 +132,7 @@
                 <td colspan="2"><strong>Total</strong></td>
                 <td><strong>{{ $totalOldStock }}</strong></td>
                 <td><strong>{{ $totalRefill }}</strong></td>
+                <td><strong>{{ $totalReturns }}</strong></td>
                 <td><strong>{{ $totalStockOnHand }}</strong></td>
                 <td><strong>{{ $totalQuantitySold }}</strong></td>
                 <td></td>

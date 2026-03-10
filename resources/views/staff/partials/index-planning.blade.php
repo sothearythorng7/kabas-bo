@@ -69,7 +69,7 @@
                         @foreach($planning as $row)
                             <tr>
                                 <td class="sticky-col bg-white">
-                                    <a href="{{ route('staff.show', ['staff_member' => $row['employee'], 'tab' => 'leaves']) }}"
+                                    <a href="{{ route('staff.show', ['staffMember' => $row['employee']->id, 'tab' => 'leaves']) }}"
                                        class="text-decoration-none">
                                         <strong>{{ $row['employee']->name }}</strong>
                                     </a>

@@ -34,7 +34,7 @@
                                 <th></th> <!-- dropdown column -->
                                 <th>{{ __('messages.common.name') }}</th>
                                 <th>{{ __('messages.resellers.type') }}</th>
-                                <th>{{ __('messages.reseller_invoice.linked_order') }}</th>
+                                <th>{{ __('messages.reseller_invoice.sales_report') }}</th>
                                 <th>{{ __('messages.reseller_invoice.total_amount') }}</th>
                                 <th>{{ __('messages.common.status') }}</th>
                                 <th>{{ __('messages.reseller_invoice.created_at') }}</th>
@@ -60,10 +60,10 @@
                                     <td>{{ $invoice->reseller?->name ?? $invoice->store?->name ?? '—' }}</td>
                                     <td>{{ $invoice->reseller?->type ?? ($invoice->store ? 'store' : '—') }}</td>
                                     <td>
-                                        @if($invoice->reseller_stock_delivery_id)
-                                            {{ __('messages.reseller_invoice.order') }}
-                                        @elseif($invoice->sales_report_id)
-                                            {{ __('messages.reseller_invoice.sales_report') }}
+                                        @if($invoice->sales_report_id)
+                                            <a href="{{ route('resellers.reports.show', ['reseller' => $invoice->reseller_id, 'report' => $invoice->sales_report_id]) }}">
+                                                #{{ $invoice->sales_report_id }}
+                                            </a>
                                         @else
                                             ---
                                         @endif
@@ -73,6 +73,8 @@
                                         @php
                                             $badgeClass = match($invoice->status) {
                                                 'pending' => 'warning',
+                                                'unpaid' => 'danger',
+                                                'partially_paid' => 'warning',
                                                 'paid' => 'success',
                                                 'cancelled' => 'danger',
                                                 'overdue' => 'dark',
@@ -118,11 +120,11 @@
                                         <h5 class="card-title mb-1">{{ $invoice->reseller?->name ?? $invoice->store?->name ?? '—' }}</h5>
                                         <p class="mb-1"><strong>{{ __('messages.resellers.type') }}:</strong> {{ $invoice->reseller?->type ?? ($invoice->store ? 'store' : '—') }}</p>
                                         <p class="mb-1">
-                                            <strong>{{ __('messages.reseller_invoice.linked_order') }}:</strong>
-                                            @if($invoice->reseller_stock_delivery_id)
-                                                {{ __('messages.reseller_invoice.order') }}
-                                            @elseif($invoice->sales_report_id)
-                                                {{ __('messages.reseller_invoice.sales_report') }}
+                                            <strong>{{ __('messages.reseller_invoice.sales_report') }}:</strong>
+                                            @if($invoice->sales_report_id)
+                                                <a href="{{ route('resellers.reports.show', ['reseller' => $invoice->reseller_id, 'report' => $invoice->sales_report_id]) }}">
+                                                    #{{ $invoice->sales_report_id }}
+                                                </a>
                                             @else
                                                 ---
                                             @endif

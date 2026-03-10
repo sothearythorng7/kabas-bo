@@ -95,9 +95,10 @@ class RecalculateSaleReportSellingPrices extends Command
                     ])->setPaper('a4', 'landscape');
 
                     $supplierName = Str::slug($saleReport->supplier->name, '_');
+                    $storeName = Str::slug($saleReport->store->name, '_');
                     $dateStart = $saleReport->period_start->format('dmY');
                     $dateEnd = $saleReport->period_end->format('dmY');
-                    $filename = strtoupper("{$supplierName}_{$dateStart}_{$dateEnd}") . '.pdf';
+                    $filename = strtoupper("{$supplierName}_{$storeName}_{$dateStart}_{$dateEnd}") . '.pdf';
 
                     $path = "sale_reports/{$filename}";
                     Storage::disk('public')->put($path, $pdf->output());

@@ -118,10 +118,47 @@ class ResellerStockDeliveryController extends Controller
         $delivery->load('products');
         $paymentMethods = FinancialPaymentMethod::all();
 
+        $warehouseProducts = collect();
+        if ($delivery->status === 'draft') {
+            $warehouse = Store::warehouse()->first();
+            $existingProductIds = $delivery->products->pluck('id')->toArray();
+
+            $resellerPrices = [];
+            if (!$isShop && is_numeric($reseller)) {
+                $resellerPrices = ResellerProductPrice::where('reseller_id', $reseller)
+                    ->pluck('price', 'product_id')
+                    ->toArray();
+            }
+
+            $query = Product::query();
+            if (!$isShop) {
+                $query->where('is_resalable', true);
+            }
+
+            $warehouseProducts = $query->whereNotIn('id', $existingProductIds)
+                ->get()
+                ->map(function ($product) use ($warehouse, $resellerPrices) {
+                    $product->available_stock = $warehouse
+                        ? $product->stockBatches()->where('store_id', $warehouse->id)->sum('quantity')
+                        : 0;
+                    $product->reseller_price = $resellerPrices[$product->id] ?? $product->price_btob ?? $product->price;
+                    return $product;
+                })
+                ->filter(fn ($product) => $product->available_stock > 0);
+
+            // Also compute available stock for existing products (for max input)
+            foreach ($delivery->products as $product) {
+                $product->available_stock = $warehouse
+                    ? $product->stockBatches()->where('store_id', $warehouse->id)->sum('quantity')
+                    : 0;
+            }
+        }
+
         return view('resellers.deliveries.edit', [
             'reseller' => $resellerObj,
             'delivery' => $delivery,
-            'paymentMethods' => $paymentMethods
+            'paymentMethods' => $paymentMethods,
+            'warehouseProducts' => $warehouseProducts,
         ]);
     }
 
@@ -281,6 +318,193 @@ class ResellerStockDeliveryController extends Controller
         });
 
         return redirect()->route('resellers.show', $reseller)->with('success', 'Delivery updated successfully.');
+    }
+
+    // Mise à jour des produits d'une livraison draft
+    public function updateProducts(Request $request, $reseller, ResellerStockDelivery $delivery)
+    {
+        $isShop = str_starts_with($reseller, 'shop-');
+
+        if ($isShop) {
+            $shopId = (int) str_replace('shop-', '', $reseller);
+            if ($delivery->store_id !== $shopId) abort(404);
+        } else {
+            if ($delivery->reseller_id !== (int)$reseller) abort(404);
+        }
+
+        if ($delivery->status !== 'draft') {
+            return back()->withErrors(['products' => __('messages.resellers.delivery_not_draft')]);
+        }
+
+        $validated = $request->validate([
+            'products' => 'required|array',
+            'products.*.id' => 'required|exists:products,id',
+            'products.*.quantity' => 'nullable|integer|min:0',
+            'products.*.unit_price' => 'nullable|numeric|min:0',
+        ]);
+
+        $warehouse = Store::warehouse()->first();
+        if (!$warehouse) {
+            return back()->withErrors('No warehouse defined.');
+        }
+
+        $delivery->load('products');
+
+        $submittedProducts = collect($validated['products'])->keyBy('id');
+        $currentProducts = $delivery->products->keyBy('id');
+
+        // Check stock availability before making any changes
+        foreach ($submittedProducts as $productId => $data) {
+            $qty = (int)($data['quantity'] ?? 0);
+            if ($qty <= 0) continue;
+
+            $product = Product::find($productId);
+            if (!$product) continue;
+
+            if ($currentProducts->has($productId)) {
+                $currentQty = $currentProducts[$productId]->pivot->quantity;
+                $diff = $qty - $currentQty;
+                if ($diff > 0) {
+                    $availableStock = $product->stockBatches()
+                        ->where('store_id', $warehouse->id)
+                        ->sum('quantity');
+                    if ($availableStock < $diff) {
+                        $name = $product->name[app()->getLocale()] ?? reset($product->name);
+                        return back()->withErrors(['products' => __('messages.resellers.insufficient_stock', ['name' => $name])])->withInput();
+                    }
+                }
+            } else {
+                $availableStock = $product->stockBatches()
+                    ->where('store_id', $warehouse->id)
+                    ->sum('quantity');
+                if ($availableStock < $qty) {
+                    $name = $product->name[app()->getLocale()] ?? reset($product->name);
+                    return back()->withErrors(['products' => __('messages.resellers.insufficient_stock', ['name' => $name])])->withInput();
+                }
+            }
+        }
+
+        DB::transaction(function () use ($delivery, $submittedProducts, $currentProducts, $warehouse) {
+            $syncData = [];
+
+            // Process current products
+            foreach ($currentProducts as $productId => $product) {
+                if (!$submittedProducts->has($productId) || (int)($submittedProducts[$productId]['quantity'] ?? 0) <= 0) {
+                    // Product removed: restore stock
+                    $this->restoreStock($productId, $product->pivot->quantity, $warehouse);
+                    // Will not be included in sync → detached
+                } else {
+                    $newQty = (int)$submittedProducts[$productId]['quantity'];
+                    $newPrice = (float)$submittedProducts[$productId]['unit_price'];
+                    $currentQty = $product->pivot->quantity;
+
+                    if ($newQty > $currentQty) {
+                        $this->deductStock($productId, $newQty - $currentQty, $warehouse);
+                    } elseif ($newQty < $currentQty) {
+                        $this->restoreStock($productId, $currentQty - $newQty, $warehouse);
+                    }
+
+                    $syncData[$productId] = [
+                        'quantity' => $newQty,
+                        'unit_price' => $newPrice,
+                    ];
+                }
+            }
+
+            // Process new products
+            foreach ($submittedProducts as $productId => $data) {
+                if ($currentProducts->has($productId)) continue;
+
+                $qty = (int)($data['quantity'] ?? 0);
+                if ($qty <= 0) continue;
+
+                if (!isset($data['unit_price'])) continue;
+
+                $this->deductStock($productId, $qty, $warehouse);
+
+                $syncData[$productId] = [
+                    'quantity' => $qty,
+                    'unit_price' => (float)$data['unit_price'],
+                ];
+            }
+
+            $delivery->products()->sync($syncData);
+
+            // Update invoice total if exists
+            if ($delivery->invoice) {
+                $totalAmount = collect($syncData)->sum(fn ($d) => $d['quantity'] * $d['unit_price']);
+                $totalAmount += $delivery->shipping_cost ?? 0;
+                $delivery->invoice->update(['total_amount' => $totalAmount]);
+            }
+        });
+
+        return redirect()->route('reseller-stock-deliveries.edit', [$reseller, $delivery->id])
+            ->with('success', __('messages.resellers.products_updated'));
+    }
+
+    private function deductStock($productId, $quantity, $warehouse)
+    {
+        $product = Product::findOrFail($productId);
+        $remaining = $quantity;
+        $batches = $product->stockBatches()
+            ->where('store_id', $warehouse->id)
+            ->where('quantity', '>', 0)
+            ->orderBy('created_at')
+            ->get();
+
+        foreach ($batches as $batch) {
+            if ($remaining <= 0) break;
+            $toDeduct = min($batch->quantity, $remaining);
+            $batch->quantity -= $toDeduct;
+            $batch->save();
+
+            StockTransaction::create([
+                'stock_batch_id' => $batch->id,
+                'store_id'       => $warehouse->id,
+                'product_id'     => $product->id,
+                'type'           => 'out',
+                'quantity'       => $toDeduct,
+                'reason'         => 'reseller_delivery',
+                'user_id'        => auth()->id(),
+            ]);
+
+            $remaining -= $toDeduct;
+        }
+
+        if ($remaining > 0) {
+            throw new \Exception("Insufficient stock for product {$product->name}");
+        }
+    }
+
+    private function restoreStock($productId, $quantity, $warehouse)
+    {
+        $product = Product::findOrFail($productId);
+        $batch = $product->stockBatches()
+            ->where('store_id', $warehouse->id)
+            ->orderByDesc('created_at')
+            ->first();
+
+        if ($batch) {
+            $batch->quantity += $quantity;
+            $batch->save();
+        } else {
+            $batch = StockBatch::create([
+                'store_id'   => $warehouse->id,
+                'product_id' => $productId,
+                'quantity'   => $quantity,
+                'unit_price' => $product->price,
+            ]);
+        }
+
+        StockTransaction::create([
+            'stock_batch_id' => $batch->id,
+            'store_id'       => $warehouse->id,
+            'product_id'     => $productId,
+            'type'           => 'in',
+            'quantity'       => $quantity,
+            'reason'         => 'reseller_delivery_adjustment',
+            'user_id'        => auth()->id(),
+        ]);
     }
 
     // Méthode pour récupérer toutes les livraisons d'un revendeur ou d'un shop

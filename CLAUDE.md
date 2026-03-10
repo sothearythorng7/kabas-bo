@@ -411,6 +411,97 @@ Quand on annule une commande payée depuis le BO, `updateStatus()` exécute :
 
 ---
 
+## Module Règles Promotionnelles (à implémenter — en attente validation client)
+
+> Statut : **SPEC VALIDÉE EN INTERNE** — En attente de validation client avant implémentation.
+> Discussion : 2026-02-12
+
+### Objectif
+
+Module permettant de définir des règles promotionnelles applicables sur le site e-commerce et/ou le POS. Architecture extensible pour ajouter de nouveaux types de règles à l'avenir.
+
+### Types de règles (phase 1)
+
+| Type | ID | Déclencheur | Effet |
+|------|----|------------|-------|
+| **Livraison gratuite** | `free_shipping` | Total panier (après remises) >= seuil | Frais de livraison = 0$ |
+| **Buy X Get Y Free** | `buy_x_get_y` | Quantité d'un produit >= X | +Y unités gratuites du même produit ajoutées automatiquement |
+| **Produit cadeau** | `gift_product` | Total panier >= seuil OU achat de produits spécifiques | Produit cadeau (défini dans la règle) ajouté automatiquement |
+
+### Paramètres communs à chaque règle
+
+| Paramètre | Type | Obligatoire | Description |
+|-----------|------|-------------|-------------|
+| Nom | string | oui | Nom interne de la promo |
+| Description | text | non | Description interne |
+| Type de règle | enum | oui | `free_shipping`, `buy_x_get_y`, `gift_product` |
+| Canal | enum | oui | `pos`, `website`, `both` |
+| Cumulative | boolean | oui | Si `false` (exclusive) et conflit → la plus avantageuse pour le client gagne |
+| Date début | date | oui | Début de validité |
+| Date fin | date | non | `null` = permanente (ex: livraison gratuite permanente) |
+| Limite utilisations globale | int | non | `null` = illimité |
+| Limite par client | int | non | `null` = illimité |
+| Budget max ($) | decimal | non | Coût cumulé max des cadeaux offerts ; désactivation auto si dépassé |
+| Pays ciblés | relation | oui | Tous les pays livrables OU sélection spécifique |
+| Actif | boolean | oui | On/off manuel |
+
+### Paramètres spécifiques par type
+
+**`free_shipping`** :
+- Seuil minimum ($) — basé sur le total après remises
+
+**`buy_x_get_y`** :
+- Produit(s) concernés (relation products)
+- Quantité X requise (int)
+- Quantité Y offerte (int)
+
+**`gift_product`** :
+- Produit(s) déclencheurs OU seuil en $
+- Produit cadeau à offrir (relation product)
+
+### Comportements automatiques
+
+1. **Ajout auto** des produits gratuits au panier (site) et à la vente (POS)
+2. **Messages traduits** (FR/EN) **générés automatiquement** :
+   - Message d'explication quand la promo est appliquée ("1 x Produit offert grâce à la promo X !")
+   - Message incitatif dans le panier quand le client est proche du seuil ("Plus que X$ pour bénéficier de...")
+3. **Désactivation automatique** si :
+   - Rupture de stock du produit cadeau (types `buy_x_get_y` et `gift_product`)
+   - Budget max atteint
+   - Date fin dépassée
+4. **Résolution de conflits** : si plusieurs règles exclusives s'appliquent → la plus avantageuse pour le client est retenue
+
+### Impact comptable et stock
+
+- Produit offert : **sortie stock normale** (Warehouse FIFO, comme une vente)
+- **Transaction financière spécifique** sur un compte dédié "charges promotionnelles" (nouveau `FinancialAccount` à créer)
+- Le budget max se calcule sur le cumul de ces transactions
+- Traçabilité complète : chaque produit offert est lié à la règle promo qui l'a déclenché
+
+### Gestion depuis le Back Office
+
+- CRUD complet des règles promotionnelles
+- Dashboard avec coût et nombre d'utilisations par promo
+- Activation/désactivation manuelle
+
+### Périmètre d'implémentation
+
+| Composant | Répertoire | Impact |
+|-----------|------------|--------|
+| BO (gestion règles) | `/var/www/kabas` | Nouveau module : contrôleur, modèles, vues, migrations |
+| Site (application règles) | `/var/www/kabas-site` | Logique panier, checkout, messages, affichage |
+| POS (application règles) | `/var/www/kabas` (js/pos/) | Logique vente, messages staff |
+| Comptabilité | `/var/www/kabas` | Nouveau compte financier, transactions promo |
+
+### Décisions techniques à prendre lors de l'implémentation
+
+- Structure des tables (1 table générique avec JSON config ? ou tables séparées par type ?)
+- Service dédié (`PromotionService`) pour centraliser la logique d'évaluation
+- API endpoint pour le site (`/api/promotions/evaluate` ou intégré au cart ?)
+- Comment le POS offline gère les promos (sync des règles actives ?)
+
+---
+
 ## Notes de Développement
 
 ### Migrations Récentes (Dec 2025)

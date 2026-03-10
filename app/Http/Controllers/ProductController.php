@@ -101,8 +101,10 @@ public function store(Request $request)
         'ean' => 'required|string|unique:products,ean',
         'price' => 'nullable|numeric',
         'price_btob' => 'nullable|numeric',
+        'shipping_weight' => 'nullable|integer|min:0',
         'brand_id' => 'nullable|exists:brands,id',
         'is_active' => 'sometimes|boolean',
+        'is_active_pos' => 'sometimes|boolean',
         'is_best_seller' => 'sometimes|boolean',
         'name' => 'required|array',
         'name.en' => 'required|string',
@@ -126,8 +128,10 @@ public function store(Request $request)
             'slugs' => $slugsTranslations,
             'price' => $data['price'] ?? 0,
             'price_btob' => $data['price_btob'] ?? 0,
+            'shipping_weight' => $data['shipping_weight'] ?? null,
             'brand_id' => $data['brand_id'] ?? null,
             'is_active' => $data['is_active'] ?? false,
+            'is_active_pos' => $data['is_active_pos'] ?? true,
             'is_best_seller' => $data['is_best_seller'] ?? false,
             'is_resalable' => false,
             'allow_overselling' => $data['allow_overselling'] ?? false,
@@ -273,8 +277,10 @@ public function update(Request $request, Product $product)
         'description.*' => 'nullable|string',
         'price' => 'required|numeric|min:0',
         'price_btob' => 'nullable|numeric|min:0',
+        'shipping_weight' => 'nullable|integer|min:0',
         'brand_id' => 'nullable|exists:brands,id',
         'is_active' => 'boolean',
+        'is_active_pos' => 'boolean',
         'is_best_seller' => 'boolean',
         'is_resalable' => 'sometimes|boolean',
         'allow_overselling' => 'sometimes|boolean',
@@ -294,8 +300,10 @@ public function update(Request $request, Product $product)
             'ean' => $data['ean'],
             'price' => $data['price'],
             'price_btob' => $data['price_btob'],
+            'shipping_weight' => $data['shipping_weight'] ?? null,
             'brand_id' => $data['brand_id'] ?? null,
             'is_active' => $data['is_active'] ?? false,
+            'is_active_pos' => $data['is_active_pos'] ?? true,
             'is_resalable' => $data['is_resalable'] ?? false,
             'is_best_seller' => $data['is_best_seller'] ?? false,
             'allow_overselling' => $data['allow_overselling'] ?? false,
@@ -358,6 +366,33 @@ public function update(Request $request, Product $product)
         return redirect()->back()->with('success', __('messages.common.updated'));
     }
 
+    public function updateSeo(Request $request, Product $product)
+    {
+        $locales = config('app.website_locales', ['en']);
+
+        $request->validate([
+            'seo_title' => 'nullable|array',
+            'seo_title.*' => 'nullable|string|max:70',
+            'meta_description' => 'nullable|array',
+            'meta_description.*' => 'nullable|string|max:160',
+        ]);
+
+        $seoTitle = $product->seo_title ?? [];
+        $metaDesc = $product->meta_description ?? [];
+
+        foreach ($locales as $locale) {
+            $seoTitle[$locale] = $request->input("seo_title.$locale", '');
+            $metaDesc[$locale] = $request->input("meta_description.$locale", '');
+        }
+
+        $product->update([
+            'seo_title' => $seoTitle,
+            'meta_description' => $metaDesc,
+        ]);
+
+        return redirect()->back()->with('success', __('messages.common.updated'))->withFragment('tab-seo');
+    }
+
     public function uploadPhotos(Request $request, Product $product)
     {
         $request->validate([
@@ -396,6 +431,28 @@ public function update(Request $request, Product $product)
         }
 
         return back()->with('success', __('messages.product.photo_deleted'))->withFragment('tab-photos');
+    }
+
+    /**
+     * Inline-update a single field via AJAX.
+     */
+    public function toggleField(Request $request, Product $product)
+    {
+        $data = $request->validate([
+            'field' => 'required|in:is_active,is_active_pos,is_best_seller,is_resalable,shipping_weight',
+            'value' => 'required',
+        ]);
+
+        $field = $data['field'];
+        $value = $data['value'];
+
+        if (in_array($field, ['is_active', 'is_active_pos', 'is_best_seller', 'is_resalable'])) {
+            $product->update([$field => (bool) $value]);
+        } elseif ($field === 'shipping_weight') {
+            $product->update([$field => $value !== '' && $value !== null ? max(0, (int) $value) : null]);
+        }
+
+        return response()->json(['success' => true]);
     }
 
     public function destroy(Product $product)
@@ -799,10 +856,12 @@ public function duplicate(Product $product)
             'slugs' => $newSlugs,
             'price' => $product->price,
             'price_btob' => $product->price_btob,
+            'shipping_weight' => $product->shipping_weight,
             'brand_id' => $product->brand_id,
             'color' => $product->color,
             'size' => $product->size,
             'is_active' => false, // Désactivé par défaut
+            'is_active_pos' => false, // Désactivé par défaut
             'is_best_seller' => $product->is_best_seller,
             'is_resalable' => $product->is_resalable,
             'allow_overselling' => $product->allow_overselling,

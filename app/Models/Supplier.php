@@ -4,10 +4,11 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Laravel\Scout\Searchable;
 
 class Supplier extends Model
 {
-    use HasFactory;
+    use HasFactory, Searchable;
 
     protected $fillable = [
         'name',
@@ -30,6 +31,28 @@ class Supplier extends Model
         'is_raw_material_supplier' => 'boolean',
         'is_active' => 'boolean',
     ];
+
+    // ============ Laravel Scout / Meilisearch ============
+
+    public function toSearchableArray()
+    {
+        return [
+            'id' => $this->id,
+            'name' => $this->name,
+            'email' => $this->email,
+            'phone' => $this->phone,
+            'address' => $this->address,
+            'notes' => $this->notes,
+            'type' => $this->type,
+            'is_raw_material_supplier' => (bool) $this->is_raw_material_supplier,
+            'is_active' => (bool) $this->is_active,
+        ];
+    }
+
+    public function searchableAs()
+    {
+        return 'suppliers';
+    }
 
     /**
      * Contacts liés au fournisseur

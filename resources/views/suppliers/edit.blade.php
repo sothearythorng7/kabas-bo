@@ -197,6 +197,20 @@
                                     </button>
                                 </li>
                             @endif
+
+                            {{-- Supprimer --}}
+                            @if($report->status === 'waiting_invoice')
+                                <li><hr class="dropdown-divider"></li>
+                                <li>
+                                    <form action="{{ route('sale-reports.destroy', [$supplier, $report]) }}" method="POST">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button class="dropdown-item text-danger" type="submit" onclick="return confirm('{{ __('messages.supplier.confirm_delete_sale_report') }}')">
+                                            <i class="bi bi-trash-fill"></i> {{ __('messages.btn.delete') }}
+                                        </button>
+                                    </form>
+                                </li>
+                            @endif
                         </ul>
                     </div>
                 </td>
@@ -440,6 +454,8 @@
                     <td>
                         @if($return->isDraft())
                             <span class="badge bg-warning">{{ __('messages.supplier.draft') }}</span>
+                        @elseif($return->isPending())
+                            <span class="badge bg-info">{{ __('messages.supplier.pending') }}</span>
                         @else
                             <span class="badge bg-success">{{ __('messages.supplier.validated') }}</span>
                         @endif

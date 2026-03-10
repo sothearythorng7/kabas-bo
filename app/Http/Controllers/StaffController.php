@@ -156,9 +156,9 @@ class StaffController extends Controller
         $tab = $request->get('tab', 'list');
         $stores = Store::orderBy('name')->get();
 
-        $currentMonth = now()->format('Y-m');
-        $monthStart = now()->startOfMonth();
-        $monthEnd = now()->endOfMonth();
+        $currentMonth = $request->get('period', now()->format('Y-m'));
+        $monthStart = \Carbon\Carbon::parse($currentMonth . '-01')->startOfMonth();
+        $monthEnd = $monthStart->copy()->endOfMonth();
 
         // Count pending payments (needed for all tabs)
         $pendingPaymentsCount = StaffMember::where('contract_status', 'active')
@@ -216,7 +216,7 @@ class StaffController extends Controller
                     $sm->payroll_calculated = $payroll;
                     $sm->commission_summary = $this->commissionService->getCommissionSummary($sm, $currentMonth);
                 } else {
-                    $sm->payroll_calculated = ['base_salary' => 0, 'net_amount' => 0, 'deductions' => 0, 'total_deductions' => 0, 'total_additions' => 0, 'is_paid' => false, 'currency' => 'USD', 'overtime_amount' => 0, 'bonus_amount' => 0, 'penalty_amount' => 0, 'commission_amount' => 0, 'gross_salary' => 0, 'daily_rate' => 0, 'unjustified_days' => 0, 'absence_deduction' => 0, 'advances_total' => 0];
+                    $sm->payroll_calculated = ['base_salary' => 0, 'net_amount' => 0, 'deductions' => 0, 'total_deductions' => 0, 'total_additions' => 0, 'is_paid' => false, 'currency' => 'USD', 'overtime_amount' => 0, 'bonus_amount' => 0, 'penalty_amount' => 0, 'commission_amount' => 0, 'other_adjustment_amount' => 0, 'gross_salary' => 0, 'daily_rate' => 0, 'unjustified_days' => 0, 'absence_deduction' => 0, 'advances_total' => 0];
                     $sm->commission_summary = ['details' => collect(), 'total_commission' => 0];
                 }
             }
@@ -598,16 +598,16 @@ class StaffController extends Controller
 
         if ($validated['action'] === 'approve') {
             // Create financial transaction
-            $account = FinancialAccount::where('store_id', $validated['store_id'])
-                ->where('name', 'like', '%Salary%')
-                ->orWhere('name', 'like', '%salary%')
-                ->orWhere('name', 'like', '%Salaire%')
+            $account = FinancialAccount::where(function ($q) {
+                    $q->where('name', 'like', '%Salary%')
+                      ->orWhere('name', 'like', '%salary%')
+                      ->orWhere('name', 'like', '%Salaire%');
+                })
                 ->first();
 
             // If no salary account exists, use any expense account
             if (!$account) {
-                $account = FinancialAccount::where('store_id', $validated['store_id'])
-                    ->where('type', 'expense')
+                $account = FinancialAccount::where('type', 'expense')
                     ->first();
             }
 
@@ -623,9 +623,10 @@ class StaffController extends Controller
                     'balance_after' => ($account->balance ?? 0) - $advance->amount,
                     'label' => 'Salary Advance - ' . $advance->staffMember->name,
                     'description' => $advance->reason,
-                    'status' => 'completed',
+                    'status' => 'validated',
                     'transaction_date' => now(),
                     'user_id' => auth()->id(),
+                    'payment_method_id' => 4, // ABA
                 ]);
             }
 
@@ -753,6 +754,7 @@ class StaffController extends Controller
             'bonus_amount' => 'nullable|numeric|min:0',
             'penalty_amount' => 'nullable|numeric|min:0',
             'commission_amount' => 'nullable|numeric|min:0',
+            'other_adjustment_amount' => 'nullable|numeric|min:0',
             'net_amount' => 'required|numeric',
             'currency' => 'required|string|size:3',
             'store_id' => 'required|exists:stores,id',
@@ -772,12 +774,12 @@ class StaffController extends Controller
         $bonusAmount = $validated['bonus_amount'] ?? 0;
         $penaltyAmount = $validated['penalty_amount'] ?? 0;
         $commissionAmount = $validated['commission_amount'] ?? 0;
-        $grossSalary = $validated['base_salary'] + $overtimeAmount + $bonusAmount + $commissionAmount;
+        $otherAdjustmentAmount = $validated['other_adjustment_amount'] ?? 0;
+        $grossSalary = $validated['base_salary'] + $overtimeAmount + $bonusAmount + $commissionAmount + $otherAdjustmentAmount;
 
-        DB::transaction(function () use ($staffMember, $validated, $absenceDeduction, $overtimeAmount, $bonusAmount, $penaltyAmount, $commissionAmount, $grossSalary) {
+        DB::transaction(function () use ($staffMember, $validated, $absenceDeduction, $overtimeAmount, $bonusAmount, $penaltyAmount, $commissionAmount, $otherAdjustmentAmount, $grossSalary) {
             // Create financial transaction
-            $account = FinancialAccount::where('store_id', $validated['store_id'])
-                ->where(function ($q) {
+            $account = FinancialAccount::where(function ($q) {
                     $q->where('name', 'like', '%Salary%')
                       ->orWhere('name', 'like', '%salary%')
                       ->orWhere('name', 'like', '%Salaire%');
@@ -785,8 +787,7 @@ class StaffController extends Controller
                 ->first();
 
             if (!$account) {
-                $account = FinancialAccount::where('store_id', $validated['store_id'])
-                    ->where('type', 'expense')
+                $account = FinancialAccount::where('type', 'expense')
                     ->first();
             }
 
@@ -802,9 +803,10 @@ class StaffController extends Controller
                     'balance_after' => ($account->balance ?? 0) - $validated['net_amount'],
                     'label' => 'Salary Payment - ' . $staffMember->name . ' (' . $validated['period'] . ')',
                     'description' => $validated['notes'],
-                    'status' => 'completed',
+                    'status' => 'validated',
                     'transaction_date' => now(),
                     'user_id' => auth()->id(),
+                    'payment_method_id' => 4, // ABA
                 ]);
             }
 
@@ -820,6 +822,7 @@ class StaffController extends Controller
                 'bonus_amount' => $bonusAmount,
                 'penalty_amount' => $penaltyAmount,
                 'commission_amount' => $commissionAmount,
+                'other_adjustment_amount' => $otherAdjustmentAmount,
                 'gross_salary' => $grossSalary,
                 'net_amount' => $validated['net_amount'],
                 'currency' => $validated['currency'],
@@ -867,9 +870,10 @@ class StaffController extends Controller
             'store_id' => 'required|exists:stores,id',
             'staff_member_ids' => 'required|array|min:1',
             'staff_member_ids.*' => 'exists:staff_members,id',
+            'period' => 'nullable|date_format:Y-m',
         ]);
 
-        $currentMonth = now()->format('Y-m');
+        $currentMonth = $validated['period'] ?? now()->format('Y-m');
 
         $paidCount = 0;
         $totalAmount = 0;
@@ -891,8 +895,7 @@ class StaffController extends Controller
                 }
 
                 // Create financial transaction
-                $account = FinancialAccount::where('store_id', $validated['store_id'])
-                    ->where(function ($q) {
+                $account = FinancialAccount::where(function ($q) {
                         $q->where('name', 'like', '%Salary%')
                           ->orWhere('name', 'like', '%salary%')
                           ->orWhere('name', 'like', '%Salaire%');
@@ -900,8 +903,7 @@ class StaffController extends Controller
                     ->first();
 
                 if (!$account) {
-                    $account = FinancialAccount::where('store_id', $validated['store_id'])
-                        ->where('type', 'expense')
+                    $account = FinancialAccount::where('type', 'expense')
                         ->first();
                 }
 
@@ -917,9 +919,10 @@ class StaffController extends Controller
                         'balance_after' => ($account->balance ?? 0) - $payrollData['net_amount'],
                         'label' => 'Salary Payment - ' . $staffMember->name . ' (' . $currentMonth . ')',
                         'description' => 'Bulk payment',
-                        'status' => 'completed',
+                        'status' => 'validated',
                         'transaction_date' => now(),
                         'user_id' => auth()->id(),
+                        'payment_method_id' => 4, // ABA
                     ]);
                 }
 
@@ -935,6 +938,7 @@ class StaffController extends Controller
                     'bonus_amount' => $payrollData['bonus_amount'],
                     'penalty_amount' => $payrollData['penalty_amount'],
                     'commission_amount' => $payrollData['commission_amount'],
+                    'other_adjustment_amount' => $payrollData['other_adjustment_amount'],
                     'gross_salary' => $payrollData['gross_salary'],
                     'net_amount' => $payrollData['net_amount'],
                     'currency' => $payrollData['currency'],
@@ -986,7 +990,10 @@ class StaffController extends Controller
             ->with('employeeCommission')
             ->get();
 
-        $pdf = Pdf::loadView('staff.payslip', compact('payment', 'commissionCalculations'));
+        // Load leave quota balances
+        $quotaBalances = $this->leaveQuotaService->getQuotaBalances($payment->staffMember);
+
+        $pdf = Pdf::loadView('staff.payslip', compact('payment', 'commissionCalculations', 'quotaBalances'));
 
         $filename = 'payslip_' . $payment->staffMember->name . '_' . $payment->period . '.pdf';
         $filename = str_replace(' ', '_', $filename);

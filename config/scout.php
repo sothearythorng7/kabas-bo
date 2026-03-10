@@ -152,6 +152,26 @@ return [
                     'price',
                 ],
             ],
+            'suppliers' => [
+                'filterableAttributes' => [
+                    'type',
+                    'is_raw_material_supplier',
+                    'is_active',
+                ],
+                'sortableAttributes' => [
+                    'name',
+                ],
+            ],
+            'raw_materials' => [
+                'filterableAttributes' => [
+                    'supplier_id',
+                    'is_active',
+                    'track_stock',
+                ],
+                'sortableAttributes' => [
+                    'name',
+                ],
+            ],
         ],
     ],
 

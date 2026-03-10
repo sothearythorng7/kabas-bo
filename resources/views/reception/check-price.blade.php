@@ -7,8 +7,8 @@
     .scanner-container {
         position: relative;
         width: 100%;
-        max-width: 400px;
-        height: 210px;
+        max-width: 500px;
+        height: 360px;
         margin: 0 auto;
         background: #000;
         border-radius: 16px;
@@ -33,11 +33,11 @@
         top: 50%;
         left: 50%;
         transform: translate(-50%, -50%);
-        width: 80%;
-        height: 60px;
+        width: 85%;
+        height: 120px;
         border: 3px solid var(--success);
         border-radius: 8px;
-        box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5);
+        box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.4);
         z-index: 10;
     }
 

@@ -229,6 +229,14 @@
                 </tr>
                 @endif
 
+                {{-- Other Adjustments --}}
+                @if($payment->other_adjustment_amount > 0)
+                <tr class="addition">
+                    <td>{{ __('messages.staff.other_adjustment') }}</td>
+                    <td class="amount">+ {{ number_format($payment->other_adjustment_amount, 2) }} {{ $payment->currency }}</td>
+                </tr>
+                @endif
+
                 {{-- Gross Salary subtotal --}}
                 @if($payment->total_additions > 0)
                 <tr class="subtotal">
@@ -348,6 +356,33 @@
             @endif
         </div>
     </div>
+
+    {{-- Leave Balances Section --}}
+    @if(!empty($quotaBalances))
+    <div class="section">
+        <div class="section-title">{{ __('messages.staff.leave_balance_summary') }}</div>
+        <table class="commission-table">
+            <thead>
+                <tr>
+                    <th>{{ __('messages.staff.leave_type') }}</th>
+                    <th style="text-align: right;">{{ __('messages.staff.quota_entitled') }}</th>
+                    <th style="text-align: right;">{{ __('messages.staff.quota_used') }}</th>
+                    <th style="text-align: right;">{{ __('messages.staff.quota_remaining') }}</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach($quotaBalances as $type => $balance)
+                <tr>
+                    <td>{{ __('messages.staff.leave_types.' . $type) }}</td>
+                    <td class="amount">{{ $balance['accrued'] }}</td>
+                    <td class="amount">{{ $balance['used'] }}</td>
+                    <td class="amount" style="font-weight: bold;">{{ $balance['remaining'] }}</td>
+                </tr>
+                @endforeach
+            </tbody>
+        </table>
+    </div>
+    @endif
 
     <div class="signatures">
         <div class="signature-box">

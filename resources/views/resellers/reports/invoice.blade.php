@@ -210,17 +210,17 @@
                 <th style="width: 25px;">#</th>
                 <th>Barcode</th>
                 <th>Product</th>
-                <th class="text-center">Old Stock</th>
-                <th class="text-center">Refill</th>
                 <th class="text-center">QTY Sold</th>
-                <th class="text-center">Stock</th>
                 <th class="text-right">Price</th>
                 <th class="text-right">Amount</th>
             </tr>
         </thead>
         <tbody>
-            @foreach($report->items as $index => $item)
+            @php $rowNum = 0; @endphp
+            @foreach($report->items as $item)
+                @if($item->quantity_sold <= 0) @continue @endif
                 @php
+                    $rowNum++;
                     $qty = $item->quantity_sold;
                     $unitPrice = $item->unit_price;
                     $amount = $qty * $unitPrice;
@@ -228,21 +228,18 @@
                     $totalAmount += $amount;
                 @endphp
                 <tr>
-                    <td>{{ $index + 1 }}</td>
+                    <td>{{ $rowNum }}</td>
                     <td>{{ $item->product->ean ?? '-' }}</td>
                     <td>{{ $item->product->name[app()->getLocale()] ?? reset($item->product->name) }}</td>
-                    <td class="text-center">{{ $item->old_stock }}</td>
-                    <td class="text-center">{{ $item->refill }}</td>
                     <td class="text-center">{{ $qty }}</td>
-                    <td class="text-center">{{ $item->stock_on_hand }}</td>
                     <td class="text-right">$ {{ number_format($unitPrice, 2) }}</td>
                     <td class="text-right">$ {{ number_format($amount, 2) }}</td>
                 </tr>
             @endforeach
             <tr class="total-row">
-                <td colspan="5" class="text-right">TOTAL QTY</td>
+                <td colspan="3" class="text-right">TOTAL QTY</td>
                 <td class="text-center">{{ $totalQty }}</td>
-                <td colspan="2" class="text-right">TOTAL</td>
+                <td class="text-right">TOTAL</td>
                 <td class="text-right">$ {{ number_format($totalAmount, 2) }}</td>
             </tr>
         </tbody>

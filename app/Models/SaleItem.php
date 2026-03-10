@@ -54,4 +54,71 @@ class SaleItem extends Model
     {
         return is_null($this->exchanged_at);
     }
+
+    /**
+     * Get the net revenue for this item after all discounts (item-level + sale-level).
+     * Requires 'sale' (and ideally 'sale.items') to be eager loaded for sale-level discounts.
+     */
+    public function getNetRevenueAttribute(): float
+    {
+        $gross = $this->price * $this->quantity;
+
+        // Apply item-level discounts
+        $itemDiscount = $this->calculateItemLevelDiscount();
+        $net = $gross - $itemDiscount;
+
+        // Apply proportional share of sale-level discounts
+        $net -= $this->calculateSaleLevelDiscountShare();
+
+        return round(max(0, $net), 2);
+    }
+
+    private function calculateItemLevelDiscount(): float
+    {
+        $gross = $this->price * $this->quantity;
+        $discount = 0;
+
+        foreach ($this->discounts ?? [] as $d) {
+            if (($d['type'] ?? '') === 'amount') {
+                if (($d['scope'] ?? 'line') === 'unit') {
+                    $discount += ($d['value'] ?? 0) * $this->quantity;
+                } else {
+                    $discount += $d['value'] ?? 0;
+                }
+            } elseif (($d['type'] ?? '') === 'percent') {
+                $discount += (($d['value'] ?? 0) / 100) * $gross;
+            }
+        }
+
+        return $discount;
+    }
+
+    private function calculateSaleLevelDiscountShare(): float
+    {
+        $sale = $this->sale;
+        if (!$sale || empty($sale->discounts)) {
+            return 0;
+        }
+
+        $saleItems = $sale->items;
+        $totalGross = $saleItems->sum(fn($i) => $i->price * $i->quantity);
+
+        if ($totalGross <= 0) {
+            return 0;
+        }
+
+        $gross = $this->price * $this->quantity;
+        $proportion = $gross / $totalGross;
+
+        $saleLevelDiscount = 0;
+        foreach ($sale->discounts as $d) {
+            if (($d['type'] ?? '') === 'amount') {
+                $saleLevelDiscount += $d['value'] ?? 0;
+            } elseif (($d['type'] ?? '') === 'percent') {
+                $saleLevelDiscount += (($d['value'] ?? 0) / 100) * $totalGross;
+            }
+        }
+
+        return $saleLevelDiscount * $proportion;
+    }
 }

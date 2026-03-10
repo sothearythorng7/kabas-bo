@@ -45,6 +45,11 @@ class CommissionCalculation extends Model
         return Carbon::parse($this->period . '-01')->translatedFormat('F Y');
     }
 
+    public function getSalesPeriodLabelAttribute(): string
+    {
+        return Carbon::parse($this->period . '-01')->subMonth()->translatedFormat('F Y');
+    }
+
     public function getStatusBadgeClass(): string
     {
         return match($this->status) {

@@ -88,16 +88,20 @@ class SaleReportController extends Controller
         // Récupérer les refills pendant la période
         $refillQuantities = $this->getRefillQuantities($supplier->id, $store->id, $period_start, $period_end);
 
+        // Récupérer les retours fournisseur pendant la période
+        $returnQuantities = $this->getReturnQuantities($supplier->id, $store->id, $period_start, $period_end);
+
         // Récupérer le stock actuel par produit
         $currentStockQuantities = $this->getCurrentStockQuantities($store->id, $productIds);
 
-        // Calculer le stock initial (old_stock = stock_actuel + ventes - refills)
+        // Calculer le stock initial (old_stock = stock_actuel + ventes + retours - refills)
         $oldStockQuantities = [];
         foreach ($productIds as $productId) {
             $currentStock = $currentStockQuantities[$productId] ?? 0;
             $sales = $posSalesQuantities[$productId] ?? 0;
             $refills = $refillQuantities[$productId] ?? 0;
-            $oldStockQuantities[$productId] = max(0, $currentStock + $sales - $refills);
+            $returns = $returnQuantities[$productId] ?? 0;
+            $oldStockQuantities[$productId] = max(0, $currentStock + $sales + $returns - $refills);
         }
 
         $hasPosSales = array_sum($posSalesQuantities) > 0;
@@ -110,6 +114,7 @@ class SaleReportController extends Controller
             'products',
             'posSalesQuantities',
             'refillQuantities',
+            'returnQuantities',
             'currentStockQuantities',
             'oldStockQuantities',
             'hasPosSales'
@@ -175,12 +180,13 @@ class SaleReportController extends Controller
     }
 
     /**
-     * Récupère les quantités reçues via Refill pour une période et un magasin donnés
+     * Récupère les quantités reçues (Refill + SupplierOrder) pour une période et un magasin donnés
      */
     private function getRefillQuantities(int $supplierId, int $storeId, string $periodStart, string $periodEnd): array
     {
         $quantities = [];
 
+        // Refills
         $refills = \App\Models\Refill::where('supplier_id', $supplierId)
             ->where('destination_store_id', $storeId)
             ->whereDate('created_at', '>=', $periodStart)
@@ -192,6 +198,49 @@ class SaleReportController extends Controller
             foreach ($refill->products as $product) {
                 $productId = $product->id;
                 $qty = $product->pivot->quantity_received ?? 0;
+                $quantities[$productId] = ($quantities[$productId] ?? 0) + $qty;
+            }
+        }
+
+        // Commandes fournisseur reçues
+        $orders = \App\Models\SupplierOrder::where('supplier_id', $supplierId)
+            ->where('destination_store_id', $storeId)
+            ->where('status', 'received')
+            ->whereDate('created_at', '>=', $periodStart)
+            ->whereDate('created_at', '<=', $periodEnd)
+            ->with('products')
+            ->get();
+
+        foreach ($orders as $order) {
+            foreach ($order->products as $product) {
+                $productId = $product->id;
+                $qty = $product->pivot->quantity_received ?? 0;
+                $quantities[$productId] = ($quantities[$productId] ?? 0) + $qty;
+            }
+        }
+
+        return $quantities;
+    }
+
+    /**
+     * Récupère les quantités retournées au fournisseur pour une période et un magasin donnés
+     */
+    private function getReturnQuantities(int $supplierId, int $storeId, string $periodStart, string $periodEnd): array
+    {
+        $quantities = [];
+
+        $returns = \App\Models\SupplierReturn::where('supplier_id', $supplierId)
+            ->where('store_id', $storeId)
+            ->whereIn('status', ['pending', 'validated'])
+            ->whereDate('created_at', '>=', $periodStart)
+            ->whereDate('created_at', '<=', $periodEnd)
+            ->with('items')
+            ->get();
+
+        foreach ($returns as $return) {
+            foreach ($return->items as $item) {
+                $productId = $item->product_id;
+                $qty = $item->quantity ?? 0;
                 $quantities[$productId] = ($quantities[$productId] ?? 0) + $qty;
             }
         }
@@ -228,6 +277,7 @@ class SaleReportController extends Controller
             'products' => 'required|array',
             'products.*.old_stock' => 'required|integer|min:0',
             'products.*.refill' => 'required|integer|min:0',
+            'products.*.returns' => 'required|integer|min:0',
             'products.*.stock_on_hand' => 'required|integer|min:0',
             'products.*.quantity_sold' => 'nullable|integer|min:0',
         ]);
@@ -242,38 +292,34 @@ class SaleReportController extends Controller
         foreach ($request->products as $productId => $data) {
             $oldStock = $data['old_stock'] ?? 0;
             $refill = $data['refill'] ?? 0;
+            $returns = $data['returns'] ?? 0;
             $stockOnHand = $data['stock_on_hand'] ?? 0;
             // Utiliser quantity_sold du POS si fourni, sinon calculer
             $quantitySold = isset($data['quantity_sold']) && $data['quantity_sold'] > 0
                 ? (int) $data['quantity_sold']
-                : $oldStock + $refill - $stockOnHand;
+                : max(0, $oldStock + $refill - $returns - $stockOnHand);
 
-            if ($quantitySold > 0) {
-                $product = $supplier->products()->where('products.id', $productId)->first();
-                $unitPrice = $product->pivot->purchase_price ?? 0; // Cost price
-                $sellingPrice = $product->price * $quantitySold; // Total selling price
+            $product = $supplier->products()->where('products.id', $productId)->first();
+            $unitPrice = $product->pivot->purchase_price ?? 0; // Cost price
+            $sellingPrice = $product->price * $quantitySold; // Total selling price
 
-                $items[] = [
-                    'product_id' => $productId,
-                    'old_stock' => $oldStock,
-                    'refill' => $refill,
-                    'stock_on_hand' => $stockOnHand,
-                    'quantity_sold' => $quantitySold,
-                    'unit_price' => $unitPrice,
-                    'selling_price' => $sellingPrice,
-                    'total' => $unitPrice * $quantitySold,
-                ];
+            $items[] = [
+                'product_id' => $productId,
+                'old_stock' => $oldStock,
+                'refill' => $refill,
+                'returns' => $returns,
+                'stock_on_hand' => $stockOnHand,
+                'quantity_sold' => $quantitySold,
+                'unit_price' => $unitPrice,
+                'selling_price' => $sellingPrice,
+                'total' => $unitPrice * $quantitySold,
+            ];
 
-                $totalPayAmount += $unitPrice * $quantitySold;
-                $totalSaleAmount += $sellingPrice;
-            }
+            $totalPayAmount += $unitPrice * $quantitySold;
+            $totalSaleAmount += $sellingPrice;
         }
 
-        if (empty($items)) {
-            return back()
-                ->withInput()
-                ->withErrors(['products' => 'Vous devez saisir au moins une quantité vendue.']);
-        }
+        $store = Store::findOrFail($request->store_id);
 
         $saleReport = $supplier->saleReports()->create([
             'store_id' => $request->store_id,
@@ -293,11 +339,12 @@ class SaleReportController extends Controller
             'saleReport' => $saleReport->load('items.product', 'supplier', 'store')
         ])->setPaper('a4', 'landscape');
 
-        // Format: SUPPLIER_NAME_DDMMYYYY_DDMMYYYY.pdf
         $supplierName = Str::slug($supplier->name, '_');
+        $storeName = Str::slug($store->name, '_');
         $dateStart = \Carbon\Carbon::parse($period_start)->format('dmY');
         $dateEnd = \Carbon\Carbon::parse($period_end)->format('dmY');
-        $filename = strtoupper("{$supplierName}_{$dateStart}_{$dateEnd}") . '.pdf';
+        $hash = substr(md5(now()->timestamp . $saleReport->id), 0, 8);
+        $filename = strtoupper("{$supplierName}_{$storeName}_{$dateStart}_{$dateEnd}") . "_{$hash}.pdf";
 
         $path = "sale_reports/{$filename}";
         \Storage::disk('public')->put($path, $pdf->output());
@@ -421,7 +468,7 @@ class SaleReportController extends Controller
         $storeId = $saleReport->store_id;
 
         // Montant facturé = somme des prix facturés (ou prix théorique si non renseigné)
-        $amount = $saleReport->items->sum(fn($item) => $item->price_invoiced ?? $item->unit_price ?? 0 * $item->quantity_sold);
+        $amount = $saleReport->items->sum(fn($item) => ($item->price_invoiced ?? $item->unit_price ?? 0) * $item->quantity_sold);
 
         // Compte fournisseur (401)
         $account = \App\Models\FinancialAccount::where('code', '401')->firstOrFail();
@@ -472,8 +519,31 @@ class SaleReportController extends Controller
         return view('sale_reports.show', compact('supplier', 'saleReport'));
     }
 
+    public function destroy(Supplier $supplier, SaleReport $saleReport)
+    {
+        if ($saleReport->status !== 'waiting_invoice') {
+            return back()->with('error', 'Only sale reports with status "waiting_invoice" can be deleted.');
+        }
+
+        // Delete PDF file if exists
+        if ($saleReport->report_file_path) {
+            Storage::disk('public')->delete($saleReport->report_file_path);
+        }
+
+        $saleReport->items()->delete();
+        $saleReport->delete();
+
+        return redirect(route('suppliers.edit', $supplier) . '#sales-reports')
+            ->with('success', 'Sale report deleted successfully.');
+    }
+
     public function regeneratePdf(Supplier $supplier, SaleReport $saleReport)
     {
+        // Delete old PDF
+        if ($saleReport->report_file_path) {
+            \Storage::disk('public')->delete($saleReport->report_file_path);
+        }
+
         $saleReport->load('items.product', 'supplier', 'store');
 
         $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('sale_reports.pdf', [
@@ -481,9 +551,11 @@ class SaleReportController extends Controller
         ])->setPaper('a4', 'landscape');
 
         $supplierName = Str::slug($saleReport->supplier->name, '_');
+        $storeName = Str::slug($saleReport->store->name, '_');
         $dateStart = $saleReport->period_start->format('dmY');
         $dateEnd = $saleReport->period_end->format('dmY');
-        $filename = strtoupper("{$supplierName}_{$dateStart}_{$dateEnd}") . '.pdf';
+        $hash = substr(md5(now()->timestamp . $saleReport->id), 0, 8);
+        $filename = strtoupper("{$supplierName}_{$storeName}_{$dateStart}_{$dateEnd}") . "_{$hash}.pdf";
 
         $path = "sale_reports/{$filename}";
         \Storage::disk('public')->put($path, $pdf->output());

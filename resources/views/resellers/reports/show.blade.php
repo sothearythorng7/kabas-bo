@@ -11,10 +11,26 @@
     @endif
     <p><strong>{{ __('messages.resellers.created_at') }}:</strong> {{ $report->created_at->format('d/m/Y H:i') }}</p>
 
-    <div class="mb-3">
+    <div class="mb-3 d-flex gap-2 flex-wrap">
         <a href="{{ route('resellers.show', $resellerParam ?? $reseller->id) }}" class="btn btn-secondary">
             <i class="bi bi-arrow-left"></i> {{ __('messages.resellers.back_to_reseller') }}
         </a>
+
+        @if($paymentStatus !== 'paid')
+            <a href="{{ route('resellers.reports.edit', [$resellerParam ?? $reseller->id, $report->id]) }}" class="btn btn-warning">
+                <i class="bi bi-pencil-fill"></i> {{ __('messages.btn.edit') }}
+            </a>
+
+            <form action="{{ route('resellers.reports.destroy', [$resellerParam ?? $reseller->id, $report->id]) }}"
+                  method="POST"
+                  onsubmit="return confirm('{{ __('messages.resellers.confirm_delete_report') }}')">
+                @csrf
+                @method('DELETE')
+                <button type="submit" class="btn btn-danger">
+                    <i class="bi bi-trash-fill"></i> {{ __('messages.btn.delete') }}
+                </button>
+            </form>
+        @endif
     </div>
 
     {{-- Paiements --}}

@@ -21,7 +21,8 @@ class ResellerInvoiceController extends Controller
 
         $invoicesByStatus = [];
         foreach ($statuses as $status) {
-            $invoicesByStatus[$status] = ResellerInvoice::with('reseller', 'resellerStockDelivery', 'payments')
+            $invoicesByStatus[$status] = ResellerInvoice::with('reseller', 'salesReport', 'payments')
+                ->whereNotNull('sales_report_id')
                 ->where('status', $status)
                 ->orderByDesc('created_at')
                 ->paginate(10);
@@ -29,6 +30,7 @@ class ResellerInvoiceController extends Controller
 
         // Montant total des factures en attente (unpaid + partially_paid)
         $pendingInvoices = ResellerInvoice::with('payments')
+            ->whereNotNull('sales_report_id')
             ->whereIn('status', ['unpaid', 'partially_paid'])
             ->get();
 
@@ -53,6 +55,112 @@ class ResellerInvoiceController extends Controller
         ]);
 
         return view('reseller_invoices.show', compact('invoice'));
+    }
+
+    public function markAsPaid(Request $request, ResellerInvoice $invoice)
+    {
+        $data = $request->validate([
+            'payment_date' => 'required|date',
+            'payment_method_id' => 'required|exists:financial_payment_methods,id',
+            'payment_reference' => 'nullable|string|max:255',
+            'payment_proof' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
+        ]);
+
+        $paid = $invoice->payments->sum('amount');
+        $remaining = $invoice->total_amount - $paid;
+
+        if ($remaining <= 0) {
+            return redirect()->back()->with('error', 'Invoice already fully paid.');
+        }
+
+        // Store proof file if provided
+        $proofPath = null;
+        if ($request->hasFile('payment_proof')) {
+            $proofPath = $request->file('payment_proof')->store('reseller_payment_proofs', 'public');
+        }
+
+        // Create payment for the remaining amount
+        $payment = $invoice->payments()->create([
+            'amount' => $remaining,
+            'payment_method' => FinancialPaymentMethod::find($data['payment_method_id'])->code ?? 'transfer',
+            'reference' => $data['payment_reference'],
+            'paid_at' => $data['payment_date'],
+            'proof_path' => $proofPath,
+        ]);
+
+        // Update invoice status
+        $invoice->update([
+            'status' => 'paid',
+            'paid_at' => $data['payment_date'],
+        ]);
+
+        // Financial transaction
+        $wareHouse = Store::where('type', 'warehouse')->first();
+        $entity = $invoice->reseller ?? $invoice->store;
+        $isShop = !$invoice->reseller_id;
+
+        if ($wareHouse) {
+            $account = FinancialAccount::where('code', '701')->first();
+            $paymentMethodId = $data['payment_method_id'];
+
+            $lastTransaction = FinancialTransaction::where('store_id', $wareHouse->id)
+                ->orderBy('transaction_date', 'desc')
+                ->orderBy('id', 'desc')
+                ->first();
+
+            $balanceBefore = $lastTransaction?->balance_after ?? 0;
+            $balanceAfter = $balanceBefore + $remaining;
+
+            $url = route('reseller-invoices.show', $invoice);
+            $path = ltrim(parse_url($url, PHP_URL_PATH), '/');
+
+            FinancialTransaction::create([
+                'store_id' => $wareHouse->id,
+                'account_id' => $account->id,
+                'amount' => $remaining,
+                'currency' => 'USD',
+                'direction' => 'credit',
+                'balance_before' => $balanceBefore,
+                'balance_after' => $balanceAfter,
+                'label' => "Paiement reçu de " . ($entity->name ?? 'revendeur'),
+                'description' => "Paiement complet pour facture #{$invoice->id}",
+                'status' => 'validated',
+                'transaction_date' => Carbon::parse($data['payment_date']),
+                'payment_method_id' => $paymentMethodId,
+                'user_id' => auth()->id(),
+                'external_reference' => $path,
+            ]);
+
+            // Debit on shop side if it's a shop
+            if ($isShop && $invoice->store_id) {
+                $lastTransactionShop = FinancialTransaction::where('store_id', $invoice->store_id)
+                    ->orderBy('transaction_date', 'desc')
+                    ->orderBy('id', 'desc')
+                    ->first();
+
+                $balanceBeforeShop = $lastTransactionShop?->balance_after ?? 0;
+                $balanceAfterShop = $balanceBeforeShop - $remaining;
+
+                FinancialTransaction::create([
+                    'store_id' => $invoice->store_id,
+                    'account_id' => $account->id,
+                    'amount' => $remaining,
+                    'currency' => 'USD',
+                    'direction' => 'debit',
+                    'balance_before' => $balanceBeforeShop,
+                    'balance_after' => $balanceAfterShop,
+                    'label' => "Paiement vers warehouse",
+                    'description' => "Paiement effectué pour facture #{$invoice->id}",
+                    'status' => 'validated',
+                    'transaction_date' => Carbon::parse($data['payment_date']),
+                    'payment_method_id' => $paymentMethodId,
+                    'user_id' => auth()->id(),
+                    'external_reference' => $path,
+                ]);
+            }
+        }
+
+        return redirect()->back()->with('success', __('messages.reseller_invoice.payment_recorded'));
     }
 
     public function addPayment(Request $request, ResellerInvoice $invoice)

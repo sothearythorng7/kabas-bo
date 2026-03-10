@@ -234,9 +234,25 @@
                                     @endphp
                                     <tr>
                                         <td>
-                                            <a href="{{ route('reseller-invoices.show', $invoice) }}" class="btn btn-sm btn-primary">
-                                                <i class="bi bi-eye"></i>
-                                            </a>
+                                            <div class="btn-group">
+                                                <button type="button" class="btn btn-sm btn-primary dropdown-toggle" data-bs-toggle="dropdown">
+                                                    <i class="bi bi-three-dots-vertical"></i>
+                                                </button>
+                                                <ul class="dropdown-menu">
+                                                    <li>
+                                                        <a class="dropdown-item" href="{{ route('reseller-invoices.show', $invoice) }}">
+                                                            <i class="bi bi-eye-fill"></i> {{ __('messages.btn.view') }}
+                                                        </a>
+                                                    </li>
+                                                    @if($invoice->sales_report_id)
+                                                    <li>
+                                                        <button class="dropdown-item" data-bs-toggle="modal" data-bs-target="#markAsPaidModalRI-{{ $invoice->id }}">
+                                                            <i class="bi bi-cash-coin"></i> {{ __('messages.Mark as paid') }}
+                                                        </button>
+                                                    </li>
+                                                    @endif
+                                                </ul>
+                                            </div>
                                         </td>
                                         <td>
                                             @if($invoice->reseller)
@@ -256,6 +272,53 @@
                                         <td class="text-danger fw-bold">${{ number_format($remaining, 2) }}</td>
                                         <td>{{ $invoice->created_at->format('d/m/Y') }}</td>
                                     </tr>
+
+                                    {{-- Modal Mark as Paid --}}
+                                    @if($invoice->sales_report_id)
+                                    <div class="modal fade" id="markAsPaidModalRI-{{ $invoice->id }}" tabindex="-1" aria-hidden="true">
+                                        <div class="modal-dialog modal-dialog-centered" style="max-width: 450px;">
+                                            <form action="{{ route('reseller-invoices.markAsPaid', $invoice) }}" method="POST" enctype="multipart/form-data">
+                                                @csrf
+                                                <div class="modal-content">
+                                                    <div class="modal-header">
+                                                        <h5 class="modal-title">{{ __('messages.Mark sale report as paid') }}</h5>
+                                                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                                    </div>
+                                                    <div class="modal-body">
+                                                        <div class="mb-3">
+                                                            <label class="form-label">{{ __('messages.Amount paid') }} : <strong>${{ number_format($remaining, 2) }}</strong></label>
+                                                        </div>
+                                                        <div class="mb-3">
+                                                            <label class="form-label">{{ __('messages.general_invoices.payment_date') }} <span class="text-danger">*</span></label>
+                                                            <input type="date" name="payment_date" class="form-control form-control-sm" value="{{ now()->format('Y-m-d') }}" required>
+                                                        </div>
+                                                        <div class="mb-3">
+                                                            <label class="form-label">{{ __('messages.Méthode de paiement') }} <span class="text-danger">*</span></label>
+                                                            <select name="payment_method_id" class="form-select form-select-sm" required>
+                                                                @foreach($paymentMethods as $method)
+                                                                    <option value="{{ $method->id }}">{{ $method->name }}</option>
+                                                                @endforeach
+                                                            </select>
+                                                        </div>
+                                                        <div class="mb-3">
+                                                            <label class="form-label">{{ __('messages.Payment reference') }}</label>
+                                                            <input type="text" name="payment_reference" class="form-control form-control-sm">
+                                                        </div>
+                                                        <div class="mb-3">
+                                                            <label class="form-label">{{ __('messages.general_invoices.payment_proof') }}</label>
+                                                            <input type="file" name="payment_proof" class="form-control form-control-sm" accept=".pdf,.jpg,.jpeg,.png">
+                                                            <small class="text-muted">{{ __('messages.general_invoices.payment_proof_hint') }}</small>
+                                                        </div>
+                                                    </div>
+                                                    <div class="modal-footer">
+                                                        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">{{ __('messages.btn.cancel') }}</button>
+                                                        <button type="submit" class="btn btn-success btn-sm">{{ __('messages.Confirm payment') }}</button>
+                                                    </div>
+                                                </div>
+                                            </form>
+                                        </div>
+                                    </div>
+                                    @endif
                                 @endforeach
                             </tbody>
                         </table>

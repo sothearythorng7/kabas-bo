@@ -12,6 +12,9 @@
             @endif
         </div>
         <div class="d-flex gap-2">
+            <a href="{{ route('special-orders.invoice', $order) }}" class="btn btn-outline-danger" target="_blank">
+                <i class="bi bi-file-earmark-pdf"></i> {{ __('messages.special_order.invoice') }}
+            </a>
             <a href="{{ route('special-orders.edit', $order) }}" class="btn btn-outline-primary">
                 <i class="bi bi-pencil"></i> {{ __('messages.btn.edit') }}
             </a>
@@ -62,6 +65,9 @@
                             <span class="badge bg-{{ \App\Models\WebsiteOrder::paymentStatusBadgeClass($order->payment_status) }}">
                                 {{ __('messages.website_order.pay_status_' . $order->payment_status) }}
                             </span>
+                            @if($order->paid_at)
+                                <br><strong>{{ __('messages.special_order.payment_date') }}:</strong> {{ $order->paid_at->format('d/m/Y') }}
+                            @endif
                         </div>
                     </div>
                 </div>
@@ -110,7 +116,7 @@
                             </tr>
                         </thead>
                         <tbody>
-                            @foreach($order->items as $item)
+                            @foreach($order->items->where('item_type', 'product') as $item)
                             <tr>
                                 <td>
                                     @if($item->product_image)
@@ -124,6 +130,17 @@
                                 <td class="text-end">${{ number_format($item->subtotal, 2) }}</td>
                             </tr>
                             @endforeach
+                            @foreach($order->items->where('item_type', 'option') as $item)
+                            <tr class="table-info">
+                                <td colspan="2">
+                                    <i class="bi bi-plus-circle text-primary"></i>
+                                    {{ $item->product_name }}
+                                </td>
+                                <td class="text-center">1</td>
+                                <td class="text-end">${{ number_format($item->unit_price, 2) }}</td>
+                                <td class="text-end">${{ number_format($item->subtotal, 2) }}</td>
+                            </tr>
+                            @endforeach
                         </tbody>
                     </table>
                 </div>
@@ -133,6 +150,16 @@
             <div class="card mb-3">
                 <div class="card-body">
                     <table class="table table-sm mb-0">
+                        @if($order->discount > 0)
+                        <tr>
+                            <td class="text-end border-0">{{ __('messages.special_order.subtotal') }}</td>
+                            <td class="text-end border-0" style="width: 150px;">${{ number_format($order->subtotal, 2) }}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-end border-0 text-danger">{{ __('messages.special_order.discount') }}</td>
+                            <td class="text-end border-0 text-danger" style="width: 150px;">-${{ number_format($order->discount, 2) }}</td>
+                        </tr>
+                        @endif
                         <tr>
                             <td class="text-end border-0"><strong class="fs-5">{{ __('messages.website_order.total') }}</strong></td>
                             <td class="text-end border-0" style="width: 150px;"><strong class="fs-5">${{ number_format($order->total, 2) }}</strong></td>
@@ -245,7 +272,7 @@
                             <label class="form-label small">{{ __('messages.special_order.deposit_amount') }}</label>
                             <div class="input-group input-group-sm">
                                 <span class="input-group-text">$</span>
-                                <input type="number" name="deposit_amount" class="form-control" step="0.01" min="0"
+                                <input type="number" name="deposit_amount" class="form-control" step="0.00001" min="0"
                                        value="{{ $order->deposit_amount }}">
                             </div>
                         </div>
@@ -261,20 +288,56 @@
                 </div>
             </div>
 
-            <!-- Mark as paid (for cash/bank_transfer that are still pending) -->
-            @if($order->payment_status !== 'paid' && in_array($order->payment_type, ['cash', 'bank_transfer']))
+            <!-- Mark as paid (bank transfer or cash — available for any payment type) -->
+            @if($order->payment_status !== 'paid')
             <div class="card mb-3 border-success">
                 <div class="card-body">
-                    <form action="{{ route('special-orders.mark-paid', $order) }}" method="POST"
-                          onsubmit="return confirm('{{ __('messages.special_order.confirm_mark_paid') }}')">
-                        @csrf
-                        <button type="submit" class="btn btn-success w-100">
-                            <i class="bi bi-check-circle"></i> {{ __('messages.special_order.mark_as_paid') }}
-                        </button>
-                    </form>
+                    <button type="button" class="btn btn-success w-100" data-bs-toggle="modal" data-bs-target="#markPaidModal">
+                        <i class="bi bi-check-circle"></i> {{ __('messages.special_order.mark_as_paid') }}
+                    </button>
                     <small class="text-muted d-block mt-1 text-center">
                         {{ __('messages.special_order.mark_paid_info') }}
                     </small>
+                </div>
+            </div>
+
+            <!-- Mark as Paid Modal -->
+            <div class="modal fade" id="markPaidModal" tabindex="-1">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <form action="{{ route('special-orders.mark-paid', $order) }}" method="POST">
+                            @csrf
+                            <div class="modal-header">
+                                <h5 class="modal-title">
+                                    <i class="bi bi-check-circle text-success"></i> {{ __('messages.special_order.mark_as_paid') }}
+                                </h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                            </div>
+                            <div class="modal-body">
+                                <p class="text-muted">{{ __('messages.special_order.mark_paid_info') }}</p>
+                                <div class="mb-3">
+                                    <label class="form-label">{{ __('messages.special_order.payment_type_label') }} *</label>
+                                    <select name="payment_type" class="form-select">
+                                        <option value="bank_transfer" {{ $order->payment_type === 'bank_transfer' ? 'selected' : '' }}>{{ __('messages.special_order.type_bank_transfer') }}</option>
+                                        <option value="cash" {{ $order->payment_type === 'cash' ? 'selected' : '' }}>{{ __('messages.special_order.type_cash') }}</option>
+                                    </select>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">{{ __('messages.special_order.payment_date') }} *</label>
+                                    <input type="date" name="paid_at" class="form-control" value="{{ now()->format('Y-m-d') }}" required>
+                                </div>
+                                <div class="alert alert-light border mb-0">
+                                    <strong>{{ __('messages.website_order.total') }}:</strong> ${{ number_format($order->total, 2) }}
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ __('messages.btn.cancel') }}</button>
+                                <button type="submit" class="btn btn-success">
+                                    <i class="bi bi-check-circle"></i> {{ __('messages.special_order.confirm_payment') }}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
                 </div>
             </div>
             @endif

@@ -8,6 +8,16 @@
     <form action="{{ route('supplier-orders.store', $supplier) }}" method="POST">
         @csrf
 
+        <div class="row mb-3">
+            <div class="col-md-3">
+                <label for="deposit" class="form-label">{{ __('messages.supplier_order.deposit') }}</label>
+                <div class="input-group">
+                    <span class="input-group-text">$</span>
+                    <input type="number" step="0.00001" min="0" name="deposit" id="deposit" class="form-control" value="0">
+                </div>
+            </div>
+        </div>
+
         <div class="table-responsive">
             <table class="table table-striped">
                 <thead>
@@ -36,7 +46,7 @@
                             @endif
                         </td>
                         <td>
-                            <input type="number" step="0.01" min="0"
+                            <input type="number" step="0.00001" min="0"
                                    name="raw_materials[{{ $material->id }}][purchase_price]"
                                    value="0"
                                    class="form-control form-control-sm"
@@ -74,3 +84,20 @@
     </form>
 </div>
 @endsection
+
+@push('scripts')
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelector('form').addEventListener('submit', function(e) {
+        let hasQuantity = false;
+        this.querySelectorAll('input[name*="[quantity]"]').forEach(input => {
+            if (parseFloat(input.value) > 0) hasQuantity = true;
+        });
+        if (!hasQuantity) {
+            e.preventDefault();
+            alert('{{ __("messages.supplier_order.no_products_selected") }}');
+        }
+    });
+});
+</script>
+@endpush

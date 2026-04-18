@@ -58,8 +58,9 @@
         <li class="nav-item">
             <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-variations" type="button" role="tab">
                 <i class="bi bi-bezier2"></i> {{ __('messages.product.tab_variations') }}
-                <span class="badge bg-{{ ($product->variations->count() ?? 0) > 0 ? 'success' : 'danger' }}">
-                    {{ $product->variations->count() ?? 0 }}
+                @php $varCount = $product->variation_group_id ? $product->variationGroup->products()->count() : 0; @endphp
+                <span class="badge bg-{{ $varCount > 0 ? 'success' : 'danger' }}">
+                    {{ $varCount }}
                 </span>
             </button>
         </li>
@@ -90,7 +91,7 @@
             <option value="#tab-stores">{{ __('messages.product.tab_stores') }}</option>
             <option value="#tab-photos">{{ __('messages.product.tab_photos') }}</option>
             <option value="#tab-descriptions">{{ __('messages.product.tab_descriptions') }}</option>
-            <option value="#tab-variations">{{ __('messages.product.tab_variations') }} ({{ $product->variations->count() ?? 0 }})</option>
+            <option value="#tab-variations">{{ __('messages.product.tab_variations') }} ({{ $varCount }})</option>
             <option value="#tab-barcodes">{{ __('messages.product.tab_barcodes') ?? 'Codes-barres' }} ({{ $product->barcodes->count() ?? 0 }})</option>
             <option value="#tab-seo">{{ __('messages.product.tab_seo') }}</option>
         </select>
@@ -118,12 +119,12 @@
                     </div>
                     <div class="col-md-3 mb-3">
                         <label class="form-label">{{ __('messages.product.price') }}</label>
-                        <input type="number" step="0.01" name="price" class="form-control @error('price') is-invalid @enderror" value="{{ old('price', $product->price) }}">
+                        <input type="number" step="0.00001" name="price" class="form-control @error('price') is-invalid @enderror" value="{{ old('price', $product->price) }}">
                         @error('price') <div class="invalid-feedback">{{ $message }}</div> @enderror
                     </div>
                     <div class="col-md-3 mb-3">
                         <label class="form-label">{{ __('messages.product.price_btob') }}</label>
-                        <input type="number" step="0.01" name="price_btob" class="form-control @error('price') is-invalid @enderror" value="{{ old('price', $product->price_btob) }}">
+                        <input type="number" step="0.00001" name="price_btob" class="form-control @error('price') is-invalid @enderror" value="{{ old('price', $product->price_btob) }}">
                         @error('price_btob') <div class="invalid-feedback">{{ $message }}</div> @enderror
                     </div>
                 </div>
@@ -135,6 +136,24 @@
                                    class="form-control" value="{{ old('shipping_weight', $product->shipping_weight) }}">
                             <span class="input-group-text">g</span>
                         </div>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <label class="form-label">{{ __('messages.product.gender') }}</label>
+                        <select name="gender" class="form-select">
+                            <option value="">{{ __('messages.product.gender_none') }}</option>
+                            @foreach(['male', 'female', 'unisex'] as $g)
+                                <option value="{{ $g }}" @selected(old('gender', $product->gender) === $g)>{{ __('messages.product.gender_' . $g) }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <label class="form-label">{{ __('messages.product.age_group') }}</label>
+                        <select name="age_group" class="form-select">
+                            <option value="">{{ __('messages.product.age_group_none') }}</option>
+                            @foreach(['adult', 'kids', 'toddler', 'infant', 'newborn'] as $a)
+                                <option value="{{ $a }}" @selected(old('age_group', $product->age_group) === $a)>{{ __('messages.product.age_group_' . $a) }}</option>
+                            @endforeach
+                        </select>
                     </div>
                 </div>
 
@@ -241,7 +260,7 @@
                                 <form action="{{ route('products.suppliers.updatePrice', [$product, $supplier]) }}" method="POST" class="d-flex">
                                     @csrf
                                     @method('PUT')
-                                    <input type="number" step="0.01" name="purchase_price" class="form-control form-control-sm"
+                                    <input type="number" step="0.00001" name="purchase_price" class="form-control form-control-sm"
                                         value="{{ $supplier->pivot->purchase_price }}">
                                     <button class="btn btn-sm btn-success ms-2"><i class="bi bi-check"></i></button>
                                 </form>
@@ -450,129 +469,162 @@
                 </div>
             @endif
 
+            {{-- Group info --}}
+            @if($product->variation_group_id)
+                <div class="alert alert-info d-flex align-items-center justify-content-between mb-3">
+                    <span><i class="bi bi-collection"></i> <strong>{{ __('messages.variation.group') ?? 'Groupe' }}:</strong> {{ $product->variationGroup->name ?? '—' }}</span>
+                </div>
+            @endif
+
+            {{-- Current product attributes --}}
+            @if($product->variation_group_id)
+                <div class="card mb-3">
+                    <div class="card-header"><strong>{{ __('messages.variation.this_product_attributes') ?? "Attributs de ce produit" }}</strong></div>
+                    <div class="card-body">
+                        <form method="POST" action="{{ route('products.variations.updateSelf', $product) }}">
+                            @csrf @method('PUT')
+                            <div id="selfAttributeRows">
+                                @forelse($product->variationAttributes as $i => $attr)
+                                    <div class="row g-2 mb-2 attr-row">
+                                        <div class="col-md-4">
+                                            <select class="form-select attr-type-select" name="attributes[{{ $i }}][variation_type_id]" required>
+                                                <option value="">--</option>
+                                                @foreach($types as $type)
+                                                    <option value="{{ $type->id }}" {{ $attr->variation_type_id == $type->id ? 'selected' : '' }}>{{ $type->name }}</option>
+                                                @endforeach
+                                            </select>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <select class="form-select attr-value-select" name="attributes[{{ $i }}][variation_value_id]" required data-selected="{{ $attr->variation_value_id }}">
+                                                <option value="{{ $attr->variation_value_id }}">{{ $attr->value->value }}</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-2">
+                                            <button type="button" class="btn btn-outline-danger btn-sm remove-attr-row"><i class="bi bi-trash"></i></button>
+                                        </div>
+                                    </div>
+                                @empty
+                                    <div class="row g-2 mb-2 attr-row">
+                                        <div class="col-md-4">
+                                            <select class="form-select attr-type-select" name="attributes[0][variation_type_id]" required>
+                                                <option value="">--</option>
+                                                @foreach($types as $type)
+                                                    <option value="{{ $type->id }}">{{ $type->name }}</option>
+                                                @endforeach
+                                            </select>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <select class="form-select attr-value-select" name="attributes[0][variation_value_id]" required>
+                                                <option value="">--</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-2">
+                                            <button type="button" class="btn btn-outline-danger btn-sm remove-attr-row"><i class="bi bi-trash"></i></button>
+                                        </div>
+                                    </div>
+                                @endforelse
+                            </div>
+                            <button type="button" class="btn btn-sm btn-outline-secondary mb-2" id="addSelfAttrRow"><i class="bi bi-plus"></i> {{ __('messages.variation.add_attribute') ?? 'Ajouter attribut' }}</button>
+                            <br>
+                            <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-check"></i> {{ __('messages.btn.save') }}</button>
+                        </form>
+                    </div>
+                </div>
+            @endif
+
+            {{-- Group members table --}}
+            @if($product->variation_group_id && isset($groupProducts) && $groupProducts->count() > 1)
+                <h6 class="mt-4">{{ __('messages.variation.group_members') ?? 'Produits du groupe' }}</h6>
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>EAN</th>
+                            <th>{{ __('messages.product.name') ?? 'Nom' }}</th>
+                            <th>{{ __('messages.variation.attributes') ?? 'Attributs' }}</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach($groupProducts as $gp)
+                            <tr class="{{ $gp->id === $product->id ? 'table-active' : '' }}">
+                                <td><code>{{ $gp->ean }}</code></td>
+                                <td>
+                                    @if($gp->id === $product->id)
+                                        <strong>{{ $gp->name['fr'] ?? reset($gp->name) }}</strong> <span class="badge bg-success">{{ __('messages.variation.current') ?? 'actuel' }}</span>
+                                    @else
+                                        <a href="{{ route('products.edit', $gp) }}#tab-variations" target="_blank">{{ $gp->name['fr'] ?? reset($gp->name) }}</a>
+                                    @endif
+                                </td>
+                                <td>
+                                    @foreach($gp->variationAttributes as $attr)
+                                        <span class="badge bg-secondary">{{ $attr->type->name }}: {{ $attr->value->value }}</span>
+                                    @endforeach
+                                </td>
+                                <td>
+                                    @if($gp->id !== $product->id)
+                                        <form method="POST" action="{{ route('products.variations.destroy', [$product, $gp->id]) }}" onsubmit="return confirm('{{ __('messages.variation.confirm_remove') ?? 'Retirer ce produit du groupe ?' }}')" style="display: inline-block;">
+                                            @csrf @method('DELETE')
+                                            <button class="btn btn-sm btn-outline-danger"><i class="bi bi-x-circle"></i></button>
+                                        </form>
+                                    @endif
+                                </td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            @endif
+
+            {{-- Add product to group button --}}
             <button type="button" class="btn btn-success mb-3" data-bs-toggle="modal" data-bs-target="#addVariationModal">
                 <i class="bi bi-plus-circle"></i> {{ __('messages.btn.add_variation') }}
             </button>
-            <table class="table table-striped">
-                <thead>
-                    <tr>
-                        <th>{{ __('messages.variation.type') }}</th>
-                        <th>{{ __('messages.variation.value') }}</th>
-                        <th>{{ __('messages.variation.linked_product') }}</th>
-                        <th></th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach($product->variations as $var)
-                    <tr>
-                        <td>{{ $var->type->name }}</td>
-                        <td>{{ $var->value->value }}</td>
-                        <td>
-                            <a href="{{route('products.edit', $var->linkedProduct)}}" target="_blank">
-                                {{ $var->linkedProduct->ean }} - {{ $var->linkedProduct->name['fr'] ?? reset($var->linkedProduct->name) }}
-                            </a>
-                        </td>
-                        <td>
-                            @php
-                                $linkedProductName = $var->linkedProduct->name['fr'] ?? reset($var->linkedProduct->name);
-                                $linkedProductDisplay = $var->linkedProduct->ean . ' - ' . $linkedProductName;
-                            @endphp
-                            <button type="button" class="btn btn-sm btn-primary me-2"
-                                onclick='openEditVariationModal({{ $var->id }}, {{ $var->variation_type_id }}, {{ $var->variation_value_id }}, {{ $var->linked_product_id }}, {{ json_encode($linkedProductDisplay) }})'>
-                                <i class="bi bi-pencil"></i> {{ __('messages.btn.edit') }}
-                            </button>
-                            <form method="POST" action="{{ route('products.variations.destroy', [$product, $var->id]) }}" onsubmit="return confirm('{{ __('messages.variation.confirm_delete') }}')" style="display: inline-block;">
-                                @csrf
-                                @method('DELETE')
-                                <button class="btn btn-sm btn-danger">{{ __('messages.btn.delete') }}</button>
-                            </form>
-                        </td>
-                    </tr>
-                    @endforeach
-                </tbody>
-            </table>
 
-            <div class="modal fade" id="addVariationModal" tabindex="-1" aria-labelledby="addVariationModalLabel" aria-hidden="true">
+            {{-- Add product modal --}}
+            <div class="modal fade" id="addVariationModal" tabindex="-1" aria-hidden="true">
                 <div class="modal-dialog modal-lg">
                     <div class="modal-content">
                         <form id="addVariationForm" method="POST" action="{{ route('products.variations.store', $product) }}" onsubmit="return validateAddForm()">
                             @csrf
                             <div class="modal-header">
-                                <h5 class="modal-title" id="addVariationModalLabel">{{ __('messages.btn.add_variation') }}</h5>
-                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                <h5 class="modal-title">{{ __('messages.variation.add_product_to_group') ?? 'Ajouter un produit au groupe' }}</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                             </div>
                             <div class="modal-body">
-                                <div class="row g-2 align-items-end">
-                                    <div class="col-md-4">
-                                        <label>{{ __('messages.variation.type') }} <span class="text-danger">*</span></label>
-                                        <select class="form-select" name="variation_type_id" id="variation_type" required>
-                                            <option value="">--</option>
-                                            @foreach($types as $type)
-                                                <option value="{{ $type->id }}">{{ $type->name }}</option>
-                                            @endforeach
-                                        </select>
-                                    </div>
-                                    <div class="col-md-4">
-                                        <label>{{ __('messages.variation.value') }} <span class="text-danger">*</span></label>
-                                        <select class="form-select" name="variation_value_id" id="variation_value" required>
-                                            <option value="">--</option>
-                                        </select>
-                                    </div>
-                                    <div class="col-md-4">
-                                        <label>{{ __('messages.variation.linked_product') }} <span class="text-danger">*</span></label>
-                                        <input type="text" class="form-control" id="linked_product_search" placeholder="EAN / name" required>
-                                        <input type="hidden" name="linked_product_id" id="linked_product_id" required>
-                                        <div id="linked_product_results" class="list-group position-absolute zindex-1" style="max-height:200px; overflow-y:auto;"></div>
+                                {{-- Product search --}}
+                                <div class="mb-3">
+                                    <label>{{ __('messages.variation.linked_product') ?? 'Produit' }} <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" id="linked_product_search" placeholder="EAN / nom" autocomplete="off">
+                                    <input type="hidden" name="linked_product_id" id="linked_product_id" required>
+                                    <div id="linked_product_results" class="list-group position-absolute" style="max-height:200px; overflow-y:auto; z-index:1050;"></div>
+                                </div>
+
+                                {{-- Attributes for the new product --}}
+                                <label class="mb-1">{{ __('messages.variation.attributes') ?? 'Attributs' }} <span class="text-danger">*</span></label>
+                                <div id="modalAttributeRows">
+                                    <div class="row g-2 mb-2 attr-row">
+                                        <div class="col-md-5">
+                                            <select class="form-select attr-type-select" name="attributes[0][variation_type_id]" required>
+                                                <option value="">-- {{ __('messages.variation.type') ?? 'Type' }} --</option>
+                                                @foreach($types as $type)
+                                                    <option value="{{ $type->id }}">{{ $type->name }}</option>
+                                                @endforeach
+                                            </select>
+                                        </div>
+                                        <div class="col-md-5">
+                                            <select class="form-select attr-value-select" name="attributes[0][variation_value_id]" required>
+                                                <option value="">-- {{ __('messages.variation.value') ?? 'Valeur' }} --</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-2">
+                                            <button type="button" class="btn btn-outline-danger btn-sm remove-attr-row"><i class="bi bi-trash"></i></button>
+                                        </div>
                                     </div>
                                 </div>
+                                <button type="button" class="btn btn-sm btn-outline-secondary" id="addModalAttrRow"><i class="bi bi-plus"></i> {{ __('messages.variation.add_attribute') ?? 'Ajouter attribut' }}</button>
                             </div>
                             <div class="modal-footer">
                                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ __('messages.btn.cancel') }}</button>
                                 <button type="submit" class="btn btn-success">{{ __('messages.btn.add') }}</button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            </div>
-
-            <div class="modal fade" id="editVariationModal" tabindex="-1" aria-labelledby="editVariationModalLabel" aria-hidden="true">
-                <div class="modal-dialog modal-lg">
-                    <div class="modal-content">
-                        <form id="editVariationForm" method="POST" onsubmit="return validateEditForm()">
-                            @csrf
-                            @method('PUT')
-                            <div class="modal-header">
-                                <h5 class="modal-title" id="editVariationModalLabel">{{ __('messages.btn.edit_variation') ?? 'Modifier la variation' }}</h5>
-                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                            </div>
-                            <div class="modal-body">
-                                <div class="row g-2 align-items-end">
-                                    <div class="col-md-4">
-                                        <label>{{ __('messages.variation.type') }}</label>
-                                        <select class="form-select" name="variation_type_id" id="edit_variation_type" required>
-                                            <option value="">--</option>
-                                            @foreach($types as $type)
-                                                <option value="{{ $type->id }}">{{ $type->name }}</option>
-                                            @endforeach
-                                        </select>
-                                    </div>
-                                    <div class="col-md-4">
-                                        <label>{{ __('messages.variation.value') }}</label>
-                                        <select class="form-select" name="variation_value_id" id="edit_variation_value" required>
-                                            <option value="">--</option>
-                                        </select>
-                                    </div>
-                                    <div class="col-md-4">
-                                        <label>{{ __('messages.variation.linked_product') }}</label>
-                                        <input type="text" class="form-control" id="edit_linked_product_search" placeholder="EAN / name" required>
-                                        <input type="hidden" name="linked_product_id" id="edit_linked_product_id" required>
-                                        <div id="edit_linked_product_results" class="list-group position-absolute zindex-1" style="max-height:200px; overflow-y:auto;"></div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="modal-footer">
-                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ __('messages.btn.cancel') }}</button>
-                                <button type="submit" class="btn btn-primary">{{ __('messages.btn.save') }}</button>
                             </div>
                         </form>
                     </div>
@@ -724,30 +776,12 @@
         </div>
 
         <script>
-            // Ajax pour récupérer les valeurs selon le type (Modal Ajout)
-            document.getElementById('variation_type').addEventListener('change', function() {
-                let typeId = this.value;
-                let valueSelect = document.getElementById('variation_value');
-                valueSelect.innerHTML = '<option>{{ __('messages.common.loading') }}</option>';
-                fetch('/variation-types/'+typeId+'/values')
-                    .then(res => res.json())
-                    .then(data => {
-                        valueSelect.innerHTML = '<option value="">--</option>';
-                        data.forEach(v => {
-                            console.log(v);
-                            let opt = document.createElement('option');
-                            opt.value = v.id;
-                            opt.text = v.value;
-                            valueSelect.appendChild(opt);
-                        });
-                    });
-            });
-
-            // Ajax pour récupérer les valeurs selon le type (Modal Édition)
-            document.getElementById('edit_variation_type').addEventListener('change', function() {
-                let typeId = this.value;
-                let valueSelect = document.getElementById('edit_variation_value');
-                valueSelect.innerHTML = '<option>{{ __('messages.common.loading') }}</option>';
+            // Load variation values when a type is selected
+            function loadValuesForSelect(typeSelect, valueSelect) {
+                let typeId = typeSelect.value;
+                if (!typeId) { valueSelect.innerHTML = '<option value="">--</option>'; return; }
+                let selectedVal = valueSelect.dataset.selected || '';
+                valueSelect.innerHTML = '<option>{{ __('messages.common.loading') ?? 'Chargement...' }}</option>';
                 fetch('/variation-types/'+typeId+'/values')
                     .then(res => res.json())
                     .then(data => {
@@ -756,153 +790,116 @@
                             let opt = document.createElement('option');
                             opt.value = v.id;
                             opt.text = v.value;
+                            if (v.id == selectedVal) opt.selected = true;
                             valueSelect.appendChild(opt);
                         });
+                        valueSelect.dataset.selected = '';
                     });
+            }
+
+            // Bind type→value loading on all .attr-type-select
+            document.addEventListener('change', function(e) {
+                if (e.target.classList.contains('attr-type-select')) {
+                    let row = e.target.closest('.attr-row');
+                    let valueSelect = row.querySelector('.attr-value-select');
+                    loadValuesForSelect(e.target, valueSelect);
+                }
             });
 
-            // Recherche produit via Ajax (Modal Ajout)
+            // Initialize existing selects that have a pre-selected type
+            document.querySelectorAll('.attr-type-select').forEach(sel => {
+                if (sel.value) {
+                    let row = sel.closest('.attr-row');
+                    let valueSelect = row.querySelector('.attr-value-select');
+                    loadValuesForSelect(sel, valueSelect);
+                }
+            });
+
+            // Remove attribute row
+            document.addEventListener('click', function(e) {
+                if (e.target.closest('.remove-attr-row')) {
+                    let row = e.target.closest('.attr-row');
+                    let container = row.parentElement;
+                    if (container.querySelectorAll('.attr-row').length > 1) {
+                        row.remove();
+                    }
+                }
+            });
+
+            // Add attribute row (self attributes)
+            const typesJson = @json($types);
+            function createAttrRow(container) {
+                let idx = container.querySelectorAll('.attr-row').length;
+                let div = document.createElement('div');
+                div.className = 'row g-2 mb-2 attr-row';
+                let prefix = container.id === 'modalAttributeRows' ? 'attributes' : 'attributes';
+                div.innerHTML = `
+                    <div class="col-md-${container.id === 'modalAttributeRows' ? '5' : '4'}">
+                        <select class="form-select attr-type-select" name="${prefix}[${idx}][variation_type_id]" required>
+                            <option value="">--</option>
+                            ${typesJson.map(t => `<option value="${t.id}">${t.name}</option>`).join('')}
+                        </select>
+                    </div>
+                    <div class="col-md-${container.id === 'modalAttributeRows' ? '5' : '4'}">
+                        <select class="form-select attr-value-select" name="${prefix}[${idx}][variation_value_id]" required>
+                            <option value="">--</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <button type="button" class="btn btn-outline-danger btn-sm remove-attr-row"><i class="bi bi-trash"></i></button>
+                    </div>
+                `;
+                container.appendChild(div);
+            }
+
+            document.getElementById('addSelfAttrRow')?.addEventListener('click', () => createAttrRow(document.getElementById('selfAttributeRows')));
+            document.getElementById('addModalAttrRow')?.addEventListener('click', () => createAttrRow(document.getElementById('modalAttributeRows')));
+
+            // Product search
             let searchInput = document.getElementById('linked_product_search');
             let resultsDiv = document.getElementById('linked_product_results');
             let hiddenInput = document.getElementById('linked_product_id');
+            let searchTimeout = null;
 
-            let timeout = null;
             searchInput.addEventListener('input', function() {
-                clearTimeout(timeout);
+                clearTimeout(searchTimeout);
                 let q = this.value;
-                if(q.length < 2) { resultsDiv.innerHTML=''; return; }
-                timeout = setTimeout(() => {
-                    fetch('/products/search?q='+encodeURIComponent(q))
-                    .then(res => res.json())
-                    .then(data => {
-                        resultsDiv.innerHTML = '';
-                        data.forEach(p => {
-                            let a = document.createElement('a');
-                            a.href = '#';
-                            a.className = 'list-group-item list-group-item-action';
-                            a.textContent = p.ean+' - '+(p.name.fr||Object.values(p.name)[0]);
-                            a.dataset.id = p.id;
-                            a.addEventListener('click', function(e){
-                                e.preventDefault();
-                                hiddenInput.value = this.dataset.id;
-                                searchInput.value = this.textContent;
-                                resultsDiv.innerHTML = '';
+                if (q.length < 2) { resultsDiv.innerHTML = ''; return; }
+                searchTimeout = setTimeout(() => {
+                    fetch('/products/search?q=' + encodeURIComponent(q))
+                        .then(res => res.json())
+                        .then(data => {
+                            resultsDiv.innerHTML = '';
+                            data.forEach(p => {
+                                let a = document.createElement('a');
+                                a.href = '#';
+                                a.className = 'list-group-item list-group-item-action';
+                                a.textContent = p.ean + ' - ' + (p.name.fr || Object.values(p.name)[0]);
+                                a.dataset.id = p.id;
+                                a.addEventListener('click', function(e) {
+                                    e.preventDefault();
+                                    hiddenInput.value = this.dataset.id;
+                                    searchInput.value = this.textContent;
+                                    resultsDiv.innerHTML = '';
+                                });
+                                resultsDiv.appendChild(a);
                             });
-                            resultsDiv.appendChild(a);
                         });
-                    });
                 }, 300);
             });
 
-            // Recherche produit via Ajax (Modal Édition)
-            let editSearchInput = document.getElementById('edit_linked_product_search');
-            let editResultsDiv = document.getElementById('edit_linked_product_results');
-            let editHiddenInput = document.getElementById('edit_linked_product_id');
-
-            let editTimeout = null;
-            editSearchInput.addEventListener('input', function() {
-                clearTimeout(editTimeout);
-                let q = this.value;
-                if(q.length < 2) { editResultsDiv.innerHTML=''; return; }
-                editTimeout = setTimeout(() => {
-                    fetch('/products/search?q='+encodeURIComponent(q))
-                    .then(res => res.json())
-                    .then(data => {
-                        editResultsDiv.innerHTML = '';
-                        data.forEach(p => {
-                            let a = document.createElement('a');
-                            a.href = '#';
-                            a.className = 'list-group-item list-group-item-action';
-                            a.textContent = p.ean+' - '+(p.name.fr||Object.values(p.name)[0]);
-                            a.dataset.id = p.id;
-                            a.addEventListener('click', function(e){
-                                e.preventDefault();
-                                editHiddenInput.value = this.dataset.id;
-                                editSearchInput.value = this.textContent;
-                                editResultsDiv.innerHTML = '';
-                            });
-                            editResultsDiv.appendChild(a);
-                        });
-                    });
-                }, 300);
-            });
-
-            // Fonction pour ouvrir le modal d'édition avec les données pré-remplies
-            function openEditVariationModal(variationId, typeId, valueId, linkedProductId, linkedProductText) {
-                // Définir l'URL du formulaire
-                const form = document.getElementById('editVariationForm');
-                form.action = '{{ route("products.variations.update", [$product, ":id"]) }}'.replace(':id', variationId);
-
-                // Pré-remplir le type
-                document.getElementById('edit_variation_type').value = typeId;
-
-                // Charger les valeurs du type et pré-sélectionner
-                fetch('/variation-types/' + typeId + '/values')
-                    .then(res => res.json())
-                    .then(data => {
-                        let valueSelect = document.getElementById('edit_variation_value');
-                        valueSelect.innerHTML = '<option value="">--</option>';
-                        data.forEach(v => {
-                            let opt = document.createElement('option');
-                            opt.value = v.id;
-                            opt.text = v.value;
-                            if (v.id == valueId) {
-                                opt.selected = true;
-                            }
-                            valueSelect.appendChild(opt);
-                        });
-                    });
-
-                // Pré-remplir le produit lié
-                document.getElementById('edit_linked_product_id').value = linkedProductId;
-                document.getElementById('edit_linked_product_search').value = linkedProductText;
-
-                // Ouvrir le modal
-                const modal = new bootstrap.Modal(document.getElementById('editVariationModal'));
-                modal.show();
-            }
-
-            // Fonction de validation avant soumission (Modal Ajout)
             function validateAddForm() {
-                const linkedProductId = document.getElementById('linked_product_id').value;
-                const typeId = document.getElementById('variation_type').value;
-                const valueId = document.getElementById('variation_value').value;
-
-                if (!typeId) {
-                    alert('{{ __("messages.validation.select_variation_type") ?? "Veuillez sélectionner un type de variation" }}');
+                if (!hiddenInput.value) {
+                    alert('{{ __("messages.validation.select_linked_product") ?? "Veuillez sélectionner un produit" }}');
                     return false;
                 }
-                if (!valueId) {
-                    alert('{{ __("messages.validation.select_variation_value") ?? "Veuillez sélectionner une valeur de variation" }}');
-                    return false;
+                let rows = document.querySelectorAll('#modalAttributeRows .attr-row');
+                for (let row of rows) {
+                    if (!row.querySelector('.attr-type-select').value || !row.querySelector('.attr-value-select').value) {
+                        alert('{{ __("messages.validation.select_variation_type") ?? "Veuillez remplir tous les attributs" }}');
+                        return false;
+                    }
                 }
-                if (!linkedProductId) {
-                    alert('{{ __("messages.validation.select_linked_product") ?? "Veuillez sélectionner un produit lié" }}');
-                    return false;
-                }
-
-                return true;
-            }
-
-            // Fonction de validation avant soumission (Modal Édition)
-            function validateEditForm() {
-                const linkedProductId = document.getElementById('edit_linked_product_id').value;
-                const typeId = document.getElementById('edit_variation_type').value;
-                const valueId = document.getElementById('edit_variation_value').value;
-
-                if (!typeId) {
-                    alert('{{ __("messages.validation.select_variation_type") ?? "Veuillez sélectionner un type de variation" }}');
-                    return false;
-                }
-                if (!valueId) {
-                    alert('{{ __("messages.validation.select_variation_value") ?? "Veuillez sélectionner une valeur de variation" }}');
-                    return false;
-                }
-                if (!linkedProductId) {
-                    alert('{{ __("messages.validation.select_linked_product") ?? "Veuillez sélectionner un produit lié" }}');
-                    return false;
-                }
-
                 return true;
             }
         </script>
@@ -960,7 +957,7 @@
           </div>
           <div class="mb-3">
             <label class="form-label">{{ __('messages.supplier.purchase_price') }}</label>
-            <input type="number" step="0.01" name="purchase_price" class="form-control" required>
+            <input type="number" step="0.00001" name="purchase_price" class="form-control" required>
           </div>
         </div>
         <div class="modal-footer">

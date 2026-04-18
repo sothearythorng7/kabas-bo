@@ -404,7 +404,7 @@
                                             </div>
                                             <div class="mb-3">
                                                 <label class="form-label">{{ __('messages.product.price_btob') }}</label>
-                                                <input type="number" step="0.01" name="price" class="form-control"
+                                                <input type="number" step="0.00001" name="price" class="form-control"
                                                        value="{{ $customPrice ?? $defaultPrice }}" required min="0">
                                             </div>
                                         </div>

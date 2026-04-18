@@ -22,7 +22,7 @@
                         <div class="mb-3">
                             <label for="amount" class="form-label">{{ __('messages.voucher.amount') }} <span class="text-danger">*</span></label>
                             <div class="input-group">
-                                <input type="number" step="0.01" min="0.01" max="10000" name="amount" id="amount"
+                                <input type="number" step="0.00001" min="0.01" max="10000" name="amount" id="amount"
                                     class="form-control @error('amount') is-invalid @enderror"
                                     value="{{ old('amount') }}" required>
                                 <span class="input-group-text">$</span>

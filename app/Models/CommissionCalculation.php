@@ -20,8 +20,8 @@ class CommissionCalculation extends Model
     ];
 
     protected $casts = [
-        'base_amount' => 'decimal:2',
-        'commission_amount' => 'decimal:2',
+        'base_amount' => 'decimal:5',
+        'commission_amount' => 'decimal:5',
         'approved_at' => 'datetime',
     ];
 

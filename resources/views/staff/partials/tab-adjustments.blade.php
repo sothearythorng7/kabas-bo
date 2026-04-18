@@ -33,14 +33,14 @@
                         <div class="mb-3">
                             <label for="adj_hourly_rate" class="form-label">{{ __('messages.staff.hourly_rate') }}</label>
                             <input type="number" class="form-control" id="adj_hourly_rate" name="hourly_rate"
-                                   step="0.01" min="0" onchange="calculateOvertimeAmount()">
+                                   step="0.00001" min="0" onchange="calculateOvertimeAmount()">
                         </div>
                     </div>
 
                     <div class="mb-3">
                         <label for="adj_amount" class="form-label">{{ __('messages.staff.amount') }} *</label>
                         <input type="number" class="form-control" id="adj_amount" name="amount"
-                               step="0.01" min="0.01" required>
+                               step="0.00001" min="0.01" required>
                         <small class="text-muted" id="amount_hint">{{ __('messages.staff.amount_hint') }}</small>
                     </div>
 
@@ -222,7 +222,7 @@ function calculateOvertimeAmount() {
     const rate = parseFloat(document.getElementById('adj_hourly_rate').value) || 0;
 
     if (hours > 0 && rate > 0) {
-        document.getElementById('adj_amount').value = (hours * rate).toFixed(2);
+        document.getElementById('adj_amount').value = (hours * rate).toFixed(5);
     }
 }
 

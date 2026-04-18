@@ -18,6 +18,7 @@ class GeneralInvoice extends Model
         'label',
         'amount',
         'due_date',
+        'invoice_date',
         'payment_date',
         'payment_proof',
         'status',
@@ -28,8 +29,9 @@ class GeneralInvoice extends Model
 
     protected $casts = [
         'due_date' => 'date',
+        'invoice_date' => 'date',
         'payment_date' => 'date',
-        'amount' => 'decimal:2',
+        'amount' => 'decimal:5',
     ];
 
     /**

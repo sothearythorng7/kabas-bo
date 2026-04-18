@@ -21,8 +21,7 @@ class ResellerInvoiceController extends Controller
 
         $invoicesByStatus = [];
         foreach ($statuses as $status) {
-            $invoicesByStatus[$status] = ResellerInvoice::with('reseller', 'salesReport', 'payments')
-                ->whereNotNull('sales_report_id')
+            $invoicesByStatus[$status] = ResellerInvoice::with('reseller', 'salesReport', 'resellerStockDelivery', 'payments')
                 ->where('status', $status)
                 ->orderByDesc('created_at')
                 ->paginate(10);
@@ -30,7 +29,6 @@ class ResellerInvoiceController extends Controller
 
         // Montant total des factures en attente (unpaid + partially_paid)
         $pendingInvoices = ResellerInvoice::with('payments')
-            ->whereNotNull('sales_report_id')
             ->whereIn('status', ['unpaid', 'partially_paid'])
             ->get();
 

@@ -30,7 +30,7 @@
                     <td>{{ $product->pivot->quantity_received ?? $product->pivot->quantity_ordered }}</td>
                     <td>{{ number_format($product->pivot->purchase_price, 2) }} $</td>
                     <td>
-                        <input type="number" step="0.01"
+                        <input type="number" step="0.00001"
                                name="products[{{ $product->id }}][price_invoiced]"
                                value="{{ old('products.'.$product->id.'.price_invoiced', $product->pivot->purchase_price) }}"
                                class="form-control form-control-sm price-input"
@@ -45,14 +45,24 @@
             </tbody>
         </table>
 
-        {{-- Upload facture obligatoire --}}
-        <div class="mb-3">
-            <label for="invoice_file" class="form-label fw-bold">{{ __('messages.invoice_reception.supplier_invoice') }}</label>
-            <input type="file" class="form-control @error('invoice_file') is-invalid @enderror"
-                   id="invoice_file" name="invoice_file" accept="application/pdf,image/*" required>
-            @error('invoice_file')
-                <div class="invalid-feedback">{{ $message }}</div>
-            @enderror
+        {{-- Date de facturation + Upload facture --}}
+        <div class="row mb-3">
+            <div class="col-md-4">
+                <label for="invoice_date" class="form-label fw-bold">{{ __('messages.invoice_reception.invoice_date') }}</label>
+                <input type="date" class="form-control @error('invoice_date') is-invalid @enderror"
+                       id="invoice_date" name="invoice_date" value="{{ old('invoice_date', now()->format('Y-m-d')) }}" required>
+                @error('invoice_date')
+                    <div class="invalid-feedback">{{ $message }}</div>
+                @enderror
+            </div>
+            <div class="col-md-8">
+                <label for="invoice_file" class="form-label fw-bold">{{ __('messages.invoice_reception.supplier_invoice') }}</label>
+                <input type="file" class="form-control @error('invoice_file') is-invalid @enderror"
+                       id="invoice_file" name="invoice_file" accept="application/pdf,image/*" required>
+                @error('invoice_file')
+                    <div class="invalid-feedback">{{ $message }}</div>
+                @enderror
+            </div>
         </div>
 
         {{-- Total facturé dynamique --}}

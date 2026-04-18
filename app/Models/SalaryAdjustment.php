@@ -22,9 +22,9 @@ class SalaryAdjustment extends Model
     ];
 
     protected $casts = [
-        'amount' => 'decimal:2',
+        'amount' => 'decimal:5',
         'hours' => 'decimal:2',
-        'hourly_rate' => 'decimal:2',
+        'hourly_rate' => 'decimal:5',
         'approved_at' => 'datetime',
     ];
 

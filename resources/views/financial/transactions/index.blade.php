@@ -61,11 +61,11 @@
                             <!-- Filtre par montant -->
                             <div class="col-md-3">
                                 <label for="amount_min" class="form-label">{{ __('messages.financial.amount_min') }}</label>
-                                <input type="number" step="0.01" id="amount_min" name="amount_min" class="form-control" value="{{ request('amount_min') }}">
+                                <input type="number" step="0.00001" id="amount_min" name="amount_min" class="form-control" value="{{ request('amount_min') }}">
                             </div>
                             <div class="col-md-3">
                                 <label for="amount_max" class="form-label">{{ __('messages.financial.amount_max') }}</label>
-                                <input type="number" step="0.01" id="amount_max" name="amount_max" class="form-control" value="{{ request('amount_max') }}">
+                                <input type="number" step="0.00001" id="amount_max" name="amount_max" class="form-control" value="{{ request('amount_max') }}">
                             </div>
 
                             <!-- Filtre par méthodes de paiement -->

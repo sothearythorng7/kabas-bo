@@ -34,6 +34,7 @@
                     <thead>
                         <tr>
                             <th>{{ __('messages.shipping.carrier_name') }}</th>
+                            <th>{{ __('messages.shipping.status') }}</th>
                             <th>{{ __('messages.shipping.actions') }}</th>
                         </tr>
                     </thead>
@@ -41,6 +42,16 @@
                         @foreach($carriers as $carrier)
                             <tr>
                                 <td>{{ $carrier->name }}</td>
+                                <td>
+                                    <form action="{{ route('shipping-carriers.toggle', $carrier) }}" method="POST" class="d-inline">
+                                        @csrf
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" type="checkbox" role="switch"
+                                                   {{ $carrier->is_active ? 'checked' : '' }}
+                                                   onchange="this.closest('form').submit()">
+                                        </div>
+                                    </form>
+                                </td>
                                 <td>
                                     <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#editCarrierModal{{ $carrier->id }}">
                                         <i class="bi bi-pencil-fill"></i>
@@ -70,6 +81,12 @@
                                                 <div class="mb-3">
                                                     <label class="form-label">{{ __('messages.shipping.carrier_name') }}</label>
                                                     <input type="text" name="name" class="form-control" value="{{ $carrier->name }}" maxlength="100" required>
+                                                </div>
+                                                <div class="mb-3">
+                                                    <div class="form-check form-switch">
+                                                        <input class="form-check-input" type="checkbox" name="is_active" value="1" id="editActive{{ $carrier->id }}" {{ $carrier->is_active ? 'checked' : '' }}>
+                                                        <label class="form-check-label" for="editActive{{ $carrier->id }}">{{ __('messages.shipping.carrier_active') }}</label>
+                                                    </div>
                                                 </div>
                                             </div>
                                             <div class="modal-footer">
@@ -101,6 +118,12 @@
                         <div class="mb-3">
                             <label class="form-label">{{ __('messages.shipping.carrier_name') }}</label>
                             <input type="text" name="name" class="form-control" maxlength="100" required>
+                        </div>
+                        <div class="mb-3">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" name="is_active" value="1" id="addActive" checked>
+                                <label class="form-check-label" for="addActive">{{ __('messages.shipping.carrier_active') }}</label>
+                            </div>
                         </div>
                     </div>
                     <div class="modal-footer">

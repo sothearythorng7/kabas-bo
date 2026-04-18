@@ -336,73 +336,48 @@
         </div>
     </div>
 
-    <!-- Carte KPI: C.A. Siem Reap -->
+    @php
+        $storeColors = ['warning', 'success', 'info', 'primary', 'danger'];
+    @endphp
+    @foreach ($storeRevenues as $index => $sr)
+        @php
+            $color = $storeColors[$index % count($storeColors)];
+            $cardId = 'store-' . $sr['store']->id;
+        @endphp
+    <!-- Carte KPI: C.A. {{ $sr['store']->name }} -->
     <div class="col-md-4">
-        <div class="card border-left-warning shadow h-100 py-2">
+        <div class="card border-left-{{ $color }} shadow h-100 py-2">
             <div class="card-body">
                 <div class="d-flex justify-content-between align-items-start mb-2">
                     <div class="text-xs font-weight-bold text-primary text-uppercase" style="font-size:1.5em;">
-                        {{ __('messages.main_dashboard.ca_siem_reap') }}
+                        {{ $sr['store']->name }}
                     </div>
                     <div class="btn-group btn-group-sm" role="group">
-                        <button type="button" class="btn btn-primary btn-sm active" onclick="toggleCardPeriod('siemreap', 'daily', this)">{{ __('messages.main_dashboard.day') }}</button>
-                        <button type="button" class="btn btn-outline-primary btn-sm" onclick="toggleCardPeriod('siemreap', 'monthly', this)">{{ __('messages.main_dashboard.month') }}</button>
+                        <button type="button" class="btn btn-primary btn-sm active" onclick="toggleCardPeriod('{{ $cardId }}', 'daily', this)">{{ __('messages.main_dashboard.day') }}</button>
+                        <button type="button" class="btn btn-outline-primary btn-sm" onclick="toggleCardPeriod('{{ $cardId }}', 'monthly', this)">{{ __('messages.main_dashboard.month') }}</button>
                     </div>
                 </div>
-                <div id="siemreap-daily">
-                    <div class="h5 mb-0 font-weight-bold text-gray-800" style="font-size:5em;">${{ number_format($revenueSiemReapDaily ?? 0, 2) }}</div>
+                <div id="{{ $cardId }}-daily">
+                    <div class="h5 mb-0 font-weight-bold text-gray-800" style="font-size:5em;">${{ number_format($sr['daily_revenue'] ?? 0, 2) }}</div>
                     <div class="h5 mb-0 font-weight-bold text-gray-800" style="font-size:1em">
-                        {{ __('messages.main_dashboard.sales_count') }}: {{ $salesCountSiemReapDaily ?? 0 }}
+                        {{ __('messages.main_dashboard.sales_count') }}: {{ $sr['daily_count'] ?? 0 }}
                     </div>
                     <div class="mt-2">
-                        <a href="{{ route('dashboard.daily-sales', ['store' => 2, 'date' => $selectedDate->format('Y-m-d')]) }}" class="btn btn-sm btn-warning">
+                        <a href="{{ route('dashboard.daily-sales', ['store' => $sr['store']->id, 'date' => $selectedDate->format('Y-m-d')]) }}" class="btn btn-sm btn-{{ $color }}">
                             <i class="bi bi-eye"></i> {{ __('messages.main_dashboard.view_sales') }}
                         </a>
                     </div>
                 </div>
-                <div id="siemreap-monthly" style="display: none;">
-                    <div class="h5 mb-0 font-weight-bold text-gray-800" style="font-size:5em;">${{ number_format($revenueSiemReapMonthly ?? 0, 2) }}</div>
+                <div id="{{ $cardId }}-monthly" style="display: none;">
+                    <div class="h5 mb-0 font-weight-bold text-gray-800" style="font-size:5em;">${{ number_format($sr['monthly_revenue'] ?? 0, 2) }}</div>
                     <div class="h5 mb-0 font-weight-bold text-gray-800" style="font-size:1em">
-                        {{ __('messages.main_dashboard.sales_count') }}: {{ $salesCountSiemReapMonthly ?? 0 }}
+                        {{ __('messages.main_dashboard.sales_count') }}: {{ $sr['monthly_count'] ?? 0 }}
                     </div>
                 </div>
             </div>
         </div>
     </div>
-
-    <!-- Carte KPI: C.A. Phnom Penh -->
-    <div class="col-md-4">
-        <div class="card border-left-success shadow h-100 py-2">
-            <div class="card-body">
-                <div class="d-flex justify-content-between align-items-start mb-2">
-                    <div class="text-xs font-weight-bold text-primary text-uppercase" style="font-size:1.5em;">
-                        {{ __('messages.main_dashboard.ca_phnom_penh') }}
-                    </div>
-                    <div class="btn-group btn-group-sm" role="group">
-                        <button type="button" class="btn btn-primary btn-sm active" onclick="toggleCardPeriod('phnompenh', 'daily', this)">{{ __('messages.main_dashboard.day') }}</button>
-                        <button type="button" class="btn btn-outline-primary btn-sm" onclick="toggleCardPeriod('phnompenh', 'monthly', this)">{{ __('messages.main_dashboard.month') }}</button>
-                    </div>
-                </div>
-                <div id="phnompenh-daily">
-                    <div class="h5 mb-0 font-weight-bold text-gray-800" style="font-size:5em;">${{ number_format($revenuePhnomPenhDaily ?? 0, 2) }}</div>
-                    <div class="h5 mb-0 font-weight-bold text-gray-800" style="font-size:1em">
-                        {{ __('messages.main_dashboard.sales_count') }}: {{ $salesCountPhnomPenhDaily ?? 0 }}
-                    </div>
-                    <div class="mt-2">
-                        <a href="{{ route('dashboard.daily-sales', ['store' => 1, 'date' => $selectedDate->format('Y-m-d')]) }}" class="btn btn-sm btn-success">
-                            <i class="bi bi-eye"></i> {{ __('messages.main_dashboard.view_sales') }}
-                        </a>
-                    </div>
-                </div>
-                <div id="phnompenh-monthly" style="display: none;">
-                    <div class="h5 mb-0 font-weight-bold text-gray-800" style="font-size:5em;">${{ number_format($revenuePhnomPenhMonthly ?? 0, 2) }}</div>
-                    <div class="h5 mb-0 font-weight-bold text-gray-800" style="font-size:1em">
-                        {{ __('messages.main_dashboard.sales_count') }}: {{ $salesCountPhnomPenhMonthly ?? 0 }}
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
+    @endforeach
 </div>
 
 <!-- Graphiques côte à côte -->
@@ -468,7 +443,16 @@
         }
     });
 
-    // Graphique en ligne - C.A. mensuel
+    // Graphique en ligne - C.A. mensuel (Total + 1 dataset par shop)
+    @php
+        $shopPalette = [
+            [246, 194, 62],  // warning
+            [28, 200, 138],  // success
+            [54, 185, 204],  // info
+            [78, 115, 223],  // primary
+            [231, 74, 59],   // danger
+        ];
+    @endphp
     const ctxLine = document.getElementById('revenueChart').getContext('2d');
     new Chart(ctxLine, {
         type: 'line',
@@ -477,31 +461,28 @@
             datasets: [
                 {
                     label: 'Total',
-                    data: {!! json_encode($monthlyRevenue ?? []) !!},
+                    data: {!! json_encode($monthlyRevenueTotal ?? []) !!},
                     fill: false,
                     borderColor: 'rgba(78, 115, 223, 1)',
                     backgroundColor: 'rgba(78, 115, 223, 0.5)',
                     tension: 0.3,
                     borderWidth: 3
-                },
-                {
-                    label: 'Siem Reap',
-                    data: {!! json_encode($monthlyRevenueSiemReap ?? []) !!},
+                }
+                @foreach ($shops as $index => $shop)
+                    @php
+                        $rgb = $shopPalette[$index % count($shopPalette)];
+                        $data = $monthlyRevenuePerStore[$shop->id] ?? [];
+                    @endphp
+                ,{
+                    label: {!! json_encode($shop->name) !!},
+                    data: {!! json_encode($data) !!},
                     fill: false,
-                    borderColor: 'rgba(246, 194, 62, 1)',
-                    backgroundColor: 'rgba(246, 194, 62, 0.5)',
-                    tension: 0.3,
-                    borderWidth: 2
-                },
-                {
-                    label: 'Phnom Penh',
-                    data: {!! json_encode($monthlyRevenuePhnomPenh ?? []) !!},
-                    fill: false,
-                    borderColor: 'rgba(28, 200, 138, 1)',
-                    backgroundColor: 'rgba(28, 200, 138, 0.5)',
+                    borderColor: 'rgba({{ $rgb[0] }}, {{ $rgb[1] }}, {{ $rgb[2] }}, 1)',
+                    backgroundColor: 'rgba({{ $rgb[0] }}, {{ $rgb[1] }}, {{ $rgb[2] }}, 0.5)',
                     tension: 0.3,
                     borderWidth: 2
                 }
+                @endforeach
             ]
         },
         options: {

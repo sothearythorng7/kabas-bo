@@ -198,7 +198,7 @@
 
                     <div class="mb-3">
                         <label>{{ __('messages.resellers.amount') }}</label>
-                        <input type="number" step="0.01" name="amount" id="paymentAmount" class="form-control" max="{{ $remaining }}" required>
+                        <input type="number" step="0.00001" name="amount" id="paymentAmount" class="form-control" max="{{ $remaining }}" required>
                         <div id="amountWarning" class="text-danger mt-1" style="display:none;">
                             {{ __('messages.resellers.amount_cannot_exceed') }} {{ number_format($remaining, 2) }}.
                         </div>

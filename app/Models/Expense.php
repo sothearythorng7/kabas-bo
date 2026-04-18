@@ -20,8 +20,8 @@ class Expense extends Model
     ];
 
     protected $casts = [
-        'amount' => 'decimal:2',
-        'paid_at' => 'decimal:2',
+        'amount' => 'decimal:5',
+        'paid_at' => 'datetime',
         'incurred_at' => 'datetime',
     ];
 

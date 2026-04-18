@@ -120,12 +120,27 @@ async function syncSalesToBO() {
         const duration = Date.now() - startTime;
 
         if (data.status === 'success') {
-            // marquer les ventes locales comme synchronisées
+            // marquer les ventes locales comme synchronisées + mettre à jour les vrais IDs
             const key = `pos_sales_validated_shift_${currentShift.id}`;
             const stored = JSON.parse(localStorage.getItem(key)) || [];
+            const mapping = data.sales_mapping || {};
             data.synced_sales.forEach(localId => {
                 const sale = stored.find(s => s.id === localId);
-                if (sale) sale.synced = true;
+                if (sale) {
+                    sale.synced = true;
+                    // Update with real DB IDs for exchange functionality
+                    const saleMap = mapping[localId];
+                    if (saleMap) {
+                        sale.db_id = saleMap.sale_id;
+                        if (saleMap.items && sale.items) {
+                            saleMap.items.forEach((mappedItem, idx) => {
+                                if (sale.items[idx]) {
+                                    sale.items[idx].db_id = mappedItem.sale_item_id;
+                                }
+                            });
+                        }
+                    }
+                }
             });
             localStorage.setItem(key, JSON.stringify(stored));
             console.log("Sales synchronized:", data.synced_sales);
@@ -1204,9 +1219,9 @@ function showSaleDetail(saleId, returnScreen = "sales-history") {
         const itemName = typeof item.name === 'object' ? (item.name.en || item.name.fr || 'Product') : item.name;
         const isFromExchange = item.added_via_exchange_id ? true : false;
 
-        // Build item data for exchange
+        // Build item data for exchange (prefer db_id from sync mapping over local id)
         const itemData = {
-            sale_item_id: item.id || item.sale_item_id || `item_${index}`,
+            sale_item_id: item.db_id || item.id || item.sale_item_id || `item_${index}`,
             product_id: item.product_id,
             name: item.name,
             quantity: item.quantity,

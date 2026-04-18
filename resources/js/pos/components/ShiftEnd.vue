@@ -7,7 +7,7 @@
         </div>
         <div class="modal-body">
           <label>Cash en caisse:</label>
-          <input type="number" v-model="cash" class="form-control" />
+          <input type="number" step="0.00001" v-model="cash" class="form-control" />
         </div>
         <div class="modal-footer">
           <button class="btn btn-primary" @click="endShiftHandler">Clôturer</button>

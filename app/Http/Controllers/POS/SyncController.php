@@ -54,6 +54,7 @@ class SyncController extends Controller
             'shifts.*.cash_difference' => 'nullable|numeric',
             'shifts.*.started_at' => 'required|date',
             'shifts.*.ended_at' => 'nullable|date',
+            'shifts.*.popup_event_id' => 'nullable|integer',
         ]);
 
         $syncedShifts = [];
@@ -71,6 +72,7 @@ class SyncController extends Controller
                     'visitors_count' => $shiftData['visitors_count'] ?? null,
                     'cash_difference' => $shiftData['cash_difference'] ?? null,
                     'ended_at' => $shiftData['ended_at'] ?? null,
+                    'popup_event_id' => $shiftData['popup_event_id'] ?? null,
                     'synced' => true,
                 ]);
                 $syncedShifts[] = $existingShift->id;
@@ -83,6 +85,7 @@ class SyncController extends Controller
                     'closing_cash' => $shiftData['cash_end'] ?? null,
                     'visitors_count' => $shiftData['visitors_count'] ?? null,
                     'cash_difference' => $shiftData['cash_difference'] ?? null,
+                    'popup_event_id' => $shiftData['popup_event_id'] ?? null,
                     'started_at' => $shiftData['started_at'],
                     'ended_at' => $shiftData['ended_at'] ?? null,
                     'synced' => true,
@@ -140,8 +143,9 @@ class SyncController extends Controller
             ->keyBy(fn ($pm) => strtoupper($pm->code));
 
         $syncedSales = [];
+        $salesMapping = []; // local_id => { sale_id, items: [{product_id, sale_item_id}] }
 
-        DB::transaction(function () use ($data, $storeId, $store, $userId, $financialAccount, $paymentMethods, &$syncedSales, $shift) {
+        DB::transaction(function () use ($data, $storeId, $store, $userId, $financialAccount, $paymentMethods, &$syncedSales, &$salesMapping, $shift) {
             // Récupérer le dernier solde une seule fois
             $lastTx = FinancialTransaction::where('store_id', $storeId)
                 ->orderBy('transaction_date', 'desc')
@@ -167,6 +171,14 @@ class SyncController extends Controller
                         'pos_local_id' => $posLocalId,
                     ]);
                     $syncedSales[] = $saleData['id'];
+                    // Return real IDs for duplicates too (in case previous sync response was lost)
+                    $salesMapping[$saleData['id']] = [
+                        'sale_id' => $existingSale->id,
+                        'items' => $existingSale->items->map(fn ($item) => [
+                            'product_id' => $item->product_id,
+                            'sale_item_id' => $item->id,
+                        ])->values()->toArray(),
+                    ];
                     continue;
                 }
 
@@ -184,6 +196,7 @@ class SyncController extends Controller
 
                 // 2) Items + décrément FIFO + transaction stock
                 $generatedGiftCardCodes = [];
+                $createdSaleItems = [];
 
                 foreach ($saleData['items'] as $itemData) {
                     // Check if this is a delivery service item or custom service
@@ -220,7 +233,8 @@ class SyncController extends Controller
                         $saleItemData['gift_box_id'] = $originalId;
                         $saleItemData['product_id'] = null;
 
-                        SaleItem::create($saleItemData);
+                        $createdItem = SaleItem::create($saleItemData);
+                        $createdSaleItems[] = ['product_id' => $itemData['product_id'] ?? null, 'sale_item_id' => $createdItem->id];
                         // Pas de décrémentation de stock pour les coffrets (stock virtuel)
 
                     } elseif ($itemType === 'gift_card') {
@@ -252,7 +266,8 @@ class SyncController extends Controller
                             }
                         }
 
-                        SaleItem::create($saleItemData);
+                        $createdItem = SaleItem::create($saleItemData);
+                        $createdSaleItems[] = ['product_id' => $itemData['product_id'] ?? null, 'sale_item_id' => $createdItem->id];
                         // Pas de décrémentation de stock pour les cartes cadeau
 
                         Log::info("Gift card codes created for sale", [
@@ -267,7 +282,8 @@ class SyncController extends Controller
                         // Produit standard
                         $saleItemData['product_id'] = $itemData['product_id'];
 
-                        SaleItem::create($saleItemData);
+                        $createdItem = SaleItem::create($saleItemData);
+                        $createdSaleItems[] = ['product_id' => $itemData['product_id'], 'sale_item_id' => $createdItem->id];
 
                         // Skip stock management for delivery and custom service items
                         if ($isDelivery || $isCustomService) {
@@ -432,12 +448,17 @@ class SyncController extends Controller
                 SaleCreated::dispatch($sale);
 
                 $syncedSales[] = $saleData['id'];
+                $salesMapping[$saleData['id']] = [
+                    'sale_id' => $sale->id,
+                    'items' => $createdSaleItems,
+                ];
             }
         });
 
         return response()->json([
             'status'       => 'success',
-            'synced_sales' => $syncedSales
+            'synced_sales' => $syncedSales,
+            'sales_mapping' => $salesMapping,
         ]);
     }
 
@@ -958,6 +979,6 @@ class SyncController extends Controller
             }
         }
 
-        return round($itemsTotal - $totalDiscounts, 2);
+        return round($itemsTotal - $totalDiscounts, 5);
     }
 }

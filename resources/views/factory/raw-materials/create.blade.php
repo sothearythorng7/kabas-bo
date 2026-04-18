@@ -31,16 +31,17 @@
                 @error('unit') <div class="invalid-feedback">{{ $message }}</div> @enderror
             </div>
             <div class="col-md-4 mb-3">
-                <label for="supplier_id" class="form-label">{{ __('messages.factory.supplier') }}</label>
-                <select class="form-select @error('supplier_id') is-invalid @enderror" id="supplier_id" name="supplier_id">
-                    <option value="">-- {{ __('messages.common.select') }} --</option>
+                <label class="form-label">{{ __('messages.factory.suppliers') }}</label>
+                <div class="border rounded p-2" style="max-height: 150px; overflow-y: auto;">
                     @foreach($suppliers as $supplier)
-                        <option value="{{ $supplier->id }}" {{ old('supplier_id') == $supplier->id ? 'selected' : '' }}>
-                            {{ $supplier->name }}
-                        </option>
+                        <div class="form-check">
+                            <input type="checkbox" class="form-check-input" name="supplier_ids[]" value="{{ $supplier->id }}"
+                                   id="supplier_{{ $supplier->id }}" {{ in_array($supplier->id, old('supplier_ids', [])) ? 'checked' : '' }}>
+                            <label class="form-check-label" for="supplier_{{ $supplier->id }}">{{ $supplier->name }}</label>
+                        </div>
                     @endforeach
-                </select>
-                @error('supplier_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                </div>
+                @error('supplier_ids') <div class="text-danger small">{{ $message }}</div> @enderror
             </div>
             <div class="col-md-4 mb-3">
                 <label for="alert_quantity" class="form-label">{{ __('messages.factory.alert_quantity') }}</label>

@@ -20,7 +20,7 @@ class GiftCard extends Model
     protected $casts = [
         'name' => 'array',
         'description' => 'array',
-        'amount' => 'decimal:2',
+        'amount' => 'decimal:5',
         'is_active' => 'boolean',
     ];
 

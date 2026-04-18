@@ -21,8 +21,8 @@ class GiftCardCode extends Model
     ];
 
     protected $casts = [
-        'original_amount' => 'decimal:2',
-        'remaining_amount' => 'decimal:2',
+        'original_amount' => 'decimal:5',
+        'remaining_amount' => 'decimal:5',
         'is_active' => 'boolean',
         'used_at' => 'datetime',
     ];

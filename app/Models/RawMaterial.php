@@ -28,6 +28,8 @@ class RawMaterial extends Model
         'alert_quantity' => 'decimal:2',
     ];
 
+    protected $appends = ['total_stock'];
+
     // ============ Laravel Scout / Meilisearch ============
 
     public function toSearchableArray()
@@ -38,7 +40,9 @@ class RawMaterial extends Model
             'sku' => $this->sku,
             'description' => $this->description,
             'supplier_name' => $this->supplier?->name,
+            'supplier_names' => $this->suppliers->pluck('name')->toArray(),
             'supplier_id' => $this->supplier_id,
+            'supplier_ids' => $this->suppliers->pluck('id')->toArray(),
             'is_active' => (bool) $this->is_active,
             'track_stock' => (bool) $this->track_stock,
         ];
@@ -50,7 +54,17 @@ class RawMaterial extends Model
     }
 
     /**
-     * Fournisseur de cette matière première
+     * Fournisseurs de cette matière première (many-to-many)
+     */
+    public function suppliers()
+    {
+        return $this->belongsToMany(Supplier::class, 'raw_material_supplier')
+            ->withPivot('purchase_price')
+            ->withTimestamps();
+    }
+
+    /**
+     * Fournisseur principal (legacy - kept for backward compatibility)
      */
     public function supplier()
     {

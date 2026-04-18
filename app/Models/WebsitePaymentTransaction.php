@@ -28,8 +28,8 @@ class WebsitePaymentTransaction extends Model
     protected function casts(): array
     {
         return [
-            'amount' => 'decimal:2',
-            'refund_amount' => 'decimal:2',
+            'amount' => 'decimal:5',
+            'refund_amount' => 'decimal:5',
             'raw_response' => 'array',
             'paid_at' => 'datetime',
             'refunded_at' => 'datetime',

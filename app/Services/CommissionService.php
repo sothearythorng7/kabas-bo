@@ -36,7 +36,7 @@ class CommissionService
             }
 
             $baseAmount = $this->getBaseAmount($commission, $commissionStart, $commissionEnd);
-            $commissionAmount = round($baseAmount * ($commission->percentage / 100), 2);
+            $commissionAmount = round($baseAmount * ($commission->percentage / 100), 5);
 
             $existing = CommissionCalculation::where([
                 'staff_member_id' => $staffMember->id,

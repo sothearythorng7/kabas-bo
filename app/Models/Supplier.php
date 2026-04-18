@@ -141,7 +141,9 @@ class Supplier extends Model
      */
     public function rawMaterials()
     {
-        return $this->hasMany(RawMaterial::class);
+        return $this->belongsToMany(RawMaterial::class, 'raw_material_supplier')
+            ->withPivot('purchase_price')
+            ->withTimestamps();
     }
 
     /**

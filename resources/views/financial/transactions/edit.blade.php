@@ -18,7 +18,7 @@
             </div>
             <div class="col-md-4">
                 <label class="form-label">{{ __('messages.financial.amount') }}</label>
-                <input type="number" step="0.01" name="amount" class="form-control"
+                <input type="number" step="0.00001" name="amount" class="form-control"
                        value="{{ old('amount', $transaction->amount) }}" required>
             </div>
             <div class="col-md-4">

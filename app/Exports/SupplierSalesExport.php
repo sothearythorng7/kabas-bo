@@ -37,6 +37,7 @@ class SupplierSalesExport implements FromCollection, WithHeadings, WithMapping, 
         }
 
         return SaleItem::whereIn('product_id', $productIds)
+            ->whereNull('exchanged_at')
             ->whereHas('sale', function ($q) {
                 $q->whereDate('created_at', '>=', $this->startDate)
                   ->whereDate('created_at', '<=', $this->endDate);

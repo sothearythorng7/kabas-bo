@@ -35,12 +35,12 @@
                     </div>
                     <div class="col-md-3 mb-3">
                         <label class="form-label">{{ __('messages.product.price') }}</label>
-                        <input type="number" step="0.01" name="price" class="form-control @error('price') is-invalid @enderror" value="{{ old('price', 0) }}">
+                        <input type="number" step="0.00001" name="price" class="form-control @error('price') is-invalid @enderror" value="{{ old('price', 0) }}">
                         @error('price') <div class="invalid-feedback">{{ $message }}</div> @enderror
                     </div>
                     <div class="col-md-3 mb-3">
                         <label class="form-label">{{ __('messages.product.price_btob') }}</label>
-                        <input type="number" step="0.01" name="price_btob" class="form-control @error('price_btob') is-invalid @enderror" value="{{ old('price_btob', 0) }}">
+                        <input type="number" step="0.00001" name="price_btob" class="form-control @error('price_btob') is-invalid @enderror" value="{{ old('price_btob', 0) }}">
                         @error('price_btob') <div class="invalid-feedback">{{ $message }}</div> @enderror
                     </div>
                 </div>

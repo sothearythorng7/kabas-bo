@@ -414,6 +414,16 @@
                 <button class="btn btn-primary btn-lg" id="btnSelectStore" style="width:100%; margin-top: 8px;" disabled>
                     {{ __('messages.reception.continue') }}
                 </button>
+
+                <div style="text-align: center; margin: 20px 0 12px; color: var(--text-light); font-size: 13px; font-weight: 600;">
+                    {{ __('messages.reception.or') }}
+                </div>
+
+                <button class="mode-btn" id="btnRawMaterials" style="margin-bottom: 0;">
+                    <div class="mode-icon">🧪</div>
+                    <div class="mode-title">{{ __('messages.reception.raw_materials_inventory') }}</div>
+                    <div class="mode-desc">{{ __('messages.reception.raw_materials_inventory_desc') }}</div>
+                </button>
             </div>
         </div>
     </div>
@@ -482,6 +492,35 @@
 
                 <button class="btn btn-primary btn-lg" id="btnLoadBrand" style="width:100%; margin-top: 8px;" disabled>
                     {{ __('messages.reception.load_products') }}
+                </button>
+            </div>
+        </div>
+    </div>
+
+    {{-- ═══ SCREEN RM : Raw Materials selection ═══ --}}
+    <div class="screen" id="screenRawMaterials">
+        <div style="margin-top: 16px;">
+            <h3 style="margin: 0 0 12px;">{{ __('messages.reception.raw_materials_inventory') }}</h3>
+
+            <div class="search-bar">
+                <input type="text" id="rmSearchInput" placeholder="{{ __('messages.reception.search_raw_material') }}">
+            </div>
+
+            <div class="search-results" id="rmSearchResults"></div>
+
+            <div id="rmSelectedSection" style="display: none;">
+                <label style="font-size: 14px; font-weight: 600; color: var(--text-light); margin-bottom: 8px; display: block;">
+                    {{ __('messages.reception.selected_raw_materials') }} (<span id="rmSelectedCount">0</span>)
+                </label>
+                <div class="selected-products" id="rmSelectedList"></div>
+            </div>
+
+            <div class="sticky-bottom" style="display: flex; flex-direction: column; gap: 10px;">
+                <button class="btn btn-primary btn-lg" id="btnStartRmCount" style="width: 100%;" disabled>
+                    {{ __('messages.reception.start_counting') }}
+                </button>
+                <button class="btn btn-outline btn-lg" id="btnLoadAllRm" style="width: 100%;">
+                    {{ __('messages.reception.load_all_raw_materials') }}
                 </button>
             </div>
         </div>
@@ -576,12 +615,15 @@
     let searchQuery = '';
     let scannerInitialized = false;
     let scannerCallback = null; // which mode uses the scanner
+    let inventoryMode = 'products'; // 'products' or 'raw_materials'
+    let selectedRawMaterials = [];
 
     // ─── DOM refs ───
     const screenStore = document.getElementById('screenStore');
     const screenMode = document.getElementById('screenMode');
     const screenManual = document.getElementById('screenManual');
     const screenBrand = document.getElementById('screenBrand');
+    const screenRawMaterials = document.getElementById('screenRawMaterials');
     const screenCounting = document.getElementById('screenCounting');
     const screenReview = document.getElementById('screenReview');
 
@@ -598,7 +640,7 @@
     const headerBack = document.getElementById('headerBack');
 
     // ─── Screen navigation ───
-    const screens = [screenStore, screenMode, screenManual, screenBrand, screenCounting, screenReview];
+    const screens = [screenStore, screenMode, screenManual, screenBrand, screenRawMaterials, screenCounting, screenReview];
     let screenHistory = [screenStore];
 
     function showScreen(screen) {
@@ -639,6 +681,7 @@
         storeId = storeIdSelect.value;
         storeName = storeIdSelect.options[storeIdSelect.selectedIndex].text;
         storeNameEl.textContent = storeName;
+        inventoryMode = 'products';
         showScreen(screenMode);
     });
 
@@ -856,7 +899,8 @@
             list = list.filter(p =>
                 (p.name && p.name.toLowerCase().includes(q)) ||
                 (p.ean && p.ean.toLowerCase().includes(q)) ||
-                (p.brand && p.brand.toLowerCase().includes(q))
+                (p.brand && p.brand.toLowerCase().includes(q)) ||
+                (p.sku && p.sku.toLowerCase().includes(q))
             );
         }
 
@@ -897,6 +941,8 @@
         const filtered = getFilteredProducts();
         productListEl.innerHTML = '';
 
+        const isRm = inventoryMode === 'raw_materials';
+
         filtered.forEach(p => {
             const isCounted = p.real !== null;
             const hasDiff = isCounted && p.real !== p.theoretical;
@@ -906,20 +952,34 @@
 
             const row = document.createElement('div');
             row.className = rowClass;
-            row.id = 'product-row-' + p.id;
+            row.id = (isRm ? 'rm-row-' : 'product-row-') + p.id;
+
+            const metaLine = isRm
+                ? (p.sku ? escHtml(p.sku) + ' · ' : '') + escHtml(p.unit || '')
+                : escHtml(p.brand || '') + (p.ean ? ' &middot; ' + escHtml(p.ean) : '');
+
+            const theoDisplay = isRm
+                ? p.theoretical + ' ' + escHtml(p.unit || '')
+                : p.theoretical;
+
+            const lastCountHtml = isRm ? '' : `<div class="last-count">${escHtml(formatLastCounted(p))}</div>`;
+
+            const inputStep = isRm ? '0.01' : '1';
+            const inputMode = isRm ? 'decimal' : 'numeric';
+
             row.innerHTML = `
                 <div class="product-info">
                     <div class="name">${escHtml(p.name)}</div>
-                    <div class="meta">${escHtml(p.brand || '')}${p.ean ? ' &middot; ' + escHtml(p.ean) : ''}</div>
-                    <div class="last-count">${escHtml(formatLastCounted(p))}</div>
+                    <div class="meta">${metaLine}</div>
+                    ${lastCountHtml}
                 </div>
                 <div class="product-stock">
                     <div class="label">{{ __('messages.reception.theoretical') }}</div>
-                    <div class="theo-value">${p.theoretical}</div>
+                    <div class="theo-value">${theoDisplay}</div>
                 </div>
                 <div class="product-input">
                     <div class="label">{{ __('messages.reception.real') }}</div>
-                    <input type="number" inputmode="numeric" min="0" data-id="${p.id}"
+                    <input type="number" inputmode="${inputMode}" min="0" step="${inputStep}" data-id="${p.id}"
                            value="${p.real !== null ? p.real : ''}" placeholder="-">
                 </div>
             `;
@@ -927,7 +987,7 @@
             const input = row.querySelector('input');
             input.addEventListener('input', function() {
                 const val = this.value.trim();
-                p.real = val === '' ? null : parseInt(val);
+                p.real = val === '' ? null : (isRm ? parseFloat(val) : parseInt(val));
                 updateRowStyle(row, p);
                 updateFilterCounts();
                 saveToLocalStorage();
@@ -968,6 +1028,145 @@
     countSearchInput.addEventListener('input', function() {
         searchQuery = this.value.trim();
         renderProducts();
+    });
+
+    // ─── Raw Materials mode ───
+    document.getElementById('btnRawMaterials').addEventListener('click', function() {
+        inventoryMode = 'raw_materials';
+        selectedRawMaterials = [];
+        renderSelectedRm();
+        showScreen(screenRawMaterials);
+        document.getElementById('rmSearchInput').focus();
+    });
+
+    let rmSearchTimeout = null;
+    const rmSearchInput = document.getElementById('rmSearchInput');
+    const rmSearchResults = document.getElementById('rmSearchResults');
+    const rmSelectedList = document.getElementById('rmSelectedList');
+    const btnStartRmCount = document.getElementById('btnStartRmCount');
+
+    rmSearchInput.addEventListener('input', function() {
+        clearTimeout(rmSearchTimeout);
+        const q = this.value.trim();
+        if (q.length < 2) { rmSearchResults.innerHTML = ''; return; }
+        rmSearchTimeout = setTimeout(() => searchRawMaterials(q), 300);
+    });
+
+    async function searchRawMaterials(query) {
+        try {
+            const res = await fetch('{{ route("reception.quick-inventory.search-raw-materials") }}', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': window.csrfToken },
+                body: JSON.stringify({ query: query })
+            });
+            const data = await res.json();
+            renderRmSearchResults(data.raw_materials || []);
+        } catch (err) { console.error(err); }
+    }
+
+    function renderRmSearchResults(results) {
+        rmSearchResults.innerHTML = '';
+        const selectedIds = selectedRawMaterials.map(r => r.id);
+        results.forEach(rm => {
+            if (selectedIds.includes(rm.id)) return;
+            const item = document.createElement('div');
+            item.className = 'search-result-item';
+            item.innerHTML = `
+                <div class="sri-info">
+                    <div class="sri-name">${escHtml(rm.name)}</div>
+                    <div class="sri-meta">${rm.sku ? escHtml(rm.sku) + ' · ' : ''}${escHtml(rm.unit)} · {{ __('messages.reception.stock') }}: ${rm.theoretical}</div>
+                </div>
+                <button class="sri-add">+</button>
+            `;
+            item.querySelector('.sri-add').addEventListener('click', (e) => { e.stopPropagation(); addRm(rm); });
+            item.addEventListener('click', () => addRm(rm));
+            rmSearchResults.appendChild(item);
+        });
+    }
+
+    function addRm(rm) {
+        if (selectedRawMaterials.find(r => r.id === rm.id)) return;
+        selectedRawMaterials.push(rm);
+        renderSelectedRm();
+        rmSearchInput.value = '';
+        rmSearchResults.innerHTML = '';
+        rmSearchInput.focus();
+    }
+
+    function renderSelectedRm() {
+        const section = document.getElementById('rmSelectedSection');
+        document.getElementById('rmSelectedCount').textContent = selectedRawMaterials.length;
+        section.style.display = selectedRawMaterials.length > 0 ? 'block' : 'none';
+        btnStartRmCount.disabled = selectedRawMaterials.length === 0;
+
+        rmSelectedList.innerHTML = '';
+        selectedRawMaterials.forEach(rm => {
+            const item = document.createElement('div');
+            item.className = 'selected-item';
+            item.innerHTML = `
+                <div class="si-info">
+                    <div class="si-name">${escHtml(rm.name)}</div>
+                    <div class="si-meta">${rm.sku ? escHtml(rm.sku) + ' · ' : ''}${escHtml(rm.unit)}</div>
+                </div>
+                <button class="si-remove">&times;</button>
+            `;
+            item.querySelector('.si-remove').addEventListener('click', () => {
+                selectedRawMaterials = selectedRawMaterials.filter(r => r.id !== rm.id);
+                renderSelectedRm();
+            });
+            rmSelectedList.appendChild(item);
+        });
+    }
+
+    btnStartRmCount.addEventListener('click', async function() {
+        btnStartRmCount.disabled = true;
+        btnStartRmCount.textContent = '{{ __("messages.reception.loading") }}...';
+        try {
+            const res = await fetch('{{ route("reception.quick-inventory.raw-materials") }}', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': window.csrfToken },
+                body: JSON.stringify({ raw_material_ids: selectedRawMaterials.map(r => r.id) })
+            });
+            const data = await res.json();
+            products = (data.raw_materials || []).map(rm => ({ ...rm, real: null }));
+            countingTitle.textContent = '{{ __("messages.reception.raw_materials") }} — ' + products.length;
+            restoreFromLocalStorage();
+            renderProducts();
+            updateFilterCounts();
+            showScreen(screenCounting);
+        } catch (err) { alert(err.message); }
+        finally {
+            btnStartRmCount.disabled = false;
+            btnStartRmCount.textContent = '{{ __("messages.reception.start_counting") }}';
+        }
+    });
+
+    document.getElementById('btnLoadAllRm').addEventListener('click', async function() {
+        this.disabled = true;
+        this.textContent = '{{ __("messages.reception.loading") }}...';
+        try {
+            const res = await fetch('{{ route("reception.quick-inventory.raw-materials") }}', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': window.csrfToken },
+                body: JSON.stringify({ load_all: true })
+            });
+            const data = await res.json();
+            if (!data.raw_materials || data.raw_materials.length === 0) {
+                alert('{{ __("messages.reception.no_raw_materials_found") }}');
+                return;
+            }
+            inventoryMode = 'raw_materials';
+            products = data.raw_materials.map(rm => ({ ...rm, real: null }));
+            countingTitle.textContent = '{{ __("messages.reception.raw_materials") }} — ' + products.length;
+            restoreFromLocalStorage();
+            renderProducts();
+            updateFilterCounts();
+            showScreen(screenCounting);
+        } catch (err) { alert(err.message); }
+        finally {
+            this.disabled = false;
+            this.textContent = '{{ __("messages.reception.load_all_raw_materials") }}';
+        }
     });
 
     // Scanner for counting screen
@@ -1109,14 +1308,15 @@
                 '</tr></thead><tbody>';
 
             diffs.forEach(p => {
-                const diff = p.real - p.theoretical;
+                const diff = Math.round((p.real - p.theoretical) * 100) / 100;
                 const cls = diff > 0 ? 'diff-positive' : 'diff-negative';
                 const sign = diff > 0 ? '+' : '';
+                const unit = (inventoryMode === 'raw_materials' && p.unit) ? ' ' + escHtml(p.unit) : '';
                 html += `<tr>
                     <td>${escHtml(p.name)}</td>
-                    <td>${p.theoretical}</td>
-                    <td>${p.real}</td>
-                    <td class="${cls}">${sign}${diff}</td>
+                    <td>${p.theoretical}${unit}</td>
+                    <td>${p.real}${unit}</td>
+                    <td class="${cls}">${sign}${diff}${unit}</td>
                 </tr>`;
             });
 
@@ -1135,24 +1335,36 @@
         if (!confirm('{{ __("messages.reception.confirm_apply") }}')) return;
 
         const counted = products.filter(p => p.real !== null);
-        const diffs = counted
-            .filter(p => p.real !== p.theoretical)
-            .map(p => ({ product_id: p.id, difference: p.real - p.theoretical }));
-
-        const countedIds = counted.map(p => p.id);
+        const isRm = inventoryMode === 'raw_materials';
 
         btnApply.disabled = true;
         btnApply.textContent = '{{ __("messages.reception.applying") }}';
 
         try {
-            const res = await fetch('{{ route("reception.quick-inventory.apply") }}', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': window.csrfToken },
-                body: JSON.stringify({
+            let url, body;
+
+            if (isRm) {
+                const diffs = counted
+                    .filter(p => p.real !== p.theoretical)
+                    .map(p => ({ raw_material_id: p.id, difference: Math.round((p.real - p.theoretical) * 100) / 100 }));
+                url = '{{ route("reception.quick-inventory.apply-raw-materials") }}';
+                body = { adjustments: diffs };
+            } else {
+                const diffs = counted
+                    .filter(p => p.real !== p.theoretical)
+                    .map(p => ({ product_id: p.id, difference: p.real - p.theoretical }));
+                url = '{{ route("reception.quick-inventory.apply") }}';
+                body = {
                     store_id: storeId,
                     adjustments: diffs,
-                    counted_product_ids: countedIds
-                })
+                    counted_product_ids: counted.map(p => p.id)
+                };
+            }
+
+            const res = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': window.csrfToken },
+                body: JSON.stringify(body)
             });
             const data = await res.json();
 
@@ -1176,6 +1388,7 @@
     function saveToLocalStorage() {
         const data = {
             storeId: storeId,
+            mode: inventoryMode,
             savedAt: new Date().toISOString(),
             counts: {}
         };
@@ -1190,7 +1403,9 @@
             const raw = localStorage.getItem(STORAGE_KEY);
             if (!raw) return;
             const saved = JSON.parse(raw);
-            if (saved.storeId != storeId) return;
+            const savedMode = saved.mode || 'products';
+            if (savedMode !== inventoryMode) return;
+            if (inventoryMode === 'products' && saved.storeId != storeId) return;
             // Only restore if recent (< 2 hours)
             const age = Date.now() - new Date(saved.savedAt).getTime();
             if (age > 2 * 60 * 60 * 1000) return;

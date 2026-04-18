@@ -20,7 +20,7 @@
                     <div class="col-md-6 mb-3">
                         <label class="form-label">{{ __('messages.form.amount') }} *</label>
                         <div class="input-group">
-                            <input type="number" step="0.01" name="amount" class="form-control @error('amount') is-invalid @enderror"
+                            <input type="number" step="0.00001" name="amount" class="form-control @error('amount') is-invalid @enderror"
                                    value="{{ old('amount') }}" required>
                             <span class="input-group-text">$</span>
                         </div>

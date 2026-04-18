@@ -17,7 +17,7 @@ class CashTransaction extends Model
     ];
 
     protected $casts = [
-        'total_amount' => 'decimal:2',
+        'total_amount' => 'decimal:5',
         'transaction_date' => 'datetime',
     ];
 

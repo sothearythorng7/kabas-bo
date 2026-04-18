@@ -8,10 +8,15 @@ use Illuminate\Http\Request;
 use App\Models\Product;
 use App\Models\FinancialPaymentMethod;
 use App\Models\Store;
+use App\Models\Sale;
 use App\Models\SaleItem;
+use App\Models\WebsiteOrder;
+use App\Models\Reseller;
+use App\Models\ResellerSalesReport;
 use Illuminate\Support\Facades\View;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Exports\SupplierSalesExport;
+use Carbon\Carbon;
 
 class SupplierController extends Controller
 {
@@ -141,6 +146,7 @@ public function edit(Supplier $supplier, Request $request)
         if (!empty($productIds)) {
             // Requête groupée par produit
             $salesQuery = SaleItem::whereIn('product_id', $productIds)
+                ->whereNull('exchanged_at')
                 ->whereHas('sale', function ($q) use ($salesStartDate, $salesEndDate, $salesStoreId) {
                     $q->whereDate('created_at', '>=', $salesStartDate)
                       ->whereDate('created_at', '<=', $salesEndDate);
@@ -163,6 +169,127 @@ public function edit(Supplier $supplier, Request $request)
         }
     }
 
+    // === Sales Tracking tab (all channels) ===
+    $stMonth = $request->get('st_month', now()->format('Y-m'));
+    $stChannel = $request->get('st_channel', 'all');
+    $stMonthStart = Carbon::parse($stMonth . '-01')->startOfMonth();
+    $stMonthEnd = $stMonthStart->copy()->endOfMonth();
+
+    $allProductIds = $supplier->products()->pluck('products.id')->toArray();
+    $salesTracking = collect();
+    $stStores = Store::where('type', 'shop')->get();
+    $stResellers = Reseller::orderBy('name')->get();
+
+    if (!empty($allProductIds)) {
+        // POS Sales
+        if ($stChannel === 'all' || str_starts_with($stChannel, 'pos')) {
+            $posQuery = Sale::with(['store', 'items' => function($q) use ($allProductIds) {
+                    $q->whereIn('product_id', $allProductIds)->whereNull('exchanged_at');
+                }, 'items.product'])
+                ->whereHas('items', function($q) use ($allProductIds) {
+                    $q->whereIn('product_id', $allProductIds)->whereNull('exchanged_at');
+                })
+                ->whereBetween('created_at', [$stMonthStart, $stMonthEnd]);
+
+            if (str_starts_with($stChannel, 'pos_')) {
+                $posQuery->where('store_id', (int) str_replace('pos_', '', $stChannel));
+            }
+
+            foreach ($posQuery->get() as $sale) {
+                $financialUrl = $sale->financial_transaction_id
+                    ? route('financial.transactions.show', ['store' => $sale->store_id, 'transaction' => $sale->financial_transaction_id])
+                    : null;
+
+                foreach ($sale->items->whereIn('product_id', $allProductIds) as $item) {
+                    $salesTracking->push([
+                        'date' => $sale->created_at,
+                        'channel' => 'pos',
+                        'source' => $sale->store->name ?? '-',
+                        'product' => $item->product,
+                        'quantity' => $item->quantity,
+                        'unit_price' => $item->price,
+                        'total' => $item->quantity * $item->price,
+                        'financial_url' => $financialUrl,
+                    ]);
+                }
+            }
+        }
+
+        // Website Orders
+        if ($stChannel === 'all' || $stChannel === 'website') {
+            $webOrders = WebsiteOrder::with(['items' => function($q) use ($allProductIds) {
+                    $q->whereIn('product_id', $allProductIds);
+                }, 'items.product'])
+                ->whereHas('items', function($q) use ($allProductIds) {
+                    $q->whereIn('product_id', $allProductIds);
+                })
+                ->where('payment_status', 'paid')
+                ->whereBetween('created_at', [$stMonthStart, $stMonthEnd])
+                ->get();
+
+            foreach ($webOrders as $order) {
+                $orderUrl = route('website-orders.show', $order);
+
+                foreach ($order->items->whereIn('product_id', $allProductIds) as $item) {
+                    $salesTracking->push([
+                        'date' => $order->paid_at ?? $order->created_at,
+                        'channel' => 'website',
+                        'source' => $order->order_number,
+                        'product' => $item->product,
+                        'quantity' => $item->quantity,
+                        'unit_price' => $item->unit_price,
+                        'total' => $item->quantity * $item->unit_price,
+                        'financial_url' => $orderUrl,
+                    ]);
+                }
+            }
+        }
+
+        // Reseller Sales
+        if ($stChannel === 'all' || str_starts_with($stChannel, 'reseller')) {
+            $resellerQuery = ResellerSalesReport::with(['reseller', 'store', 'invoice',
+                    'items' => function($q) use ($allProductIds) {
+                        $q->whereIn('product_id', $allProductIds);
+                    }, 'items.product'])
+                ->whereHas('items', function($q) use ($allProductIds) {
+                    $q->whereIn('product_id', $allProductIds);
+                })
+                ->where(function($q) use ($stMonthStart, $stMonthEnd) {
+                    $q->whereBetween('created_at', [$stMonthStart, $stMonthEnd]);
+                });
+
+            if (str_starts_with($stChannel, 'reseller_')) {
+                $resellerQuery->where('reseller_id', (int) str_replace('reseller_', '', $stChannel));
+            }
+
+            foreach ($resellerQuery->get() as $report) {
+                $invoiceUrl = $report->invoice
+                    ? route('reseller-invoices.edit', $report->invoice)
+                    : null;
+
+                foreach ($report->items->whereIn('product_id', $allProductIds) as $item) {
+                    $salesTracking->push([
+                        'date' => $report->created_at,
+                        'channel' => 'reseller',
+                        'source' => $report->reseller->name ?? '-',
+                        'product' => $item->product,
+                        'quantity' => $item->quantity_sold,
+                        'unit_price' => $item->unit_price,
+                        'total' => $item->quantity_sold * $item->unit_price,
+                        'financial_url' => $invoiceUrl,
+                    ]);
+                }
+            }
+        }
+    }
+
+    $salesTracking = $salesTracking->sortByDesc('date')->values();
+    $stTotals = [
+        'quantity' => $salesTracking->sum('quantity'),
+        'total' => $salesTracking->sum('total'),
+        'count' => $salesTracking->count(),
+    ];
+
     return view('suppliers.edit', compact(
         'supplier',
         'products',
@@ -175,7 +302,13 @@ public function edit(Supplier $supplier, Request $request)
         'salesTotals',
         'salesStartDate',
         'salesEndDate',
-        'salesStoreId'
+        'salesStoreId',
+        'salesTracking',
+        'stMonth',
+        'stChannel',
+        'stStores',
+        'stResellers',
+        'stTotals'
     ));
 }
 

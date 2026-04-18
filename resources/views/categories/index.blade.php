@@ -64,6 +64,13 @@
                             </div>
                         @endforeach
                     </div>
+
+                    {{-- Google product category --}}
+                    <div class="mb-3 mt-3">
+                        <label for="addGoogleCategorySelect">{{ __('messages.category.google_category') }}</label>
+                        <select name="google_product_category" id="addGoogleCategorySelect" class="form-select google-category-select"></select>
+                        <small class="text-muted">{{ __('messages.category.google_category_help') }}</small>
+                    </div>
                 </div>
 
                 <div class="modal-footer">
@@ -132,6 +139,13 @@
                             </div>
                         @endforeach
                     </div>
+
+                    {{-- Google product category --}}
+                    <div class="mb-3 mt-3">
+                        <label for="editGoogleCategorySelect">{{ __('messages.category.google_category') }}</label>
+                        <select name="google_product_category" id="editGoogleCategorySelect" class="form-select google-category-select"></select>
+                        <small class="text-muted">{{ __('messages.category.google_category_help') }}</small>
+                    </div>
                 </div>
 
                 <div class="modal-footer">
@@ -146,6 +160,7 @@
 @endsection
 
 @push('styles')
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/choices.js@10.2.0/public/assets/styles/choices.min.css">
 <style>
 .category-item { list-style: none; padding-left: 0; margin-bottom: 4px; }
 .category-label { display:flex; align-items:center; cursor:pointer; padding:4px; border-radius:3px; }
@@ -158,18 +173,57 @@
 </style>
 @endpush
 
+@php
+    $categoriesJson = $allCategories->map(function ($cat) {
+        return [
+            'id' => $cat->id,
+            'parent_id' => $cat->parent_id,
+            'google_product_category' => $cat->google_product_category,
+            'translations' => $cat->translations->keyBy('locale')->map(fn ($t) => $t->name),
+        ];
+    })->keyBy('id');
+    $googleCategoryNoneLabel = __('messages.category.google_category_none');
+@endphp
 @push('scripts')
+<script src="https://cdn.jsdelivr.net/npm/choices.js@10.2.0/public/assets/scripts/choices.min.js"></script>
 <script>
 // Données des catégories (JSON depuis PHP)
-const categoriesData = @json($allCategories->map(function($cat) {
-    return [
-        'id' => $cat->id,
-        'parent_id' => $cat->parent_id,
-        'translations' => $cat->translations->keyBy('locale')->map(fn($t) => $t->name)
-    ];
-})->keyBy('id'));
+const categoriesData = @json($categoriesJson);
+
+const googleTaxonomy = @json($googleTaxonomy);
+const googleCategoryNoneLabel = @json($googleCategoryNoneLabel);
+let addGoogleChoices = null;
+let editGoogleChoices = null;
+
+function buildGoogleCategoryChoices(selectedValue) {
+    const list = [{ value: '', label: googleCategoryNoneLabel, selected: !selectedValue }];
+    for (const entry of googleTaxonomy) {
+        list.push({ value: entry, label: entry, selected: entry === selectedValue });
+    }
+    return list;
+}
 
 document.addEventListener('DOMContentLoaded', function() {
+    const choicesOpts = {
+        searchEnabled: true,
+        searchResultLimit: 50,
+        shouldSort: false,
+        itemSelectText: '',
+        searchPlaceholderValue: 'Search…',
+    };
+
+    const addSelect = document.getElementById('addGoogleCategorySelect');
+    if (addSelect) {
+        addGoogleChoices = new Choices(addSelect, choicesOpts);
+        addGoogleChoices.setChoices(buildGoogleCategoryChoices(null), 'value', 'label', true);
+    }
+
+    const editSelect = document.getElementById('editGoogleCategorySelect');
+    if (editSelect) {
+        editGoogleChoices = new Choices(editSelect, choicesOpts);
+        editGoogleChoices.setChoices(buildGoogleCategoryChoices(null), 'value', 'label', true);
+    }
+
     // Toggle tree nodes
     document.querySelectorAll('.category-item > .category-label').forEach(function(label) {
         label.addEventListener('click', function(e) {
@@ -211,9 +265,17 @@ document.addEventListener('DOMContentLoaded', function() {
             
             // Mettre à jour les noms dans chaque locale
             @foreach(config('app.website_locales', ['en']) as $locale)
-                document.getElementById('editName{{ ucfirst($locale) }}').value = 
+                document.getElementById('editName{{ ucfirst($locale) }}').value =
                     categoryData.translations.{{ $locale }} || '';
             @endforeach
+
+            // Synchroniser le select Google product category avec Choices.js
+            if (editGoogleChoices) {
+                editGoogleChoices.setChoices(
+                    buildGoogleCategoryChoices(categoryData.google_product_category || null),
+                    'value', 'label', true
+                );
+            }
         });
     });
 });

@@ -87,7 +87,7 @@
                                         @endif
                                         <span class="text-muted">&times;</span>
                                         <input type="number" id="daily_rate" class="form-control form-control-sm d-inline-block" style="width: 100px;"
-                                               value="{{ $payrollData['suggested_daily_rate'] }}" step="0.01" min="0">
+                                               value="{{ $payrollData['suggested_daily_rate'] }}" step="0.00001" min="0">
                                     </td>
                                     <td class="text-end {{ $payrollData['unjustified_days'] > 0 ? 'text-danger fw-bold' : '' }}" id="deduction_absences">
                                         - {{ number_format($payrollData['unjustified_days'] * $payrollData['suggested_daily_rate'], 2) }} {{ $payrollData['currency'] }}
@@ -265,7 +265,7 @@
                     @csrf
                     <div class="mb-3">
                         <label for="base_salary" class="form-label">{{ __('messages.staff.base_salary') }} *</label>
-                        <input type="number" step="0.01" class="form-control" id="base_salary" name="base_salary"
+                        <input type="number" step="0.00001" class="form-control" id="base_salary" name="base_salary"
                                value="{{ old('base_salary', $staffMember->currentSalary?->base_salary) }}" required min="0">
                     </div>
                     <div class="mb-3">
@@ -298,7 +298,7 @@
                     @csrf
                     <div class="mb-3">
                         <label for="amount" class="form-label">{{ __('messages.staff.amount') }} *</label>
-                        <input type="number" step="0.01" class="form-control" id="amount" name="amount" required min="0.01">
+                        <input type="number" step="0.00001" class="form-control" id="amount" name="amount" required min="0.01">
                     </div>
                     <div class="mb-3">
                         <label for="reason" class="form-label">{{ __('messages.staff.reason') }}</label>
@@ -481,8 +481,8 @@ document.addEventListener('DOMContentLoaded', function() {
         const modalNetAmount = document.getElementById('modal_net_amount');
         const modalDeductionAbsences = document.getElementById('modal_deduction_absences');
 
-        if (formDailyRate) formDailyRate.value = dailyRate.toFixed(2);
-        if (formNetAmount) formNetAmount.value = netSalary.toFixed(2);
+        if (formDailyRate) formDailyRate.value = dailyRate.toFixed(5);
+        if (formNetAmount) formNetAmount.value = netSalary.toFixed(5);
         if (modalNetAmount) modalNetAmount.textContent = formatNumber(netSalary) + ' ' + currency;
         if (modalDeductionAbsences) modalDeductionAbsences.textContent = '- ' + formatNumber(deductionAbsences) + ' ' + currency;
 

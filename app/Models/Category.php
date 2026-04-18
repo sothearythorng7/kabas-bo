@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Category extends Model
 {
-    protected $fillable = ['parent_id'];
+    protected $fillable = ['parent_id', 'google_product_category'];
 
     public function parent() {
         return $this->belongsTo(Category::class, 'parent_id');

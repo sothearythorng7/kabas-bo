@@ -74,7 +74,7 @@ class PayrollService
             ->sum('commission_amount') ?? 0;
 
         // Calculate
-        $dailyRate = round($baseSalary / 30, 2);
+        $dailyRate = round($baseSalary / 30, 5);
         $absenceDeduction = $unjustifiedDays * $dailyRate;
 
         $totalAdditions = $adjustments['overtime'] + $adjustments['bonus'] + $adjustments['other'] + $commissionAmount;
@@ -126,8 +126,9 @@ class PayrollService
 
     public function getAdjustmentTotals(StaffMember $staffMember, string $period): array
     {
+        // Include adjustments from current period AND unpaid adjustments from previous periods
         $adjustments = $staffMember->salaryAdjustments()
-            ->where('period', $period)
+            ->where('period', '<=', $period)
             ->whereIn('status', ['pending', 'approved'])
             ->get();
 
@@ -177,7 +178,7 @@ class PayrollService
         $query = $staffMember->salaryAdjustments()->where('status', 'pending');
 
         if ($period) {
-            $query->where('period', $period);
+            $query->where('period', '<=', $period);
         }
 
         return $query->get();

@@ -29,7 +29,7 @@
         <div class="row">
             <div class="col mb-3">
                 <label class="form-label">{{ __('messages.warehouse_invoices.amount_usd') }}</label>
-                <input type="number" step="0.01" name="amount_usd" class="form-control">
+                <input type="number" step="0.00001" name="amount_usd" class="form-control">
             </div>
             <div class="col mb-3">
                 <label class="form-label">{{ __('messages.warehouse_invoices.amount_riel') }}</label>

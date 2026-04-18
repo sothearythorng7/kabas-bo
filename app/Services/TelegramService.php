@@ -18,16 +18,18 @@ class TelegramService
         $this->apiUrl = "https://api.telegram.org/bot{$this->botToken}";
     }
 
-    public function sendMessage(string $message, ?string $parseMode = 'HTML'): bool
+    public function sendMessage(string $message, ?string $parseMode = 'HTML', ?string $chatId = null): bool
     {
-        if (empty($this->botToken) || empty($this->chatId)) {
+        $targetChatId = $chatId ?? $this->chatId;
+
+        if (empty($this->botToken) || empty($targetChatId)) {
             Log::warning('Telegram credentials not configured');
             return false;
         }
 
         try {
             $response = Http::post("{$this->apiUrl}/sendMessage", [
-                'chat_id' => $this->chatId,
+                'chat_id' => $targetChatId,
                 'text' => $message,
                 'parse_mode' => $parseMode,
             ]);

@@ -8,6 +8,12 @@ return [
         'active_pattern' => 'dashboard*',
     ],
     [
+        'label' => 'messages.menu.popup_events',
+        'icon'  => 'bi-calendar-event',
+        'route' => 'popup-events.index',
+        'active_pattern' => 'popup-events*',
+    ],
+    [
         'label' => 'messages.menu.catalog',
         'icon'  => 'bi-list-check',
         'active_pattern' => 'products*|gift-boxes*|gift-cards*|inventory*|vouchers*',
@@ -47,7 +53,7 @@ return [
     [
         'label' => 'messages.menu.stocks',
         'icon'  => 'bi-inboxes',
-        'active_pattern' => 'stocks*|special-orders*',
+        'active_pattern' => 'stocks*|stock-losses*',
         'submenu' => [
             [
                 'label' => 'messages.menu.stock_overview',
@@ -68,10 +74,10 @@ return [
                 'active_pattern' => 'stock-movements*',
             ],
             [
-                'label' => 'messages.menu.special_orders',
-                'icon'  => 'bi-clipboard2-check',
-                'route' => 'special-orders.index',
-                'active_pattern' => 'special-orders*',
+                'label' => 'messages.menu.stock_losses',
+                'icon'  => 'bi-exclamation-triangle',
+                'route' => 'stock-losses.index',
+                'active_pattern' => 'stock-losses*',
             ],
         ]
     ],
@@ -158,6 +164,7 @@ return [
     [
         'label' => 'messages.menu.accounting',
         'icon'  => 'bi-currency-dollar',
+        'allowed_roles' => ['admin', 'ACCOUNTING'],
         'dynamic_submenu' => function() {
             $staticLinks = [
                 [
@@ -165,6 +172,43 @@ return [
                     'icon'  => 'bi-eyeglasses',
                     'route' => 'financial.overview',
                     'active_pattern' => 'financial/overview*',
+                ],
+                [
+                    'label' => 'messages.menu.bilan',
+                    'icon'  => 'bi-file-earmark-bar-graph',
+                    'route' => 'financial.bilan',
+                    'active_pattern' => 'financial/bilan*',
+                ],
+                [
+                    'label' => 'messages.menu.financial_report',
+                    'icon'  => 'bi-journal-bookmark',
+                    'active_pattern' => 'financial/report*',
+                    'submenu' => [
+                        [
+                            'label' => 'messages.menu.financial_report_detail',
+                            'icon'  => 'bi-list-columns-reverse',
+                            'route' => 'financial.report',
+                            'active_pattern' => 'financial/report$',
+                        ],
+                        [
+                            'label' => 'messages.menu.financial_report_consolidated',
+                            'icon'  => 'bi-building',
+                            'route' => 'financial.report-overview',
+                            'active_pattern' => 'financial/report-overview*',
+                        ],
+                    ],
+                ],
+                [
+                    'label' => 'messages.menu.special_orders',
+                    'icon'  => 'bi-clipboard2-check',
+                    'route' => 'special-orders.index',
+                    'active_pattern' => 'special-orders*',
+                ],
+                [
+                    'label' => 'messages.menu.staff_management',
+                    'icon'  => 'bi-person-badge',
+                    'route' => 'staff.index',
+                    'active_pattern' => 'settings/staff*',
                 ],
             ];
             $dynamicLinks = \App\Models\Store::all()->map(function($store){
@@ -287,15 +331,9 @@ return [
     [
         'label' => 'messages.menu.settings',
         'icon'  => 'bi-gear',
-        'active_pattern' => 'roles*|users*|stores*|categories*|brands*|variation*|backups*|settings/staff*|planning*', // parent actif si une sous-page est active
+        'active_pattern' => 'roles*|users*|stores*|categories*|brands*|variation*|backups*|planning*|gps-tracker*', // parent actif si une sous-page est active
         'allowed_roles' => ['admin'], // Seuls les admins peuvent voir ce menu
         'submenu' => [
-            [
-                'label' => 'messages.menu.staff_management',
-                'icon'  => 'bi-person-badge',
-                'route' => 'staff.index',
-                'active_pattern' => 'settings/staff*',
-            ],
             [
                 'label' => 'messages.menu.planning',
                 'icon'  => 'bi-calendar3',
@@ -362,6 +400,12 @@ return [
                 'icon'  => 'bi-hdd-stack',
                 'route' => 'backups.index',
                 'active_pattern' => 'backups*',
+            ],
+            [
+                'label' => 'GPS Tracker',
+                'icon'  => 'bi-geo-alt',
+                'route' => 'gps-tracker.index',
+                'active_pattern' => 'gps-tracker*',
             ],
         ],
     ],

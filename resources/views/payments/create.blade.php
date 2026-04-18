@@ -16,7 +16,7 @@
         </div>
         <div class="mb-3">
             <label class="form-label">{{ __('messages.payments.amount') }}</label>
-            <input type="number" step="0.01" class="form-control" name="amount" value="{{ old('amount') }}" required>
+            <input type="number" step="0.00001" class="form-control" name="amount" value="{{ old('amount') }}" required>
         </div>
         <div class="mb-3">
             <label class="form-label">{{ __('messages.payments.due_date') }}</label>

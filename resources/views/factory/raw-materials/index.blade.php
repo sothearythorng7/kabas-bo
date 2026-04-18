@@ -78,7 +78,13 @@
                             <a href="{{ route('factory.raw-materials.edit', $material) }}">{{ $material->name }}</a>
                         </td>
                         <td>{{ $material->sku ?? '-' }}</td>
-                        <td>{{ $material->supplier?->name ?? '-' }}</td>
+                        <td>
+                            @if($material->suppliers->isNotEmpty())
+                                {{ $material->suppliers->pluck('name')->join(', ') }}
+                            @else
+                                -
+                            @endif
+                        </td>
                         <td class="text-center">{{ $material->unit }}</td>
                         <td class="text-center">
                             @if($material->track_stock)

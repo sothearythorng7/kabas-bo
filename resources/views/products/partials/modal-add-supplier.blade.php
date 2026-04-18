@@ -18,7 +18,7 @@
                     </div>
                     <div class="mb-3">
                         <label class="form-label">{{ __('messages.supplier.purchase_price') }}</label>
-                        <input type="number" step="0.01" name="purchase_price" class="form-control">
+                        <input type="number" step="0.00001" name="purchase_price" class="form-control">
                     </div>
                 </div>
                 <div class="modal-footer">

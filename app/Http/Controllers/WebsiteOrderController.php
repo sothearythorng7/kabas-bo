@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Mail\OrderCancelledMail;
 use App\Mail\OrderConfirmationMail;
 use App\Mail\OrderShippedMail;
+use App\Models\FinancialAccount;
+use App\Models\Store;
 use App\Models\WebsiteOrder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -14,8 +16,6 @@ use Illuminate\Support\Facades\Mail;
 
 class WebsiteOrderController extends Controller
 {
-    const FINANCIAL_ACCOUNT_ID = 17;  // code 701 = Shop Sales
-    const SYSTEM_USER_ID = 1;
 
     public function index(Request $request)
     {
@@ -287,7 +287,7 @@ class WebsiteOrderController extends Controller
      */
     protected function reverseStock(WebsiteOrder $order): void
     {
-        $storeId = $order->store_id ?? 3;
+        $storeId = $order->store_id ?? Store::warehouseId();
 
         foreach ($order->items as $item) {
             if ($item->item_type !== 'product' || !$item->product_id) {
@@ -337,7 +337,7 @@ class WebsiteOrderController extends Controller
      */
     protected function reverseFinancialTransaction(WebsiteOrder $order): void
     {
-        $storeId = $order->store_id ?? 3;
+        $storeId = $order->store_id ?? Store::warehouseId();
 
         $lastTxn = DB::table('financial_transactions')
             ->where('store_id', $storeId)
@@ -352,7 +352,7 @@ class WebsiteOrderController extends Controller
 
         DB::table('financial_transactions')->insert([
             'store_id' => $storeId,
-            'account_id' => self::FINANCIAL_ACCOUNT_ID,
+            'account_id' => FinancialAccount::idByCode('701'),
             'amount' => $order->total,
             'currency' => 'USD',
             'direction' => 'debit',
@@ -363,7 +363,7 @@ class WebsiteOrderController extends Controller
             'status' => 'validated',
             'transaction_date' => now(),
             'payment_method_id' => $paymentMethodId,
-            'user_id' => auth()->id() ?? self::SYSTEM_USER_ID,
+            'user_id' => auth()->id() ?? 1,
             'external_reference' => "WEB-CANCEL-{$order->id}",
             'created_at' => now(),
             'updated_at' => now(),

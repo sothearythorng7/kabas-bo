@@ -17,7 +17,7 @@
         </div>
         <div class="col-md-3 mb-3">
             <label class="form-label">Price</label>
-            <input type="number" step="0.01" name="price" class="form-control @error('price') is-invalid @enderror" value="{{ old('price', $product->price) }}">
+            <input type="number" step="0.00001" name="price" class="form-control @error('price') is-invalid @enderror" value="{{ old('price', $product->price) }}">
             @error('price') <div class="invalid-feedback">{{ $message }}</div> @enderror
         </div>
     </div>
@@ -54,6 +54,27 @@
         <div class="col-md-6 mb-3">
             <label class="form-label">Size</label>
             <input type="text" name="size" class="form-control" value="{{ old('size', $product->size) }}">
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-6 mb-3">
+            <label class="form-label">{{ __('messages.product.gender') }}</label>
+            <select name="gender" class="form-select">
+                <option value="">{{ __('messages.product.gender_none') }}</option>
+                @foreach(['male', 'female', 'unisex'] as $g)
+                    <option value="{{ $g }}" @selected(old('gender', $product->gender) === $g)>{{ __('messages.product.gender_' . $g) }}</option>
+                @endforeach
+            </select>
+        </div>
+        <div class="col-md-6 mb-3">
+            <label class="form-label">{{ __('messages.product.age_group') }}</label>
+            <select name="age_group" class="form-select">
+                <option value="">{{ __('messages.product.age_group_none') }}</option>
+                @foreach(['adult', 'kids', 'toddler', 'infant', 'newborn'] as $a)
+                    <option value="{{ $a }}" @selected(old('age_group', $product->age_group) === $a)>{{ __('messages.product.age_group_' . $a) }}</option>
+                @endforeach
+            </select>
         </div>
     </div>
 

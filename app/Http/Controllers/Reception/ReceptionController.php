@@ -15,8 +15,12 @@ use App\Models\SupplierReturnItem;
 use App\Models\Store;
 use App\Models\StockMovement;
 use App\Models\StockMovementItem;
+use App\Models\Brand;
 use App\Models\FinancialAccount;
 use App\Models\FinancialTransaction;
+use App\Models\RawMaterial;
+use App\Models\RawMaterialStockBatch;
+use App\Models\RawMaterialStockMovement;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -25,10 +29,6 @@ use Barryvdh\DomPDF\Facade\Pdf;
 
 class ReceptionController extends Controller
 {
-    // Store IDs
-    const STORE_PHNOM_PENH = 1;
-    const STORE_SIEM_REAP = 2;
-    const STORE_WAREHOUSE = 3;
 
     /**
      * Show login form with PIN pad
@@ -118,6 +118,7 @@ class ReceptionController extends Controller
             ->whereIn('destination_store_id', $storeIds)
             ->where('status', 'waiting_reception')
             ->where('order_type', SupplierOrder::ORDER_TYPE_PRODUCT)
+            ->whereHas('supplier', fn ($q) => $q->where('type', 'buyer'))
             ->latest()
             ->get();
 
@@ -678,12 +679,16 @@ class ReceptionController extends Controller
     private function getAccessibleStoreIds(): array
     {
         $userStoreId = session('reception_store_id');
+        $ids = [$userStoreId];
 
-        if ($userStoreId === self::STORE_PHNOM_PENH) {
-            return [self::STORE_PHNOM_PENH, self::STORE_WAREHOUSE];
+        // The first shop (by ID) has access to the warehouse — existing business rule
+        $firstShop = Store::where('type', 'shop')->orderBy('id')->first();
+        if ($firstShop && $userStoreId === $firstShop->id) {
+            $warehouseIds = Store::where('type', 'warehouse')->pluck('id')->toArray();
+            $ids = array_merge($ids, $warehouseIds);
         }
 
-        return [$userStoreId];
+        return array_unique($ids);
     }
 
     /**
@@ -838,7 +843,7 @@ class ReceptionController extends Controller
                     'ean' => $product->ean,
                     'brand' => $product->brand?->name,
                     'stock' => $stock,
-                    'unit_price' => round($avgPrice, 2),
+                    'unit_price' => round($avgPrice, 5),
                     'thumbnail' => $thumbnail,
                 ];
             })
@@ -1110,5 +1115,378 @@ class ReceptionController extends Controller
             'from_transaction_id' => $fromTransaction->id,
             'to_transaction_id'   => $toTransaction->id,
         ]);
+    }
+
+    // ==================== QUICK INVENTORY ====================
+
+    /**
+     * Show quick inventory page
+     */
+    public function quickInventoryIndex()
+    {
+        $stores = Store::orderBy('name')->get();
+
+        return view('reception.quick-inventory', compact('stores'));
+    }
+
+    /**
+     * Get brands that have stock in a given store (AJAX)
+     */
+    public function quickInventoryBrands(Request $request)
+    {
+        $request->validate([
+            'store_id' => 'required|exists:stores,id',
+        ]);
+
+        $storeId = $request->store_id;
+
+        // For quick inventory we list every brand that has at least one active product,
+        // regardless of whether stock batches exist for the selected store — operators
+        // need to be able to count products that have never been received as well.
+        $brands = Brand::whereHas('products')
+            ->orderBy('name')
+            ->get(['id', 'name']);
+
+        return response()->json(['brands' => $brands]);
+    }
+
+    /**
+     * Get products with theoretical stock for counting (AJAX)
+     * Accepts either brand_id or product_ids[]
+     */
+    public function quickInventoryProducts(Request $request)
+    {
+        $request->validate([
+            'store_id' => 'required|exists:stores,id',
+            'brand_id' => 'nullable|exists:brands,id',
+            'product_ids' => 'nullable|array',
+            'product_ids.*' => 'exists:products,id',
+        ]);
+
+        $storeId = $request->store_id;
+
+        $query = Product::with(['brand']);
+
+        if ($request->brand_id) {
+            $query->where('brand_id', $request->brand_id);
+        } elseif ($request->product_ids) {
+            $query->whereIn('id', $request->product_ids);
+        } else {
+            return response()->json(['products' => []]);
+        }
+
+        $products = $query->get()->map(function ($product) use ($storeId) {
+            $theoretical = StockBatch::where('product_id', $product->id)
+                ->where('store_id', $storeId)
+                ->where('quantity', '>', 0)
+                ->sum('quantity');
+
+            // Get last count info
+            $lastCount = DB::table('product_stock_counts')
+                ->where('product_id', $product->id)
+                ->where('store_id', $storeId)
+                ->first();
+
+            $countedByName = null;
+            if ($lastCount && $lastCount->counted_by) {
+                $countedByName = User::find($lastCount->counted_by)?->name;
+            }
+
+            return [
+                'id' => $product->id,
+                'name' => $product->name[app()->getLocale()] ?? $product->name['en'] ?? reset($product->name),
+                'ean' => $product->ean,
+                'brand' => $product->brand?->name,
+                'theoretical' => (int) $theoretical,
+                'last_counted_at' => $lastCount?->last_counted_at,
+                'counted_by_name' => $countedByName,
+            ];
+        });
+
+        return response()->json(['products' => $products->values()]);
+    }
+
+    /**
+     * Search products by name/EAN for quick inventory (AJAX)
+     */
+    public function quickInventorySearchProducts(Request $request)
+    {
+        $request->validate([
+            'store_id' => 'required|exists:stores,id',
+            'query' => 'required|string|min:2',
+        ]);
+
+        $storeId = $request->store_id;
+        $search = $request->query('query', $request->input('query'));
+
+        $products = Product::search($search)
+            ->take(20)
+            ->get()
+            ->load('brand')
+            ->map(function ($product) use ($storeId) {
+                $theoretical = StockBatch::where('product_id', $product->id)
+                    ->where('store_id', $storeId)
+                    ->where('quantity', '>', 0)
+                    ->sum('quantity');
+
+                return [
+                    'id' => $product->id,
+                    'name' => $product->name[app()->getLocale()] ?? $product->name['en'] ?? reset($product->name),
+                    'ean' => $product->ean,
+                    'brand' => $product->brand?->name,
+                    'theoretical' => (int) $theoretical,
+                ];
+            });
+
+        return response()->json(['products' => $products->values()]);
+    }
+
+    /**
+     * Apply inventory adjustments (AJAX)
+     */
+    public function quickInventoryApply(Request $request)
+    {
+        $request->validate([
+            'store_id' => 'required|exists:stores,id',
+            'adjustments' => 'present|array',
+            'adjustments.*.product_id' => 'required|exists:products,id',
+            'adjustments.*.difference' => 'required|integer',
+            'counted_product_ids' => 'required|array',
+            'counted_product_ids.*' => 'exists:products,id',
+        ]);
+
+        $storeId = $request->store_id;
+        $userId = session('reception_user_id');
+
+        DB::transaction(function () use ($request, $storeId, $userId) {
+            // Apply stock adjustments for products with differences
+            foreach ($request->adjustments as $adj) {
+                $productId = $adj['product_id'];
+                $difference = (int) $adj['difference'];
+
+                if ($difference === 0) continue;
+
+                if ($difference > 0) {
+                    // Stock increase: create a new batch
+                    $batch = StockBatch::create([
+                        'product_id' => $productId,
+                        'store_id' => $storeId,
+                        'quantity' => $difference,
+                        'unit_price' => 0,
+                        'label' => 'Inventory adjustment (Quick Inventory)',
+                    ]);
+
+                    StockTransaction::create([
+                        'stock_batch_id' => $batch->id,
+                        'store_id' => $storeId,
+                        'product_id' => $productId,
+                        'type' => 'in',
+                        'quantity' => $difference,
+                        'reason' => 'inventory_adjustment',
+                        'user_id' => $userId,
+                    ]);
+                } else {
+                    // Stock decrease: deduct using FIFO
+                    $remaining = abs($difference);
+                    $batches = StockBatch::where('product_id', $productId)
+                        ->where('store_id', $storeId)
+                        ->where('quantity', '>', 0)
+                        ->orderBy('created_at', 'asc')
+                        ->lockForUpdate()
+                        ->get();
+
+                    foreach ($batches as $batch) {
+                        if ($remaining <= 0) break;
+
+                        $deduct = min($batch->quantity, $remaining);
+                        $batch->decrement('quantity', $deduct);
+                        $remaining -= $deduct;
+
+                        StockTransaction::create([
+                            'stock_batch_id' => $batch->id,
+                            'store_id' => $storeId,
+                            'product_id' => $productId,
+                            'type' => 'out',
+                            'quantity' => $deduct,
+                            'reason' => 'inventory_adjustment',
+                            'user_id' => $userId,
+                        ]);
+                    }
+                }
+            }
+
+            // Update last counted timestamp for all counted products
+            foreach ($request->counted_product_ids as $productId) {
+                DB::table('product_stock_counts')->updateOrInsert(
+                    ['product_id' => $productId, 'store_id' => $storeId],
+                    [
+                        'last_counted_at' => now(),
+                        'counted_by' => $userId,
+                        'updated_at' => now(),
+                    ]
+                );
+            }
+        });
+
+        return response()->json(['success' => true]);
+    }
+
+    // ─── Raw Materials Quick Inventory ───
+
+    public function quickInventorySearchRawMaterials(Request $request)
+    {
+        $request->validate([
+            'query' => 'required|string|min:2',
+        ]);
+
+        $query = $request->query('query') ?: $request->input('query');
+
+        $rawMaterials = RawMaterial::where('is_active', true)
+            ->where('track_stock', true)
+            ->where(function ($q) use ($query) {
+                $q->where('name', 'LIKE', '%' . $query . '%')
+                  ->orWhere('sku', 'LIKE', '%' . $query . '%');
+            })
+            ->orderBy('name')
+            ->take(20)
+            ->get()
+            ->map(function ($rm) {
+                return [
+                    'id' => $rm->id,
+                    'name' => $rm->name,
+                    'sku' => $rm->sku,
+                    'unit' => $rm->unit,
+                    'theoretical' => round((float) $rm->total_stock, 2),
+                ];
+            });
+
+        return response()->json(['raw_materials' => $rawMaterials]);
+    }
+
+    public function quickInventoryRawMaterials(Request $request)
+    {
+        $request->validate([
+            'raw_material_ids' => 'nullable|array',
+            'raw_material_ids.*' => 'integer|exists:raw_materials,id',
+            'load_all' => 'nullable|boolean',
+        ]);
+
+        $query = RawMaterial::where('is_active', true)
+            ->where('track_stock', true);
+
+        if ($request->boolean('load_all')) {
+            // Load all tracked raw materials
+        } elseif ($request->filled('raw_material_ids')) {
+            $query->whereIn('id', $request->raw_material_ids);
+        } else {
+            return response()->json(['raw_materials' => []]);
+        }
+
+        $rawMaterials = $query->orderBy('name')->get()->map(function ($rm) {
+            return [
+                'id' => $rm->id,
+                'name' => $rm->name,
+                'sku' => $rm->sku,
+                'unit' => $rm->unit,
+                'theoretical' => round((float) $rm->total_stock, 2),
+            ];
+        });
+
+        return response()->json(['raw_materials' => $rawMaterials]);
+    }
+
+    public function quickInventoryApplyRawMaterials(Request $request)
+    {
+        $request->validate([
+            'adjustments' => 'required|array',
+            'adjustments.*.raw_material_id' => 'required|integer|exists:raw_materials,id',
+            'adjustments.*.difference' => 'required|numeric',
+        ]);
+
+        $userId = session('reception_user_id');
+
+        DB::transaction(function () use ($request, $userId) {
+            $batchNumber = 'INV-' . now()->format('Ymd-His');
+
+            foreach ($request->adjustments as $adj) {
+                $difference = round((float) $adj['difference'], 2);
+                if ($difference == 0) continue;
+
+                $rmId = $adj['raw_material_id'];
+
+                if ($difference > 0) {
+                    // Stock increase: create a new batch
+                    $batch = RawMaterialStockBatch::create([
+                        'raw_material_id' => $rmId,
+                        'quantity' => $difference,
+                        'unit_price' => 0,
+                        'received_at' => now(),
+                        'batch_number' => $batchNumber,
+                        'notes' => 'Inventory adjustment (Quick Inventory)',
+                    ]);
+
+                    RawMaterialStockMovement::create([
+                        'raw_material_id' => $rmId,
+                        'raw_material_stock_batch_id' => $batch->id,
+                        'quantity' => $difference,
+                        'type' => RawMaterialStockMovement::TYPE_ADJUSTMENT,
+                        'reference' => $batchNumber,
+                        'notes' => 'Quick Inventory adjustment (+)',
+                        'user_id' => $userId,
+                    ]);
+                } else {
+                    // Stock decrease: FIFO deduction
+                    $remaining = abs($difference);
+                    $batches = RawMaterialStockBatch::where('raw_material_id', $rmId)
+                        ->where('quantity', '>', 0)
+                        ->orderBy('created_at', 'asc')
+                        ->lockForUpdate()
+                        ->get();
+
+                    foreach ($batches as $batch) {
+                        if ($remaining <= 0) break;
+
+                        $deduct = min($remaining, $batch->quantity);
+                        $batch->decrement('quantity', $deduct);
+
+                        RawMaterialStockMovement::create([
+                            'raw_material_id' => $rmId,
+                            'raw_material_stock_batch_id' => $batch->id,
+                            'quantity' => -$deduct,
+                            'type' => RawMaterialStockMovement::TYPE_ADJUSTMENT,
+                            'reference' => $batchNumber,
+                            'notes' => 'Quick Inventory adjustment (-)',
+                            'user_id' => $userId,
+                        ]);
+
+                        $remaining = round($remaining - $deduct, 2);
+                    }
+
+                    // If there's still remaining (theoretical was wrong), create negative adjustment batch
+                    if ($remaining > 0) {
+                        $batch = RawMaterialStockBatch::create([
+                            'raw_material_id' => $rmId,
+                            'quantity' => 0,
+                            'unit_price' => 0,
+                            'received_at' => now(),
+                            'batch_number' => $batchNumber,
+                            'notes' => 'Inventory adjustment overflow (Quick Inventory)',
+                        ]);
+
+                        RawMaterialStockMovement::create([
+                            'raw_material_id' => $rmId,
+                            'raw_material_stock_batch_id' => $batch->id,
+                            'quantity' => -$remaining,
+                            'type' => RawMaterialStockMovement::TYPE_ADJUSTMENT,
+                            'reference' => $batchNumber,
+                            'notes' => 'Quick Inventory adjustment (overflow)',
+                            'user_id' => $userId,
+                        ]);
+                    }
+                }
+            }
+        });
+
+        return response()->json(['success' => true]);
     }
 }

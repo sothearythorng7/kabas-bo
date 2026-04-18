@@ -102,13 +102,9 @@
                     <label class="form-label">{{ __('messages.blog_post.current_image') }}</label>
                     <div class="position-relative">
                         <img src="{{ asset('storage/' . $post->featured_image) }}" alt="Featured" class="img-fluid rounded mb-2" style="max-height: 200px;">
-                        <form action="{{ route('blog.posts.deleteImage', $post) }}" method="POST" class="d-inline" onsubmit="return confirm('{{ __('messages.blog_post.delete_image_confirm') }}')">
-                            @csrf
-                            @method('DELETE')
-                            <button type="submit" class="btn btn-sm btn-danger">
-                                <i class="bi bi-trash"></i> {{ __('messages.blog_post.delete_image') }}
-                            </button>
-                        </form>
+                        <button type="button" class="btn btn-sm btn-danger" onclick="if(confirm('{{ __('messages.blog_post.delete_image_confirm') }}')) document.getElementById('delete-image-form').submit()">
+                            <i class="bi bi-trash"></i> {{ __('messages.blog_post.delete_image') }}
+                        </button>
                     </div>
                 </div>
                 @endif
@@ -164,5 +160,12 @@
             </a>
         </div>
     </form>
+
+    @if($post->featured_image)
+    <form id="delete-image-form" action="{{ route('blog.posts.deleteImage', $post) }}" method="POST" style="display:none">
+        @csrf
+        @method('DELETE')
+    </form>
+    @endif
 </div>
 @endsection

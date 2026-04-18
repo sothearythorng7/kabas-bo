@@ -10,3 +10,6 @@ Artisan::command('inspire', function () {
 
 // Run voucher expiration check daily at midnight
 Schedule::command('vouchers:expire')->daily();
+
+// Sync Cambodia Post shipping rates every Sunday at 3am
+Schedule::command('shipping:sync-cambodia-post')->weeklyOn(0, '03:00');

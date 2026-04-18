@@ -53,7 +53,7 @@
                         <option value="">-- {{ __('messages.shipping.select_carrier') }} --</option>
                         @foreach($carriers as $carrier)
                             <option value="{{ $carrier->id }}" {{ $selectedCarrier && $selectedCarrier->id == $carrier->id ? 'selected' : '' }}>
-                                {{ $carrier->name }}
+                                {{ $carrier->name }}{{ !$carrier->is_active ? ' (' . __('messages.shipping.inactive') . ')' : '' }}
                             </option>
                         @endforeach
                     </select>
@@ -129,7 +129,7 @@
                                                         </div>
                                                         <div class="mb-3">
                                                             <label class="form-label">{{ __('messages.shipping.price_usd') }}</label>
-                                                            <input type="number" step="0.01" min="0" name="price" class="form-control" value="{{ $rate->price }}" required>
+                                                            <input type="number" step="0.00001" min="0" name="price" class="form-control" value="{{ $rate->price }}" required>
                                                         </div>
                                                     </div>
                                                     <div class="modal-footer">
@@ -170,7 +170,7 @@
                                 </div>
                                 <div class="mb-3">
                                     <label class="form-label">{{ __('messages.shipping.price_usd') }}</label>
-                                    <input type="number" step="0.01" min="0" name="price" class="form-control" required>
+                                    <input type="number" step="0.00001" min="0" name="price" class="form-control" required>
                                 </div>
                             </div>
                             <div class="modal-footer">

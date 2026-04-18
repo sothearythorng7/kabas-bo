@@ -22,8 +22,8 @@ class ExchangeItem extends Model
     ];
 
     protected $casts = [
-        'unit_price' => 'decimal:2',
-        'total_price' => 'decimal:2',
+        'unit_price' => 'decimal:5',
+        'total_price' => 'decimal:5',
     ];
 
     // Relationships

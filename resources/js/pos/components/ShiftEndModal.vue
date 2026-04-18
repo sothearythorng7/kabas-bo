@@ -6,7 +6,7 @@
           <h5 class="modal-title">Clôturer le shift</h5>
         </div>
         <div class="modal-body">
-          <input type="number" v-model.number="cash" class="form-control" placeholder="Montant cash en caisse">
+          <input type="number" step="0.00001" v-model.number="cash" class="form-control" placeholder="Montant cash en caisse">
         </div>
         <div class="modal-footer">
           <button class="btn btn-danger" @click="endShift">Clôturer</button>

@@ -34,17 +34,17 @@ class SalaryPayment extends Model
     ];
 
     protected $casts = [
-        'base_salary' => 'decimal:2',
-        'daily_rate' => 'decimal:2',
-        'absence_deduction' => 'decimal:2',
-        'advances_deduction' => 'decimal:2',
-        'overtime_amount' => 'decimal:2',
-        'bonus_amount' => 'decimal:2',
-        'penalty_amount' => 'decimal:2',
-        'commission_amount' => 'decimal:2',
-        'other_adjustment_amount' => 'decimal:2',
-        'gross_salary' => 'decimal:2',
-        'net_amount' => 'decimal:2',
+        'base_salary' => 'decimal:5',
+        'daily_rate' => 'decimal:5',
+        'absence_deduction' => 'decimal:5',
+        'advances_deduction' => 'decimal:5',
+        'overtime_amount' => 'decimal:5',
+        'bonus_amount' => 'decimal:5',
+        'penalty_amount' => 'decimal:5',
+        'commission_amount' => 'decimal:5',
+        'other_adjustment_amount' => 'decimal:5',
+        'gross_salary' => 'decimal:5',
+        'net_amount' => 'decimal:5',
         'is_transferred' => 'boolean',
         'transferred_at' => 'datetime',
     ];

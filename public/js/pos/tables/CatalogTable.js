@@ -81,7 +81,7 @@ class CatalogTable extends Table {
             categories: product.categories || [],
             photos: product.photos || [],
             total_stock: product.total_stock || "0",
-            store_id: product.store_id || 1
+            store_id: product.store_id
         });
     }
 }

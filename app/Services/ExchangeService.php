@@ -192,6 +192,9 @@ class ExchangeService
                 'notes' => $data['notes'] ?? null,
             ]);
 
+            // Use the original sale's store for stock operations
+            $stockStoreId = $originalSale->store_id ?? $store->id;
+
             // Process returned items - handle partial exchanges
             foreach ($validatedReturnItems as $item) {
                 $saleItem = $item['sale_item'];
@@ -222,10 +225,10 @@ class ExchangeService
                     ]);
                 }
 
-                // Return stock to inventory
+                // Return stock to the original sale's store
                 $stockBatch = StockBatch::create([
                     'product_id' => $saleItem->product_id,
-                    'store_id' => $store->id,
+                    'store_id' => $stockStoreId,
                     'quantity' => $returnedQty,
                     'unit_price' => $item['unit_price'],
                     'source_exchange_id' => $exchange->id,
@@ -236,7 +239,7 @@ class ExchangeService
                 // Create stock transaction for audit
                 StockTransaction::create([
                     'stock_batch_id' => $stockBatch->id,
-                    'store_id' => $store->id,
+                    'store_id' => $stockStoreId,
                     'product_id' => $saleItem->product_id,
                     'type' => 'in',
                     'quantity' => $returnedQty,
@@ -245,34 +248,32 @@ class ExchangeService
                 ]);
             }
 
-            // Process new items - ADD to original sale
+            // Process new items - add to exchange history AND to original sale
             foreach ($newItemsData as $newItemData) {
                 $product = $newItemData['product'];
                 $quantity = $newItemData['quantity'];
 
-                // Create new sale item on the ORIGINAL sale
-                $newSaleItem = SaleItem::create([
-                    'sale_id' => $originalSale->id,
-                    'product_id' => $product->id,
-                    'quantity' => $quantity,
-                    'price' => $product->price,
-                    'discounts' => [],
-                    'added_via_exchange_id' => $exchange->id, // Track that this was added via exchange
-                ]);
-
                 // Record in exchange items for history
                 ExchangeItem::create([
                     'exchange_id' => $exchange->id,
-                    'new_sale_item_id' => $newSaleItem->id,
                     'product_id' => $product->id,
                     'quantity' => $quantity,
                     'unit_price' => $product->price,
                     'total_price' => $product->price * $quantity,
-                    'type' => 'new', // Mark as new item
+                    'type' => 'new',
                 ]);
 
-                // Decrement stock FIFO
-                $this->decrementStockFIFO($store->id, $product->id, $quantity, $originalSale->id, $shift?->id, 'exchange_new_item');
+                // Add new item to the original sale so it shows in BO
+                SaleItem::create([
+                    'sale_id' => $originalSale->id,
+                    'product_id' => $product->id,
+                    'quantity' => $quantity,
+                    'price' => $product->price,
+                    'added_via_exchange_id' => $exchange->id,
+                ]);
+
+                // Decrement stock from original sale's store
+                $this->decrementStockFIFO($stockStoreId, $product->id, $quantity, null, $shift?->id, 'exchange_new_item');
             }
 
             // Recalculate sale total (only non-exchanged items)

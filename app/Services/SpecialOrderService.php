@@ -3,6 +3,8 @@
 namespace App\Services;
 
 use App\Mail\OrderConfirmationMail;
+use App\Models\FinancialAccount;
+use App\Models\Store;
 use App\Models\WebsiteOrder;
 use App\Models\WebsitePaymentTransaction;
 use Illuminate\Support\Facades\DB;
@@ -11,8 +13,6 @@ use Illuminate\Support\Facades\Mail;
 
 class SpecialOrderService
 {
-    const FINANCIAL_ACCOUNT_ID = 17;  // code 701 = Shop Sales
-    const SYSTEM_USER_ID = 1;
 
     /**
      * Handle order paid: confirm order, deduct stock, create financial transaction, notify.
@@ -52,8 +52,8 @@ class SpecialOrderService
                 ]);
             }
 
-            // Deduct stock
-            $this->deductStock($order);
+            // Stock is deducted only when status changes to shipped/delivered
+            // (triggered from SpecialOrderController::update)
 
             // Create financial transaction
             $this->createFinancialTransaction($order);
@@ -72,11 +72,34 @@ class SpecialOrderService
     }
 
     /**
-     * Deduct stock FIFO from warehouse (store_id=3).
+     * Check if stock has already been deducted for this order.
+     */
+    public function hasStockBeenDeducted(WebsiteOrder $order): bool
+    {
+        return DB::table('stock_transactions')
+            ->where('reason', 'special_order_' . $order->id)
+            ->exists();
+    }
+
+    /**
+     * Deduct stock FIFO if not already done.
+     */
+    public function deductStockIfNeeded(WebsiteOrder $order): bool
+    {
+        if ($this->hasStockBeenDeducted($order)) {
+            return false;
+        }
+
+        $this->deductStock($order);
+        return true;
+    }
+
+    /**
+     * Deduct stock FIFO from the order's store.
      */
     public function deductStock(WebsiteOrder $order): void
     {
-        $storeId = $order->store_id ?? 3;
+        $storeId = $order->store_id ?? Store::warehouseId();
         $order->load('items');
 
         foreach ($order->items as $item) {
@@ -110,7 +133,7 @@ class SpecialOrderService
                     'product_id' => $item->product_id,
                     'type' => 'out',
                     'quantity' => $deduct,
-                    'reason' => 'website_sale',
+                    'reason' => 'special_order_' . $order->id,
                     'sale_id' => null,
                     'shift_id' => null,
                     'created_at' => now(),
@@ -136,7 +159,18 @@ class SpecialOrderService
      */
     public function createFinancialTransaction(WebsiteOrder $order, string $paymentType = 'cards'): void
     {
-        $storeId = $order->store_id ?? 3;
+        $storeId = $order->store_id ?? Store::warehouseId();
+
+        // If a deposit was already credited separately, only credit the remainder.
+        $alreadyCredited = (float) DB::table('financial_transactions')
+            ->where('external_reference', "WEB-SO-{$order->id}-DEPOSIT")
+            ->sum('amount');
+
+        $amount = round((float) $order->total - $alreadyCredited, 5);
+
+        if ($amount <= 0) {
+            return;
+        }
 
         $lastTxn = DB::table('financial_transactions')
             ->where('store_id', $storeId)
@@ -145,14 +179,14 @@ class SpecialOrderService
             ->first(['balance_after']);
 
         $balanceBefore = $lastTxn ? (float) $lastTxn->balance_after : 0;
-        $balanceAfter = $balanceBefore + (float) $order->total;
+        $balanceAfter = $balanceBefore + $amount;
 
         $paymentMethodId = $this->resolvePaymentMethodId($paymentType);
 
         DB::table('financial_transactions')->insert([
             'store_id' => $storeId,
-            'account_id' => self::FINANCIAL_ACCOUNT_ID,
-            'amount' => $order->total,
+            'account_id' => FinancialAccount::idByCode('701'),
+            'amount' => $amount,
             'currency' => 'USD',
             'direction' => 'credit',
             'balance_before' => $balanceBefore,
@@ -162,8 +196,60 @@ class SpecialOrderService
             'status' => 'validated',
             'transaction_date' => now(),
             'payment_method_id' => $paymentMethodId,
-            'user_id' => $order->created_by_user_id ?? self::SYSTEM_USER_ID,
+            'user_id' => $order->created_by_user_id ?? 1,
             'external_reference' => "WEB-SO-{$order->id}",
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+    }
+
+    /**
+     * Create a credit financial transaction for a deposit payment on a special order.
+     * Idempotent: skips if a deposit transaction already exists for this order.
+     */
+    public function createDepositFinancialTransaction(WebsiteOrder $order, string $paymentType = 'cash'): void
+    {
+        $storeId = $order->store_id ?? Store::warehouseId();
+        $amount = round((float) $order->deposit_amount, 5);
+
+        if ($amount <= 0) {
+            return;
+        }
+
+        $exists = DB::table('financial_transactions')
+            ->where('external_reference', "WEB-SO-{$order->id}-DEPOSIT")
+            ->exists();
+
+        if ($exists) {
+            return;
+        }
+
+        $lastTxn = DB::table('financial_transactions')
+            ->where('store_id', $storeId)
+            ->orderBy('transaction_date', 'desc')
+            ->orderBy('id', 'desc')
+            ->first(['balance_after']);
+
+        $balanceBefore = $lastTxn ? (float) $lastTxn->balance_after : 0;
+        $balanceAfter = $balanceBefore + $amount;
+
+        $paymentMethodId = $this->resolvePaymentMethodId($paymentType);
+
+        DB::table('financial_transactions')->insert([
+            'store_id' => $storeId,
+            'account_id' => FinancialAccount::idByCode('701'),
+            'amount' => $amount,
+            'currency' => 'USD',
+            'direction' => 'credit',
+            'balance_before' => $balanceBefore,
+            'balance_after' => $balanceAfter,
+            'label' => "Special Order #{$order->order_number} - Deposit",
+            'description' => "Deposit for special order {$order->order_number} - {$order->shipping_full_name}",
+            'status' => 'validated',
+            'transaction_date' => now(),
+            'payment_method_id' => $paymentMethodId,
+            'user_id' => $order->created_by_user_id ?? 1,
+            'external_reference' => "WEB-SO-{$order->id}-DEPOSIT",
             'created_at' => now(),
             'updated_at' => now(),
         ]);
@@ -181,7 +267,9 @@ class SpecialOrderService
                 'payment_method' => $paymentType,
             ]);
 
-            $this->deductStock($order);
+            // Stock is deducted only when status changes to shipped/delivered
+            // (triggered from SpecialOrderController::update)
+
             $this->createFinancialTransaction($order, $paymentType);
         });
 
@@ -237,7 +325,7 @@ class SpecialOrderService
                 . "Total: $" . number_format($order->total, 2) . "\n"
                 . "Created by: " . ($order->createdByUser ? $order->createdByUser->name : 'System');
 
-            $telegram->sendMessage($message);
+            $telegram->sendMessage($message, 'HTML', config('services.telegram.private_chat_id'));
         } catch (\Exception $e) {
             Log::error('Failed to send Telegram notification for special order', [
                 'order_number' => $order->order_number,

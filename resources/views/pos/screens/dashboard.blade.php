@@ -952,7 +952,7 @@ function renderSalesTabs() {
             total -= disc;
         });
         // Round to 2 decimal places to match validation modal
-        total = Math.round(total * 100) / 100;
+        total = Math.round(total * 100000) / 100000;
 
         const itemsHtml = sale.items.map((item, i) => {
             let unitPriceCalc = item.price.toFixed(2);
@@ -1585,7 +1585,7 @@ function showDiscountModal(title = "Discount", isLineDiscount = false) {
 
             <div class="mb-3">
               <label for="disc-value" class="form-label">Value</label>
-              <input id="disc-value" type="number" step="0.01" min="0" class="form-control" placeholder="Enter value">
+              <input id="disc-value" type="number" step="0.00001" min="0" class="form-control" placeholder="Enter value">
               <div class="form-text" id="disc-help">Enter amount in store currency</div>
             </div>
 
@@ -1670,7 +1670,7 @@ function showDeliveryModal() {
                                 <div class="input-group">
                                     <span class="input-group-text">$</span>
                                     <input type="number" class="form-control" id="delivery-fee-input"
-                                           step="0.01" min="0" placeholder="0.00" required>
+                                           step="0.00001" min="0" placeholder="0.00" required>
                                 </div>
                             </div>
                             <div class="mb-3">
@@ -1739,7 +1739,7 @@ function showCustomServiceModal() {
                                 <div class="input-group">
                                     <span class="input-group-text">$</span>
                                     <input type="number" class="form-control" id="custom-service-amount-input"
-                                           step="0.01" min="0" placeholder="0.00" required>
+                                           step="0.00001" min="0" placeholder="0.00" required>
                                 </div>
                             </div>
                             <div class="mb-3">
@@ -1886,6 +1886,15 @@ function normalizeCategoryTree(tree) {
 function initDashboard() {
     $("#btn-new-sale").off("click").on("click", addNewSale);
 
+    // Update activeSaleId when switching tabs
+    $("#sales-tabs").off("click", ".nav-link").on("click", ".nav-link", function() {
+        const href = $(this).attr("href"); // e.g. "#sale-1710769264000"
+        if (href && href.startsWith("#sale-")) {
+            const id = Number(href.replace("#sale-", ""));
+            if (id) activeSaleId = id;
+        }
+    });
+
     // Recherche avec Meilisearch (debounced pour éviter trop de requêtes)
     $("#sale-search").off("input").on("input", performSearchDebounced);
     $("#sale-search").off("keypress").on("keypress", e => { if (e.key === "Enter") { e.preventDefault(); performSearch(); } });
@@ -1960,7 +1969,7 @@ function showSaleValidationModal(sale) {
         });
 
         // Round total to 2 decimal places to avoid floating point issues
-        total = Math.round(total * 100) / 100;
+        total = Math.round(total * 100000) / 100000;
 
         // Split payments state
         let splitPayments = [];
@@ -2097,7 +2106,7 @@ function showSaleValidationModal(sale) {
                                             <div class="input-group input-group-sm">
                                                 <span class="input-group-text">$</span>
                                                 <input type="number" class="form-control" id="payment-amount-input"
-                                                       step="0.01" min="0" max="${total}" value="${total.toFixed(2)}">
+                                                       step="0.00001" min="0" max="${total}" value="${total.toFixed(2)}">
                                             </div>
                                         </div>
                                     </div>
@@ -2285,7 +2294,7 @@ function showSaleValidationModal(sale) {
 
                 // Auto-fill amount with voucher value (or remaining, whichever is smaller)
                 const voucherAmount = Math.min(parseFloat(data.voucher.amount), remainingAmount);
-                $("#payment-amount-input").val(voucherAmount.toFixed(2));
+                $("#payment-amount-input").val(voucherAmount.toFixed(5));
 
                 $("#voucher-validation-result").html(`
                     <span class="text-success">
@@ -2347,7 +2356,7 @@ function showSaleValidationModal(sale) {
             updateRemainingAmount();
 
             // Update input for next payment
-            $("#payment-amount-input").val(remainingAmount.toFixed(2));
+            $("#payment-amount-input").val(remainingAmount.toFixed(5));
         });
 
         // Cancel button

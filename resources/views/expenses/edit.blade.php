@@ -25,7 +25,7 @@
         </div>
         <div class="mb-3">
             <label class="form-label">{{ __('messages.expenses.amount') }}</label>
-            <input type="number" step="0.01" class="form-control" name="amount" value="{{ old('amount', $expense->amount) }}" required>
+            <input type="number" step="0.00001" class="form-control" name="amount" value="{{ old('amount', $expense->amount) }}" required>
         </div>
         <div class="mb-3">
             <label class="form-label">{{ __('messages.expenses.document_file') }}</label>

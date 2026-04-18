@@ -46,10 +46,21 @@
                                             <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                                         </div>
                                         <div class="modal-body">
+                                            @php $remainingAmount = max(0, $order->invoicedAmount() - $order->deposit); @endphp
                                             <div class="mb-3">
                                                 <label class="form-label">
-                                                    {{ __('messages.Amount paid') }} : <strong>${{ number_format($order->invoicedAmount(), 2) }}</strong>
+                                                    {{ __('messages.supplier_order.invoiced_amount') }} : <strong>${{ number_format($order->invoicedAmount(), 2) }}</strong>
                                                 </label>
+                                                @if($order->deposit > 0)
+                                                    <br>
+                                                    <label class="form-label">
+                                                        {{ __('messages.supplier_order.deposit') }} : <span class="text-warning fw-bold">- ${{ number_format($order->deposit, 2) }}</span>
+                                                    </label>
+                                                    <br>
+                                                    <label class="form-label">
+                                                        {{ __('messages.supplier_order.remaining_to_pay') }} : <span class="text-success fw-bold">${{ number_format($remainingAmount, 2) }}</span>
+                                                    </label>
+                                                @endif
                                             </div>
                                             <div class="mb-3">
                                                 <label class="form-label">{{ __('messages.Méthode de paiement') }}</label>
@@ -73,6 +84,13 @@
                             </div>
                         </div>
                     @endif
+                @endif
+
+                {{-- Edit received quantities --}}
+                @if(in_array($order->status, ['waiting_invoice', 'received']))
+                    <button type="button" class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#editQuantitiesModal">
+                        <i class="bi bi-pencil-square"></i> {{ __('messages.supplier_order.edit_received_quantities') }}
+                    </button>
                 @endif
 
                 {{-- Lien facture --}}
@@ -122,6 +140,17 @@
                         <strong>{{ __('messages.Total theoretical amount') }}:</strong>
                         <span class="badge bg-info">${{ number_format($order->expectedAmount(), 2) }}</span>
                     </p>
+                    <p>
+                        <strong>{{ __('messages.supplier_order.deposit') }}:</strong>
+                        @if($order->deposit > 0)
+                            <span class="badge bg-warning text-dark">- ${{ number_format($order->deposit, 2) }}</span>
+                        @else
+                            <span class="text-muted">$0.00</span>
+                        @endif
+                        <button type="button" class="btn btn-sm btn-outline-secondary ms-2" data-bs-toggle="modal" data-bs-target="#editDepositModal">
+                            <i class="bi bi-pencil"></i>
+                        </button>
+                    </p>
                     @if(in_array($order->status, ['waiting_invoice', 'received']))
                     <p>
                         <strong>{{ __('messages.Total invoiced amount') }}:</strong>
@@ -129,6 +158,13 @@
                     </p>
                     @endif
                     @if($order->status === 'received')
+                    @if($order->deposit > 0)
+                    <p>
+                        <strong>{{ __('messages.supplier_order.remaining_to_pay') }}:</strong>
+                        @php $remainingToPay = $order->invoicedAmount() - $order->deposit; @endphp
+                        <span class="badge bg-{{ $remainingToPay <= 0 ? 'success' : 'danger' }}">${{ number_format(max(0, $remainingToPay), 2) }}</span>
+                    </p>
+                    @endif
                     <p>
                         <strong>{{ __('messages.Payment status') }}:</strong>
                         @if($order->is_paid)
@@ -237,4 +273,116 @@
         </a>
     </div>
 </div>
+
+{{-- Modal Edit Deposit --}}
+<div class="modal fade" id="editDepositModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" style="max-width: 400px;">
+        <form action="{{ route('supplier-orders.updateDeposit', [$supplier, $order]) }}" method="POST">
+            @csrf
+            @method('PUT')
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">{{ __('messages.supplier_order.edit_deposit') }}</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="deposit" class="form-label">{{ __('messages.supplier_order.deposit') }}</label>
+                        <div class="input-group">
+                            <span class="input-group-text">$</span>
+                            <input type="number" step="0.00001" min="0" name="deposit" id="deposit" class="form-control" value="{{ $order->deposit }}">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">{{ __('messages.general_invoices.payment_date') }} <span class="text-danger">*</span></label>
+                        <input type="date" name="deposit_date" class="form-control form-control-sm" value="{{ now()->format('Y-m-d') }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">{{ __('messages.Méthode de paiement') }} <span class="text-danger">*</span></label>
+                        <select name="deposit_payment_method_id" class="form-select form-select-sm" required>
+                            @foreach($paymentMethods as $method)
+                                <option value="{{ $method->id }}">{{ $method->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">{{ __('messages.Payment reference') }}</label>
+                        <input type="text" name="deposit_reference" class="form-control form-control-sm">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ __('messages.btn.cancel') }}</button>
+                    <button type="submit" class="btn btn-primary">{{ __('messages.btn.save') }}</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+{{-- Modal Edit Received Quantities --}}
+@if(in_array($order->status, ['waiting_invoice', 'received']))
+<div class="modal fade" id="editQuantitiesModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content border-warning">
+            <form action="{{ route('supplier-orders.updateRawMaterialReceivedQuantities', [$supplier, $order]) }}" method="POST">
+                @csrf
+                @method('PUT')
+                <div class="modal-header bg-warning text-dark">
+                    <h5 class="modal-title">
+                        <i class="bi bi-pencil-square me-2"></i>
+                        {{ __('messages.supplier_order.edit_received_quantities') }}
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-info mb-3">
+                        <i class="bi bi-info-circle-fill me-2"></i>
+                        {{ __('messages.supplier_order.edit_quantities_warning') }}
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>{{ __('messages.factory.sku') }}</th>
+                                    <th>{{ __('messages.common.name') }}</th>
+                                    <th>{{ __('messages.factory.unit') }}</th>
+                                    <th class="text-center">{{ __('messages.factory.qty_ordered') }}</th>
+                                    <th class="text-center">{{ __('messages.supplier_order.received_quantity') }}</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach($order->rawMaterials as $material)
+                                    <tr>
+                                        <td><small class="text-muted">{{ $material->sku ?? '-' }}</small></td>
+                                        <td>{{ $material->name }}</td>
+                                        <td>{{ $material->unit }}</td>
+                                        <td class="text-center">{{ number_format($material->pivot->quantity_ordered, 2) }}</td>
+                                        <td style="width: 120px;">
+                                            <input type="number"
+                                                   name="raw_materials[{{ $material->id }}]"
+                                                   class="form-control form-control-sm text-center"
+                                                   value="{{ $material->pivot->quantity_received ?? 0 }}"
+                                                   min="0"
+                                                   step="0.01"
+                                                   required>
+                                        </td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="bi bi-x-circle me-1"></i> {{ __('messages.btn.cancel') }}
+                    </button>
+                    <button type="submit" class="btn btn-warning">
+                        <i class="bi bi-check-circle me-1"></i> {{ __('messages.btn.save') }}
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+@endif
 @endsection

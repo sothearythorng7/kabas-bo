@@ -23,7 +23,7 @@
         </div>
         <div class="mb-3">
             <label for="balance" class="form-label">{{ __('messages.accounts.initial_balance') }}</label>
-            <input type="number" step="0.01" class="form-control" name="balance" value="{{ $account->balance ?? old('balance') }}" required>
+            <input type="number" step="0.00001" class="form-control" name="balance" value="{{ $account->balance ?? old('balance') }}" required>
         </div>
 
         <button type="submit" class="btn btn-primary">{{ isset($account) ? __('messages.btn.update') : __('messages.btn.create') }}</button>

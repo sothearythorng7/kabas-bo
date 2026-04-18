@@ -72,14 +72,14 @@
 
                     <div class="col-md-3 mb-3">
                         <label class="form-label">{{ __('messages.gift_boxes.public_price') }} *</label>
-                        <input type="number" step="0.01" name="price" class="form-control @error('price') is-invalid @enderror"
+                        <input type="number" step="0.00001" name="price" class="form-control @error('price') is-invalid @enderror"
                                value="{{ old('price', $giftBox->price) }}" required>
                         @error('price') <div class="invalid-feedback">{{ $message }}</div> @enderror
                     </div>
 
                     <div class="col-md-3 mb-3">
                         <label class="form-label">{{ __('messages.gift_boxes.b2b_price') }}</label>
-                        <input type="number" step="0.01" name="price_btob" class="form-control @error('price_btob') is-invalid @enderror"
+                        <input type="number" step="0.00001" name="price_btob" class="form-control @error('price_btob') is-invalid @enderror"
                                value="{{ old('price_btob', $giftBox->price_btob) }}">
                         @error('price_btob') <div class="invalid-feedback">{{ $message }}</div> @enderror
                     </div>

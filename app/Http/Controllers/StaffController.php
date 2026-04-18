@@ -156,11 +156,12 @@ class StaffController extends Controller
         $tab = $request->get('tab', 'list');
         $stores = Store::orderBy('name')->get();
 
-        $currentMonth = $request->get('period', now()->format('Y-m'));
+        $currentMonth = $request->get('period', now()->subMonth()->format('Y-m'));
         $monthStart = \Carbon\Carbon::parse($currentMonth . '-01')->startOfMonth();
         $monthEnd = $monthStart->copy()->endOfMonth();
 
-        // Count pending payments (needed for all tabs)
+        // Count pending payments (needed for all tabs) - uses previous month by default
+        // since salaries are paid at the beginning of the following month
         $pendingPaymentsCount = StaffMember::where('contract_status', 'active')
             ->whereHas('currentSalary', function ($q) {
                 $q->where('base_salary', '>', 0);
@@ -444,8 +445,9 @@ class StaffController extends Controller
             ->where('status', 'approved')
             ->sum('amount');
 
-        // Calculate payroll data for current month using the service
-        $payrollMonth = $request->get('payroll_month', now()->format('Y-m'));
+        // Calculate payroll data - default to previous month (salaries are paid at the beginning of the following month)
+        // CommissionService already looks at previous month's sales for the given period
+        $payrollMonth = $request->get('payroll_month', now()->subMonth()->format('Y-m'));
         $payrollData = $this->payrollService->calculatePayrollForUser($staffMember, $payrollMonth);
         $payrollData['month'] = $payrollMonth;
         $payrollData['suggested_daily_rate'] = $payrollData['daily_rate'];
@@ -839,9 +841,9 @@ class StaffController extends Controller
                     ->update(['status' => 'deducted']);
             }
 
-            // Mark adjustments as processed (pending + approved)
+            // Mark adjustments as processed (current period + any carried over from previous periods)
             $staffMember->salaryAdjustments()
-                ->where('period', $validated['period'])
+                ->where('period', '<=', $validated['period'])
                 ->whereIn('status', ['pending', 'approved'])
                 ->update(['status' => 'paid']);
 
@@ -873,7 +875,7 @@ class StaffController extends Controller
             'period' => 'nullable|date_format:Y-m',
         ]);
 
-        $currentMonth = $validated['period'] ?? now()->format('Y-m');
+        $currentMonth = $validated['period'] ?? now()->subMonth()->format('Y-m');
 
         $paidCount = 0;
         $totalAmount = 0;
@@ -1121,6 +1123,24 @@ class StaffController extends Controller
         return redirect()
             ->route('staff.show', ['staffMember' => $staffMember, 'tab' => 'commissions'])
             ->with('success', __('messages.staff.commissions_calculated', ['count' => count($calculations)]));
+    }
+
+    public function recalculateAllCommissions(StaffMember $staffMember)
+    {
+        $periods = $staffMember->commissionCalculations()
+            ->where('status', '!=', 'paid')
+            ->distinct()
+            ->pluck('period');
+
+        $totalRecalculated = 0;
+        foreach ($periods as $period) {
+            $calculations = $this->commissionService->calculateMonthlyCommissions($staffMember, $period);
+            $totalRecalculated += count($calculations);
+        }
+
+        return redirect()
+            ->route('staff.show', ['staffMember' => $staffMember, 'tab' => 'commissions'])
+            ->with('success', __('messages.staff.commissions_recalculated', ['count' => $totalRecalculated, 'periods' => $periods->count()]));
     }
 
     public function approveCommission(Request $request, CommissionCalculation $calculation)

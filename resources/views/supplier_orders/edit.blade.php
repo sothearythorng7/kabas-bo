@@ -32,7 +32,7 @@
                     <label for="deposit" class="form-label">{{ __('messages.supplier_order.deposit') }}</label>
                     <div class="input-group">
                         <span class="input-group-text">$</span>
-                        <input type="number" step="0.01" min="0" name="deposit" id="deposit" class="form-control" value="{{ old('deposit', $order->deposit ?? 0) }}">
+                        <input type="number" step="0.00001" min="0" name="deposit" id="deposit" class="form-control" value="{{ old('deposit', $order->deposit ?? 0) }}">
                     </div>
                 </div>
             </div>
@@ -98,7 +98,7 @@
                 <label for="deposit_mobile" class="form-label">{{ __('messages.supplier_order.deposit') }}</label>
                 <div class="input-group">
                     <span class="input-group-text">$</span>
-                    <input type="number" step="0.01" min="0" name="deposit" id="deposit_mobile" class="form-control" value="{{ old('deposit', $order->deposit ?? 0) }}">
+                    <input type="number" step="0.00001" min="0" name="deposit" id="deposit_mobile" class="form-control" value="{{ old('deposit', $order->deposit ?? 0) }}">
                 </div>
             </div>
 

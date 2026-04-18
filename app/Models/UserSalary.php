@@ -17,7 +17,7 @@ class UserSalary extends Model
 
     protected $casts = [
         'effective_from' => 'date',
-        'base_salary' => 'decimal:2',
+        'base_salary' => 'decimal:5',
     ];
 
     public function staffMember(): BelongsTo

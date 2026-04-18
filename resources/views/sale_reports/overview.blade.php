@@ -144,7 +144,7 @@
                                             <div class="modal-body">
                                                 <div class="mb-3">
                                                     <label class="form-label">{{ __('messages.Amount paid') }}</label>
-                                                    <input type="number" step="0.01" name="amount" class="form-control" value="{{ $report->total_amount_invoiced }}">
+                                                    <input type="number" step="0.00001" name="amount" class="form-control" value="{{ $report->total_amount_invoiced }}">
                                                 </div>
                                                 <div class="mb-3">
                                                     <label class="form-label">{{ __('messages.Méthode de paiement') }}</label>

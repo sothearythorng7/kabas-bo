@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\GeneralInvoice;
 use App\Models\FinancialAccount;
+use App\Models\FinancialPaymentMethod;
 use App\Models\Store;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -158,6 +159,7 @@ class GeneralInvoiceController extends Controller
             'label' => 'required|string|max:255',
             'note' => 'nullable|string',
             'amount' => 'required|numeric|min:0',
+            'invoice_date' => 'required|date',
             'due_date' => 'nullable|date',
             'status' => 'required|in:pending,paid',
             'attachment' => 'nullable|file|mimes:pdf,jpg,jpeg,png',
@@ -175,6 +177,7 @@ class GeneralInvoiceController extends Controller
             'label' => $request->label,
             'note' => $request->note,
             'amount' => $request->amount,
+            'invoice_date' => $request->invoice_date,
             'due_date' => $request->due_date,
             'status' => $request->status,
             'attachment' => $path,
@@ -214,6 +217,7 @@ class GeneralInvoiceController extends Controller
             'label' => 'required|string|max:255',
             'note' => 'nullable|string',
             'amount' => 'required|numeric|min:0',
+            'invoice_date' => 'required|date',
             'due_date' => 'nullable|date',
             'status' => 'required|in:pending,paid',
             'attachment' => 'nullable|file|mimes:pdf,jpg,jpeg,png',
@@ -234,6 +238,7 @@ class GeneralInvoiceController extends Controller
             'label' => $request->label,
             'note' => $request->note,
             'amount' => $request->amount,
+            'invoice_date' => $request->invoice_date,
             'due_date' => $request->due_date,
             'status' => $request->status,
             'account_id' => $request->account_id,
@@ -380,7 +385,7 @@ class GeneralInvoiceController extends Controller
             'description' => $options['description'] ?? null,
             'status' => 'validated',
             'transaction_date' => $options['payment_date'] ?? now(),
-            'payment_method_id' => $options['payment_method_id'] ?? null,
+            'payment_method_id' => $options['payment_method_id'] ?? FinancialPaymentMethod::where('code', 'CASH')->first()?->id ?? 1,
             'user_id' => auth()->id(),
             'external_reference' => $externalRef,
         ]);

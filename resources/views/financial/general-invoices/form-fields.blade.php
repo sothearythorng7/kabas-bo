@@ -8,17 +8,25 @@
 </div>
 <div class="mb-3">
     <label>{{ __('messages.general_invoices.amount') }}</label>
-    <input type="number" name="amount" step="0.01" class="form-control" value="{{ old('amount', $invoice->amount ?? '') }}" required>
+    <input type="number" name="amount" step="0.00001" class="form-control" value="{{ old('amount', $invoice->amount ?? '') }}" required>
 </div>
-<div class="mb-3">
-    <label>{{ __('messages.general_invoices.due_date') }}</label>
-    <input type="date" name="due_date" class="form-control" value="{{ old('due_date', isset($invoice) && $invoice->due_date ? $invoice->due_date->format('Y-m-d') : '') }}">
+<div class="row">
+    <div class="col-md-6 mb-3">
+        <label>{{ __('messages.general_invoices.invoice_date') }}</label>
+        <input type="date" name="invoice_date" class="form-control" value="{{ old('invoice_date', isset($invoice) && $invoice->invoice_date ? $invoice->invoice_date->format('Y-m-d') : now()->format('Y-m-d')) }}" required>
+    </div>
+    <div class="col-md-6 mb-3">
+        <label>{{ __('messages.general_invoices.due_date') }}</label>
+        <input type="date" name="due_date" class="form-control" value="{{ old('due_date', isset($invoice) && $invoice->due_date ? $invoice->due_date->format('Y-m-d') : '') }}">
+    </div>
 </div>
 <div class="mb-3">
     <label>{{ __('messages.blog_post.status') }}</label>
     <select name="status" class="form-select" required>
         <option value="pending" @selected(old('status', $invoice->status ?? 'pending')=='pending')>{{ __('messages.general_invoices.status_pending') }}</option>
-        <option value="paid" @selected(old('status', $invoice->status ?? '')=='paid')>{{ __('messages.general_invoices.status_paid') }}</option>
+        @if(isset($invoice) && $invoice->status === 'paid')
+            <option value="paid" selected>{{ __('messages.general_invoices.status_paid') }}</option>
+        @endif
     </select>
 </div>
 <div class="mb-3">

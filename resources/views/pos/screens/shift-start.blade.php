@@ -26,6 +26,14 @@
 
     <hr class="my-2">
 
+    <!-- Popup Event selector (hidden if no active events) -->
+    <div id="popup-event-selector" class="mb-3 d-none">
+        <label class="form-label fw-bold small">{{ __('messages.popup_event.title') }} ({{ __('messages.popup_event.filter') }})</label>
+        <select id="popup-event-select" class="form-select">
+            <option value="">-- {{ __('messages.popup_event.no_events') }} --</option>
+        </select>
+    </div>
+
     <p class="small mb-2">{{ __('messages.pos.enter_initial_cash') }}</p>
 
     <input type="text" id="shift-start-input" class="form-control mb-3 text-center fs-3" readonly>
@@ -58,9 +66,40 @@
 
 @push('scripts')
 <script>
+async function loadPopupEvents(storeId) {
+    try {
+        const res = await fetch(`{{ config('app.url') }}/api/pos/events/active/${storeId}`);
+        if (!res.ok) return [];
+        const events = await res.json();
+        return Array.isArray(events) ? events : [];
+    } catch (err) {
+        console.warn("Could not load popup events:", err);
+        return [];
+    }
+}
+
 function initShiftstart() {
     let buffer = "";
     $("#shift-start-input").val("");
+
+    // Load popup events for the current user's store
+    if (currentUser && currentUser.store_id) {
+        loadPopupEvents(currentUser.store_id).then(events => {
+            const $selector = $("#popup-event-selector");
+            const $select = $("#popup-event-select");
+            $select.find("option:not(:first)").remove();
+
+            if (events.length > 0) {
+                events.forEach(evt => {
+                    const label = evt.location ? `${evt.name} - ${evt.location}` : evt.name;
+                    $select.append(`<option value="${evt.id}">${label}</option>`);
+                });
+                $selector.removeClass("d-none");
+            } else {
+                $selector.addClass("d-none");
+            }
+        });
+    }
 
     $(".shift-num-btn").off("click").on("click", function() {
         const char = $(this).text();
@@ -86,10 +125,15 @@ function initShiftstart() {
 
         try {
             const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+            const popupEventId = $("#popup-event-select").val() || null;
             const res = await fetch(`{{ config('app.url') }}/api/pos/shifts/start`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json",  "X-CSRF-TOKEN": csrfToken },
-                body: JSON.stringify({ user_id: currentUser.id, start_amount: amount })
+                body: JSON.stringify({
+                    user_id: currentUser.id,
+                    start_amount: amount,
+                    popup_event_id: popupEventId ? parseInt(popupEventId) : null
+                })
             });
             if (!res.ok) throw new Error("Unable to start shift");
             currentShift = await res.json();

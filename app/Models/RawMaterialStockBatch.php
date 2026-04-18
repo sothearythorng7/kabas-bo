@@ -22,7 +22,7 @@ class RawMaterialStockBatch extends Model
 
     protected $casts = [
         'quantity' => 'decimal:2',
-        'unit_price' => 'decimal:2',
+        'unit_price' => 'decimal:5',
         'received_at' => 'date',
         'expires_at' => 'date',
     ];

@@ -39,7 +39,7 @@
                                 <small>{{ __('messages.resellers.stock_available') }}: {{ $product->available_stock }}</small>
                             </td>
                             <td>
-                                <input type="number" step="0.01" 
+                                <input type="number" step="0.00001" 
                                        name="products[{{ $product->id }}][unit_price]" 
                                        class="form-control form-control-sm price-input" 
                                        data-product-id="{{ $product->id }}"
@@ -76,7 +76,7 @@
 
                                 <div class="mb-2">
                                     <label class="form-label mb-0">{{ __('messages.product.price_btob') }}</label>
-                                    <input type="number" step="0.01" 
+                                    <input type="number" step="0.00001" 
                                            name="products[{{ $product->id }}][unit_price]" 
                                            class="form-control form-control-sm price-input" 
                                            data-product-id="{{ $product->id }}"

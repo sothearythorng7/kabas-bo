@@ -108,6 +108,6 @@ class FixSaleTotals extends Command
             }
         }
 
-        return round($itemsTotal - $totalDiscounts, 2);
+        return round($itemsTotal - $totalDiscounts, 5);
     }
 }

@@ -46,7 +46,7 @@
 
         <div class="mb-3">
             <label class="form-label">{{ __('messages.financial.amount') }}</label>
-            <input type="number" step="0.01" name="amount" class="form-control" required>
+            <input type="number" step="0.00001" name="amount" class="form-control" required>
         </div>
 
         <div class="mb-3">

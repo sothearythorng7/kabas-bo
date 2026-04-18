@@ -153,10 +153,20 @@ class ShippingController extends Controller
             'name' => 'required|string|max:100|unique:shipping_carriers,name',
         ]);
 
+        $validated['is_active'] = $request->boolean('is_active', true);
+
         ShippingCarrier::create($validated);
 
         return redirect()->route('shipping-carriers.index')
             ->with('success', __('messages.shipping.carrier_created'));
+    }
+
+    public function toggleCarrier(ShippingCarrier $carrier)
+    {
+        $carrier->update(['is_active' => !$carrier->is_active]);
+
+        return redirect()->route('shipping-carriers.index')
+            ->with('success', __('messages.shipping.carrier_updated'));
     }
 
     public function updateCarrier(Request $request, ShippingCarrier $carrier)
@@ -164,6 +174,8 @@ class ShippingController extends Controller
         $validated = $request->validate([
             'name' => 'required|string|max:100|unique:shipping_carriers,name,' . $carrier->id,
         ]);
+
+        $validated['is_active'] = $request->boolean('is_active');
 
         $carrier->update($validated);
 

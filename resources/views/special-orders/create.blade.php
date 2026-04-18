@@ -63,7 +63,7 @@
                                 <label class="form-label">{{ __('messages.special_order.store') }} *</label>
                                 <select name="store_id" class="form-select" id="storeSelect" required>
                                     @foreach($stores as $store)
-                                        <option value="{{ $store->id }}" {{ old('store_id', 3) == $store->id ? 'selected' : '' }}>
+                                        <option value="{{ $store->id }}" {{ old('store_id', $warehouseId) == $store->id ? 'selected' : '' }}>
                                             {{ $store->name }}
                                         </option>
                                     @endforeach
@@ -90,7 +90,7 @@
                                 <label class="form-label">{{ __('messages.special_order.deposit_amount') }}</label>
                                 <div class="input-group">
                                     <span class="input-group-text">$</span>
-                                    <input type="number" name="deposit_amount" class="form-control" step="0.01" min="0" value="{{ old('deposit_amount', 0) }}">
+                                    <input type="number" name="deposit_amount" class="form-control" step="0.00001" min="0" value="{{ old('deposit_amount', 0) }}">
                                 </div>
                             </div>
                             <div class="col-md-6 mb-3 d-flex align-items-end">
@@ -184,6 +184,22 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- Paid options -->
+                <div class="card mb-3">
+                    <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                        <span><i class="bi bi-plus-circle"></i> {{ __('messages.special_order.paid_options') }}</span>
+                        <button type="button" class="btn btn-sm btn-outline-primary" id="addOptionBtn">
+                            <i class="bi bi-plus"></i> {{ __('messages.special_order.add_option') }}
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <div id="optionsContainer"></div>
+                        <div id="noOptionsMsg" class="text-center text-muted py-2">
+                            {{ __('messages.special_order.no_options_yet') }}
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <!-- Right column: Summary -->
@@ -197,6 +213,24 @@
                         <div class="d-flex justify-content-between mb-2">
                             <span>{{ __('messages.special_order.items_count') }}</span>
                             <strong id="totalItems">0</strong>
+                        </div>
+                        <div class="d-flex justify-content-between mb-2" id="optionsTotalRow" style="display:none;">
+                            <span>{{ __('messages.special_order.paid_options') }}</span>
+                            <strong id="optionsTotal">$0.00</strong>
+                        </div>
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>{{ __('messages.special_order.subtotal') }}</span>
+                            <strong id="subtotalAmount">$0.00</strong>
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label small text-muted mb-1">{{ __('messages.special_order.discount') }}</label>
+                            <div class="input-group input-group-sm">
+                                <span class="input-group-text">-</span>
+                                <input type="number" class="form-control" id="discountInput" step="0.00001" min="0" value="0">
+                                <button class="btn btn-outline-secondary" type="button" id="discountToggle" style="min-width:40px;">$</button>
+                            </div>
+                            <input type="hidden" name="discount_amount" id="discountAmountHidden" value="0">
+                            <small class="text-muted" id="discountInfo" style="display:none;"></small>
                         </div>
                         <hr>
                         <div class="d-flex justify-content-between">
@@ -248,6 +282,34 @@ document.addEventListener('DOMContentLoaded', function() {
     let items = [];
     let itemIndex = 0;
     let searchTimeout = null;
+    let options = [];
+    let optionIndex = 0;
+    const optionsContainer = document.getElementById('optionsContainer');
+    const noOptionsMsg = document.getElementById('noOptionsMsg');
+    const addOptionBtn = document.getElementById('addOptionBtn');
+    const discountInput = document.getElementById('discountInput');
+    const discountAmountHidden = document.getElementById('discountAmountHidden');
+    const discountToggle = document.getElementById('discountToggle');
+    const discountInfo = document.getElementById('discountInfo');
+    const optionsTotalRow = document.getElementById('optionsTotalRow');
+    const optionsTotalEl = document.getElementById('optionsTotal');
+    const subtotalAmount = document.getElementById('subtotalAmount');
+    let discountMode = 'amount'; // 'amount' or 'percent'
+
+    // Toggle discount mode
+    discountToggle.addEventListener('click', function() {
+        if (discountMode === 'amount') {
+            discountMode = 'percent';
+            this.textContent = '%';
+            discountInput.max = 100;
+        } else {
+            discountMode = 'amount';
+            this.textContent = '$';
+            discountInput.removeAttribute('max');
+        }
+        discountInput.value = 0;
+        recalcTotals();
+    });
 
     // Toggle shipping address
     hasShipping.addEventListener('change', function() {
@@ -359,24 +421,118 @@ document.addEventListener('DOMContentLoaded', function() {
         renderItems();
     }
 
+    function recalcTotals() {
+        let itemsTotal = 0;
+        let count = 0;
+        items.forEach(item => {
+            itemsTotal += item.custom_price * item.quantity;
+            count += item.quantity;
+        });
+
+        let optTotal = 0;
+        options.forEach(opt => { optTotal += opt.amount; });
+
+        const subtotal = itemsTotal + optTotal;
+        const inputVal = parseFloat(discountInput.value) || 0;
+        let discountAmount;
+
+        if (discountMode === 'percent') {
+            discountAmount = Math.round(subtotal * inputVal / 100 * 100000) / 100000;
+            discountInfo.textContent = '-$' + discountAmount.toFixed(2) + ' (' + inputVal + '%)';
+            discountInfo.style.display = '';
+        } else {
+            discountAmount = inputVal;
+            discountInfo.style.display = 'none';
+        }
+
+        discountAmountHidden.value = discountAmount.toFixed(5);
+        const total = Math.max(0, subtotal - discountAmount);
+
+        totalItems.textContent = count;
+        subtotalAmount.textContent = '$' + subtotal.toFixed(2);
+        totalAmount.textContent = '$' + total.toFixed(2);
+
+        if (optTotal > 0) {
+            optionsTotalRow.style.display = '';
+            optionsTotalRow.classList.remove('d-none');
+            optionsTotalEl.textContent = '$' + optTotal.toFixed(2);
+        } else {
+            optionsTotalRow.style.display = 'none';
+        }
+
+        submitBtn.disabled = items.length === 0;
+    }
+
+    discountInput.addEventListener('input', recalcTotals);
+
+    // --- Options ---
+    addOptionBtn.addEventListener('click', function() {
+        options.push({ index: optionIndex++, label: '', amount: 0 });
+        renderOptions();
+    });
+
+    function renderOptions() {
+        optionsContainer.innerHTML = '';
+        noOptionsMsg.style.display = options.length === 0 ? '' : 'none';
+
+        options.forEach((opt, idx) => {
+            const row = document.createElement('div');
+            row.className = 'row g-2 mb-2 align-items-center';
+            row.innerHTML = `
+                <div class="col">
+                    <input type="text" name="options[${idx}][label]" class="form-control form-control-sm"
+                           placeholder="{{ __('messages.special_order.option_label_placeholder') }}" value="${escapeHtml(opt.label)}" data-opt-index="${opt.index}" data-opt-field="label">
+                </div>
+                <div class="col-4">
+                    <div class="input-group input-group-sm">
+                        <span class="input-group-text">$</span>
+                        <input type="number" name="options[${idx}][amount]" class="form-control text-end"
+                               step="0.00001" min="0" value="${opt.amount.toFixed(2)}" data-opt-index="${opt.index}" data-opt-field="amount">
+                    </div>
+                </div>
+                <div class="col-auto">
+                    <button type="button" class="btn btn-sm btn-outline-danger" data-remove-opt="${opt.index}">
+                        <i class="bi bi-x"></i>
+                    </button>
+                </div>
+            `;
+            optionsContainer.appendChild(row);
+        });
+
+        // Bind events
+        optionsContainer.querySelectorAll('[data-opt-field]').forEach(input => {
+            input.addEventListener('change', function() {
+                const opt = options.find(o => o.index === parseInt(this.dataset.optIndex));
+                if (!opt) return;
+                if (this.dataset.optField === 'label') {
+                    opt.label = this.value;
+                } else {
+                    opt.amount = parseFloat(this.value.replace(',', '.')) || 0;
+                }
+                recalcTotals();
+            });
+        });
+
+        optionsContainer.querySelectorAll('[data-remove-opt]').forEach(btn => {
+            btn.addEventListener('click', function() {
+                options = options.filter(o => o.index !== parseInt(this.dataset.removeOpt));
+                renderOptions();
+                recalcTotals();
+            });
+        });
+    }
+
     function renderItems() {
         itemsBody.innerHTML = '';
 
         if (items.length === 0) {
             itemsBody.innerHTML = `<tr id="noItemsRow"><td colspan="8" class="text-center text-muted py-3">{{ __('messages.special_order.no_items_yet') }}</td></tr>`;
-            submitBtn.disabled = true;
-            totalItems.textContent = '0';
-            totalAmount.textContent = '$0.00';
+            recalcTotals();
             return;
         }
 
-        let total = 0;
-        let count = 0;
-
         items.forEach((item, idx) => {
             const lineTotal = item.custom_price * item.quantity;
-            total += lineTotal;
-            count += item.quantity;
 
             const tr = document.createElement('tr');
             tr.innerHTML = `
@@ -389,7 +545,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 <td class="text-end text-muted">$${item.public_price.toFixed(2)}</td>
                 <td class="text-end">
                     <input type="number" name="items[${idx}][custom_price]" class="form-control form-control-sm text-end"
-                           value="${item.custom_price.toFixed(2)}" step="0.01" min="0" data-index="${item.index}" data-field="custom_price">
+                           value="${item.custom_price.toFixed(2)}" step="0.00001" min="0" data-index="${item.index}" data-field="custom_price">
                 </td>
                 <td class="text-center">
                     <input type="number" name="items[${idx}][quantity]" class="form-control form-control-sm text-center"
@@ -405,9 +561,7 @@ document.addEventListener('DOMContentLoaded', function() {
             itemsBody.appendChild(tr);
         });
 
-        totalItems.textContent = count;
-        totalAmount.textContent = '$' + total.toFixed(2);
-        submitBtn.disabled = false;
+        recalcTotals();
 
         // Bind events
         itemsBody.querySelectorAll('[data-remove]').forEach(btn => {
@@ -420,7 +574,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (!item) return;
 
                 if (this.dataset.field === 'custom_price') {
-                    item.custom_price = parseFloat(this.value) || 0;
+                    item.custom_price = parseFloat(this.value.replace(',', '.')) || 0;
                 } else if (this.dataset.field === 'quantity') {
                     item.quantity = parseInt(this.value) || 1;
                 }

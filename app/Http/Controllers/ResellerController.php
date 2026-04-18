@@ -105,10 +105,20 @@ class ResellerController extends Controller
             ->get();
 
         // === FACTURES ===
-        // Factures de sales reports en attente de paiement
+        // Factures de sales reports (consignment) en attente de paiement
         $unpaidInvoices = ResellerInvoice::whereIn('status', ['unpaid', 'partially_paid'])
             ->whereNotNull('sales_report_id')
             ->with(['reseller', 'store', 'salesReport', 'payments'])
+            ->latest()
+            ->get();
+
+        // Factures buyer (livraisons) en attente de paiement — uniquement resellers de type "buyer"
+        $unpaidBuyerInvoices = ResellerInvoice::whereIn('status', ['unpaid', 'partially_paid'])
+            ->whereNotNull('reseller_stock_delivery_id')
+            ->whereHas('reseller', function ($q) {
+                $q->where('type', 'buyer');
+            })
+            ->with(['reseller', 'store', 'resellerStockDelivery', 'payments'])
             ->latest()
             ->get();
 
@@ -120,16 +130,22 @@ class ResellerController extends Controller
             ->get();
 
         // === STATISTIQUES ===
+        $allUnpaidCount = $unpaidInvoices->count() + $unpaidBuyerInvoices->count();
+        $allUnpaidAmount = $unpaidInvoices->sum(function ($invoice) {
+                $paid = $invoice->payments->sum('amount');
+                return $invoice->total_amount - $paid;
+            }) + $unpaidBuyerInvoices->sum(function ($invoice) {
+                $paid = $invoice->payments->sum('amount');
+                return $invoice->total_amount - $paid;
+            });
+
         $stats = [
             'total_resellers' => $allResellers->count(),
             'pending_deliveries' => $pendingDeliveries->count(),
             'shipped_deliveries' => $shippedDeliveries->count(),
             'pending_reports' => $pendingReports->count(),
-            'unpaid_invoices' => $unpaidInvoices->count(),
-            'unpaid_amount' => $unpaidInvoices->sum(function ($invoice) {
-                $paid = $invoice->payments->sum('amount');
-                return $invoice->total_amount - $paid;
-            }),
+            'unpaid_invoices' => $allUnpaidCount,
+            'unpaid_amount' => $allUnpaidAmount,
         ];
 
         $paymentMethods = \App\Models\FinancialPaymentMethod::all();
@@ -141,6 +157,7 @@ class ResellerController extends Controller
             'pendingReports',
             'processedReports',
             'unpaidInvoices',
+            'unpaidBuyerInvoices',
             'paidInvoices',
             'stats',
             'paymentMethods'

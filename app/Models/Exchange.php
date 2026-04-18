@@ -26,10 +26,10 @@ class Exchange extends Model
     ];
 
     protected $casts = [
-        'return_total' => 'decimal:2',
-        'new_items_total' => 'decimal:2',
-        'balance' => 'decimal:2',
-        'payment_amount' => 'decimal:2',
+        'return_total' => 'decimal:5',
+        'new_items_total' => 'decimal:5',
+        'balance' => 'decimal:5',
+        'payment_amount' => 'decimal:5',
     ];
 
     // Relationships

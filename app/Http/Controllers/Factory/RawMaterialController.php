@@ -16,14 +16,14 @@ class RawMaterialController extends Controller
         if ($request->filled('q')) {
             // Meilisearch full-text search
             $searchQuery = RawMaterial::search($request->q)
-                ->query(function ($builder) {
-                    $builder->with('supplier')
+                ->query(function ($builder) use ($request) {
+                    $builder->with('suppliers')
                         ->withSum('stockBatches as total_stock', 'quantity');
-                });
 
-            if ($request->filled('supplier_id')) {
-                $searchQuery->where('supplier_id', (int) $request->supplier_id);
-            }
+                    if ($request->filled('supplier_id')) {
+                        $builder->whereHas('suppliers', fn($q) => $q->where('suppliers.id', $request->supplier_id));
+                    }
+                });
 
             if ($request->filled('track_stock')) {
                 $searchQuery->where('track_stock', $request->track_stock === '1');
@@ -32,11 +32,11 @@ class RawMaterialController extends Controller
             $materials = $searchQuery->paginate(20)->withQueryString();
         } else {
             // Classic SQL query
-            $query = RawMaterial::with('supplier')
+            $query = RawMaterial::with('suppliers')
                 ->withSum('stockBatches as total_stock', 'quantity');
 
             if ($request->filled('supplier_id')) {
-                $query->where('supplier_id', $request->supplier_id);
+                $query->whereHas('suppliers', fn($q) => $q->where('suppliers.id', $request->supplier_id));
             }
 
             if ($request->filled('track_stock')) {
@@ -74,14 +74,25 @@ class RawMaterialController extends Controller
             'unit' => 'required|string|max:50',
             'track_stock' => 'sometimes|boolean',
             'alert_quantity' => 'nullable|numeric|min:0',
-            'supplier_id' => 'nullable|exists:suppliers,id',
+            'supplier_ids' => 'nullable|array',
+            'supplier_ids.*' => 'exists:suppliers,id',
             'is_active' => 'sometimes|boolean',
         ]);
 
         $data['track_stock'] = $request->has('track_stock');
         $data['is_active'] = $request->has('is_active');
 
-        RawMaterial::create($data);
+        $supplierIds = $request->input('supplier_ids', []);
+        unset($data['supplier_ids']);
+
+        // Keep supplier_id for backward compatibility (first supplier)
+        $data['supplier_id'] = !empty($supplierIds) ? $supplierIds[0] : null;
+
+        $material = RawMaterial::create($data);
+
+        if (!empty($supplierIds)) {
+            $material->suppliers()->sync($supplierIds);
+        }
 
         return redirect()->route('factory.raw-materials.index')
             ->with('success', __('messages.common.created'));
@@ -89,7 +100,7 @@ class RawMaterialController extends Controller
 
     public function edit(RawMaterial $rawMaterial)
     {
-        $rawMaterial->load(['supplier', 'stockBatches' => function ($q) {
+        $rawMaterial->load(['suppliers', 'stockBatches' => function ($q) {
             $q->where('quantity', '>', 0)->orderBy('received_at');
         }]);
 
@@ -108,14 +119,21 @@ class RawMaterialController extends Controller
             'unit' => 'required|string|max:50',
             'track_stock' => 'sometimes|boolean',
             'alert_quantity' => 'nullable|numeric|min:0',
-            'supplier_id' => 'nullable|exists:suppliers,id',
+            'supplier_ids' => 'nullable|array',
+            'supplier_ids.*' => 'exists:suppliers,id',
             'is_active' => 'sometimes|boolean',
         ]);
 
         $data['track_stock'] = $request->has('track_stock');
         $data['is_active'] = $request->has('is_active');
 
+        $supplierIds = $request->input('supplier_ids', []);
+        unset($data['supplier_ids']);
+
+        $data['supplier_id'] = !empty($supplierIds) ? $supplierIds[0] : null;
+
         $rawMaterial->update($data);
+        $rawMaterial->suppliers()->sync($supplierIds);
 
         return redirect()->route('factory.raw-materials.index')
             ->with('success', __('messages.common.updated'));
@@ -249,6 +267,9 @@ class RawMaterialController extends Controller
             'supplier_id' => $rawMaterial->supplier_id,
             'is_active' => $rawMaterial->is_active,
         ]);
+
+        // Clone supplier associations
+        $clonedMaterial->suppliers()->sync($rawMaterial->suppliers->pluck('id'));
 
         return redirect()->route('factory.raw-materials.edit', $clonedMaterial)
             ->with('success', __('messages.factory.material_cloned'));

@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia';
-import { db, syncCatalog, startShift as dbStartShift } from '../db.js';
+import { db, syncCatalog, syncActiveEvents, startShift as dbStartShift } from '../db.js';
 
 export const useUserStore = defineStore('user', {
   state: () => ({
@@ -16,19 +16,32 @@ export const useUserStore = defineStore('user', {
       if (!u) return false;
       this.user = u;
       this.lastActive = Date.now();
-      // Stocker le storeId pour la synchronisation automatique du catalogue
       localStorage.setItem('pos_store_id', u.store_id);
       const shift = await db.shifts.where({ user_id: u.id, ended_at: null }).first();
       this.activeShift = shift || null;
-      await syncCatalog(u.store_id);
       return true;
     },
-    async startShift(cashStart) {
+    async refreshCatalog() {
+      const storeId = this.user?.store_id || localStorage.getItem('pos_store_id');
+      if (!storeId) return false;
+      try {
+        await syncCatalog(Number(storeId));
+        return true;
+      } catch {
+        return false;
+      }
+    },
+    async startShift(cashStart, eventId = null) {
       if (!this.user) return null;
-      const shiftId = await dbStartShift(this.user.id, this.user.store_id, cashStart);
+      const shiftId = await dbStartShift(this.user.id, this.user.store_id, cashStart, eventId);
       const shift = await db.shifts.get(shiftId);
       this.activeShift = shift;
       return shift;
+    },
+    async refreshEvents() {
+      const storeId = this.user?.store_id || localStorage.getItem('pos_store_id');
+      if (!storeId) return;
+      await syncActiveEvents(Number(storeId));
     },
     setActiveShift(shift) { this.activeShift = shift },
     updateLastActive() { this.lastActive = Date.now() }

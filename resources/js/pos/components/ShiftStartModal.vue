@@ -5,7 +5,7 @@
   <div class="modal-body">
     <div class="mb-3">
       <label class="form-label">Montant en caisse</label>
-      <input v-model="cash" type="number" class="form-control" />
+      <input v-model="cash" type="number" step="0.00001" class="form-control" />
     </div>
     <div v-if="syncing" class="alert alert-info">Synchronisation en cours...</div>
   </div>

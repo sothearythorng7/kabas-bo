@@ -21,7 +21,7 @@ class SalaryAdvance extends Model
     protected $casts = [
         'requested_at' => 'datetime',
         'approved_at' => 'datetime',
-        'amount' => 'decimal:2',
+        'amount' => 'decimal:5',
     ];
 
     public function staffMember(): BelongsTo

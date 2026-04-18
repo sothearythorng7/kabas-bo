@@ -99,17 +99,24 @@ class DashboardController extends Controller
               ->orWhere('shipping_weight', 0);
         })->where('is_active', true)->count();
 
-        // Reseller invoices en attente de paiement (sales reports consignment)
-        $resellerInvoicesUnpaid = ResellerInvoice::whereIn('status', ['unpaid', 'partially_paid'])
-            ->whereNotNull('sales_report_id')
-            ->count();
-        $resellerInvoicesUnpaidTotal = ResellerInvoice::whereIn('status', ['unpaid', 'partially_paid'])
-            ->whereNotNull('sales_report_id')
-            ->get()
-            ->sum(function ($invoice) {
-                $paid = $invoice->payments()->sum('amount');
-                return $invoice->total_amount - $paid;
-            });
+        // Reseller invoices en attente de paiement:
+        // - Consignment sales report invoices (sales_report_id set)
+        // - Buyer delivery invoices (reseller_stock_delivery_id set + reseller type buyer)
+        $unpaidResellerInvoices = ResellerInvoice::whereIn('status', ['unpaid', 'partially_paid'])
+            ->where(function ($q) {
+                $q->whereNotNull('sales_report_id')
+                  ->orWhere(function ($q2) {
+                      $q2->whereNotNull('reseller_stock_delivery_id')
+                         ->whereHas('reseller', fn($r) => $r->where('type', 'buyer'));
+                  });
+            })
+            ->with('payments')
+            ->get();
+        $resellerInvoicesUnpaid = $unpaidResellerInvoices->count();
+        $resellerInvoicesUnpaidTotal = $unpaidResellerInvoices->sum(function ($invoice) {
+            $paid = $invoice->payments->sum('amount');
+            return $invoice->total_amount - $paid;
+        });
 
         // Consignment supplier invoices (sale reports) à payer
         $consignmentInvoicesUnpaid = SaleReport::where('status', 'invoiced')
@@ -128,33 +135,26 @@ class DashboardController extends Controller
         $startOfMonth = $selectedDate->copy()->startOfMonth();
         $endOfMonth = $selectedDate->copy()->endOfMonth();
 
-        // Siem Reap (store_id = 2) - Daily
-        $salesSiemReapDaily = Sale::where('store_id', 2)
-            ->whereBetween('created_at', [$startOfDay, $endOfDay])
-            ->get();
-        $revenueSiemReapDaily = Sale::sumRealRevenue($salesSiemReapDaily);
-        $salesCountSiemReapDaily = $salesSiemReapDaily->count();
+        // Load all shops dynamically (type = shop)
+        $shops = Store::where('type', 'shop')->orderBy('name')->get();
 
-        // Siem Reap (store_id = 2) - Monthly
-        $salesSiemReapMonthly = Sale::where('store_id', 2)
-            ->whereBetween('created_at', [$startOfMonth, $endOfMonth])
-            ->get();
-        $revenueSiemReapMonthly = Sale::sumRealRevenue($salesSiemReapMonthly);
-        $salesCountSiemReapMonthly = $salesSiemReapMonthly->count();
+        $storeRevenues = [];
+        foreach ($shops as $shop) {
+            $salesDaily = Sale::where('store_id', $shop->id)
+                ->whereBetween('created_at', [$startOfDay, $endOfDay])
+                ->get();
+            $salesMonthly = Sale::where('store_id', $shop->id)
+                ->whereBetween('created_at', [$startOfMonth, $endOfMonth])
+                ->get();
 
-        // Phnom Penh (store_id = 1) - Daily
-        $salesPhnomPenhDaily = Sale::where('store_id', 1)
-            ->whereBetween('created_at', [$startOfDay, $endOfDay])
-            ->get();
-        $revenuePhnomPenhDaily = Sale::sumRealRevenue($salesPhnomPenhDaily);
-        $salesCountPhnomPenhDaily = $salesPhnomPenhDaily->count();
-
-        // Phnom Penh (store_id = 1) - Monthly
-        $salesPhnomPenhMonthly = Sale::where('store_id', 1)
-            ->whereBetween('created_at', [$startOfMonth, $endOfMonth])
-            ->get();
-        $revenuePhnomPenhMonthly = Sale::sumRealRevenue($salesPhnomPenhMonthly);
-        $salesCountPhnomPenhMonthly = $salesPhnomPenhMonthly->count();
+            $storeRevenues[] = [
+                'store' => $shop,
+                'daily_revenue' => Sale::sumRealRevenue($salesDaily),
+                'daily_count' => $salesDaily->count(),
+                'monthly_revenue' => Sale::sumRealRevenue($salesMonthly),
+                'monthly_count' => $salesMonthly->count(),
+            ];
+        }
 
         // Données pour le graphique des factures par statut
         $invoicesByStatus = [
@@ -166,36 +166,31 @@ class DashboardController extends Controller
                           ->count(),
         ];
 
-        // Données pour le graphique du C.A. mensuel (6 derniers mois)
-        $monthlyRevenue = [];
-        $monthlyRevenueSiemReap = [];
-        $monthlyRevenuePhnomPenh = [];
+        // Données pour le graphique du C.A. mensuel (6 derniers mois) — total + par shop dynamique
+        $monthlyRevenueTotal = [];
+        $monthlyRevenuePerStore = [];
+        foreach ($shops as $shop) {
+            $monthlyRevenuePerStore[$shop->id] = [];
+        }
         $monthLabels = [];
         for ($i = 5; $i >= 0; $i--) {
             $date = Carbon::now()->subMonths($i);
             $monthLabels[] = $date->translatedFormat('M');
 
-            $startOfMonth = $date->copy()->startOfMonth();
-            $endOfMonth = $date->copy()->endOfMonth();
+            $mStart = $date->copy()->startOfMonth();
+            $mEnd = $date->copy()->endOfMonth();
 
-            // Total tous magasins
-            $monthlyRevenue[] = Sale::sumRealRevenue(
-                Sale::whereBetween('created_at', [$startOfMonth, $endOfMonth])->get()
+            $monthlyRevenueTotal[] = Sale::sumRealRevenue(
+                Sale::whereBetween('created_at', [$mStart, $mEnd])->get()
             );
 
-            // Siem Reap (store_id = 2)
-            $monthlyRevenueSiemReap[] = Sale::sumRealRevenue(
-                Sale::where('store_id', 2)
-                    ->whereBetween('created_at', [$startOfMonth, $endOfMonth])
-                    ->get()
-            );
-
-            // Phnom Penh (store_id = 1)
-            $monthlyRevenuePhnomPenh[] = Sale::sumRealRevenue(
-                Sale::where('store_id', 1)
-                    ->whereBetween('created_at', [$startOfMonth, $endOfMonth])
-                    ->get()
-            );
+            foreach ($shops as $shop) {
+                $monthlyRevenuePerStore[$shop->id][] = Sale::sumRealRevenue(
+                    Sale::where('store_id', $shop->id)
+                        ->whereBetween('created_at', [$mStart, $mEnd])
+                        ->get()
+                );
+            }
         }
 
         // Commandes du site web (paiement accepté) ventilées par statut — uniquement source=website
@@ -251,18 +246,11 @@ class DashboardController extends Controller
             'consignmentInvoicesUnpaid',
             'consignmentInvoicesUnpaidTotal',
             'unreadContactMessages',
-            'revenueSiemReapDaily',
-            'salesCountSiemReapDaily',
-            'revenueSiemReapMonthly',
-            'salesCountSiemReapMonthly',
-            'revenuePhnomPenhDaily',
-            'salesCountPhnomPenhDaily',
-            'revenuePhnomPenhMonthly',
-            'salesCountPhnomPenhMonthly',
+            'shops',
+            'storeRevenues',
             'invoicesByStatus',
-            'monthlyRevenue',
-            'monthlyRevenueSiemReap',
-            'monthlyRevenuePhnomPenh',
+            'monthlyRevenueTotal',
+            'monthlyRevenuePerStore',
             'monthLabels'
         ));
     }

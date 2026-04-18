@@ -9,6 +9,14 @@ db.version(3).stores({
   shifts: '++id,user_id,store_id,started_at,ended_at,cash_start,cash_end,visitors_count,cash_difference,synced',
 });
 
+db.version(4).stores({
+  products: 'id,store_id,name,price,total_stock',
+  sales: '++id,product_id,quantity,total,synced',
+  users: 'id,name,pin_code,store_id',
+  shifts: '++id,user_id,store_id,started_at,ended_at,cash_start,cash_end,visitors_count,cash_difference,popup_event_id,synced',
+  popup_events: 'id,store_id,name',
+});
+
 // --- Utilisateurs ---
 export async function syncUsers() {
   try {
@@ -54,20 +62,40 @@ export async function syncCatalog(storeId) {
   }
 }
 
+// --- Popup Events ---
+export async function syncActiveEvents(storeId) {
+  const sid = Number(storeId);
+  if (!sid) return;
+  try {
+    const res = await fetch(`/api/pos/events/active/${sid}`);
+    const events = await res.json();
+    if (!Array.isArray(events)) return;
+    await db.popup_events.clear();
+    await db.popup_events.bulkAdd(events);
+    console.log(`Popup events synchronisés (${events.length})`);
+  } catch (err) {
+    console.warn('Impossible de synchroniser les popup events', err);
+  }
+}
+
 // --- Shifts ---
-export async function startShift(userId, storeId, cashStart) {
+export async function startShift(userId, storeId, cashStart, popupEventId = null) {
   const uid = Number(userId);
   const sid = Number(storeId);
   if (!uid || !sid) throw new Error('UserId ou StoreId invalide');
   const now = new Date().toISOString();
-  const shiftId = await db.shifts.add({
+  const shiftData = {
     user_id: uid,
     store_id: sid,
     cash_start: Number(cashStart) || 0,
     started_at: now,
     ended_at: null,
     synced: 0
-  });
+  };
+  if (popupEventId) {
+    shiftData.popup_event_id = Number(popupEventId);
+  }
+  const shiftId = await db.shifts.add(shiftData);
   return shiftId;
 }
 
@@ -99,7 +127,10 @@ export async function syncShifts() {
       typeof s.user_id === 'number' &&
       typeof s.store_id === 'number' &&
       s.synced === 0
-    );
+    ).map(s => ({
+      ...s,
+      popup_event_id: s.popup_event_id || null,
+    }));
     if (!valid.length) return;
 
     const res = await fetch('/api/pos/shifts/sync', {

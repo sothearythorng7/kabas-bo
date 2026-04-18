@@ -29,7 +29,7 @@
                     <label for="deposit" class="form-label">{{ __('messages.supplier_order.deposit') }}</label>
                     <div class="input-group">
                         <span class="input-group-text">$</span>
-                        <input type="number" step="0.01" min="0" name="deposit" id="deposit" class="form-control" value="0">
+                        <input type="number" step="0.00001" min="0" name="deposit" id="deposit" class="form-control" value="0">
                     </div>
                 </div>
 
@@ -116,7 +116,7 @@
                 <label for="deposit_mobile" class="form-label">{{ __('messages.supplier_order.deposit') }}</label>
                 <div class="input-group">
                     <span class="input-group-text">$</span>
-                    <input type="number" step="0.01" min="0" name="deposit" id="deposit_mobile" class="form-control" value="0">
+                    <input type="number" step="0.00001" min="0" name="deposit" id="deposit_mobile" class="form-control" value="0">
                 </div>
             </div>
 
@@ -266,6 +266,20 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Initial count
     updateSelectedCount();
+
+    // Prevent submission with no products
+    document.querySelectorAll('form').forEach(form => {
+        form.addEventListener('submit', function(e) {
+            let hasProducts = false;
+            this.querySelectorAll('.quantity-input').forEach(input => {
+                if (parseInt(input.value) > 0) hasProducts = true;
+            });
+            if (!hasProducts) {
+                e.preventDefault();
+                alert('{{ __("messages.supplier_order.no_products_selected") }}');
+            }
+        });
+    });
 });
 </script>
 @endpush

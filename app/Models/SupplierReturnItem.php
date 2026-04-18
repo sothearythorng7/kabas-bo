@@ -14,7 +14,7 @@ class SupplierReturnItem extends Model
     ];
 
     protected $casts = [
-        'unit_price' => 'decimal:2',
+        'unit_price' => 'decimal:5',
     ];
 
     public function supplierReturn()

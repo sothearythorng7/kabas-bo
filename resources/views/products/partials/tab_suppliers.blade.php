@@ -15,7 +15,7 @@
                     <form action="{{ route('products.suppliers.updatePrice', [$product, $supplier]) }}" method="POST" class="d-flex">
                         @csrf
                         @method('PUT')
-                        <input type="number" step="0.01" name="purchase_price" class="form-control form-control-sm" value="{{ $supplier->pivot->purchase_price }}">
+                        <input type="number" step="0.00001" name="purchase_price" class="form-control form-control-sm" value="{{ $supplier->pivot->purchase_price }}">
                         <button class="btn btn-sm btn-success ms-2"><i class="bi bi-check"></i></button>
                     </form>
                 </td>

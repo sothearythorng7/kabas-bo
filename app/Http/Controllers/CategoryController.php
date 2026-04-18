@@ -15,8 +15,9 @@ class CategoryController extends Controller
     {
         $categories = Category::with('children')->whereNull('parent_id')->get();
         $allCategories = Category::with('translations')->get();
+        $googleTaxonomy = config('google_taxonomy.categories', []);
 
-        return view('categories.index', compact('categories', 'allCategories'));
+        return view('categories.index', compact('categories', 'allCategories', 'googleTaxonomy'));
     }
 
     public function store(Request $request)
@@ -25,10 +26,12 @@ class CategoryController extends Controller
             'parent_id' => 'nullable|exists:categories,id',
             'name' => 'required|array',
             'name.*' => 'nullable|string|max:255',
+            'google_product_category' => 'nullable|string|max:500',
         ]);
 
         $category = Category::create([
             'parent_id' => $request->parent_id,
+            'google_product_category' => $request->google_product_category,
         ]);
 
         $names = $request->input('name', []);
@@ -55,13 +58,17 @@ class CategoryController extends Controller
             'parent_id' => 'nullable|exists:categories,id',
             'name' => 'required|array',
             'name.*' => 'nullable|string|max:255',
+            'google_product_category' => 'nullable|string|max:500',
         ]);
 
         if ($request->parent_id == $category->id) {
             return redirect()->back()->withErrors(__('messages.category.invalid_parent'));
         }
 
-        $category->update(['parent_id' => $request->parent_id]);
+        $category->update([
+            'parent_id' => $request->parent_id,
+            'google_product_category' => $request->google_product_category,
+        ]);
 
         $names = $request->input('name', []);
         foreach ($names as $locale => $name) {

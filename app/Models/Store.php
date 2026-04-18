@@ -38,6 +38,16 @@
         }
 
 
+        /**
+         * Get the warehouse store ID. Cached in memory for the request.
+         */
+        public static function warehouseId(): int
+        {
+            static $id = null;
+
+            return $id ??= static::where('type', 'warehouse')->firstOrFail()->id;
+        }
+
         // Nouveau scope pour filtrer les entrepôts
         public function scopeWarehouse($query)
         {

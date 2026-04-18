@@ -101,7 +101,7 @@
                             <div class="col-md-8">
                                 <div class="mb-3">
                                     <label for="base_salary" class="form-label">{{ __('messages.staff.base_salary') }}</label>
-                                    <input type="number" step="0.01" min="0"
+                                    <input type="number" step="0.00001" min="0"
                                            class="form-control @error('base_salary') is-invalid @enderror"
                                            id="base_salary" name="base_salary" value="{{ old('base_salary') }}">
                                     @error('base_salary')

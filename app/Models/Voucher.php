@@ -27,7 +27,7 @@ class Voucher extends Model
     ];
 
     protected $casts = [
-        'amount' => 'decimal:2',
+        'amount' => 'decimal:5',
         'used_at' => 'datetime',
         'expires_at' => 'datetime',
         'cancelled_at' => 'datetime',

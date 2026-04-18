@@ -100,7 +100,7 @@
                         <div class="col-md-6">
                             <div class="mb-3">
                                 <label>{{ __('messages.staff.base_salary') }}</label>
-                                <input type="number" name="staff_base_salary" class="form-control" step="0.01" min="0" placeholder="0.00">
+                                <input type="number" name="staff_base_salary" class="form-control" step="0.00001" min="0" placeholder="0.00">
                             </div>
                         </div>
                         <div class="col-md-6">

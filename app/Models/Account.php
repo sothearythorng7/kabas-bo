@@ -17,7 +17,7 @@ class Account extends Model
     ];
 
     protected $casts = [
-        'balance' => 'decimal:2',
+        'balance' => 'decimal:5',
     ];
 
     public function site()

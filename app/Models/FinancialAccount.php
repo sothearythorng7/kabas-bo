@@ -27,4 +27,14 @@ class FinancialAccount extends Model
     {
         return $this->hasMany(FinancialTransaction::class, 'account_id');
     }
+
+    /**
+     * Get account ID by its code. Results are cached in memory for the request.
+     */
+    public static function idByCode(string $code): int
+    {
+        static $cache = [];
+
+        return $cache[$code] ??= static::where('code', $code)->firstOrFail()->id;
+    }
 }

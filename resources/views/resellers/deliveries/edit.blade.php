@@ -125,7 +125,7 @@
 
                 <div class="mb-3">
                     <label for="shipping_cost" class="form-label">{{ __('messages.resellers.shipping_cost') }}</label>
-                    <input type="number" step="0.01" name="shipping_cost" id="shipping_cost" class="form-control" value="{{ old('shipping_cost', $delivery->shipping_cost) }}">
+                    <input type="number" step="0.00001" name="shipping_cost" id="shipping_cost" class="form-control" value="{{ old('shipping_cost', $delivery->shipping_cost) }}">
                     <small class="text-muted">{{ __('messages.resellers.edit_only_after_creation') }}</small>
                 </div>
 
@@ -237,7 +237,7 @@
                                             style="width: 80px;">
                                     </td>
                                     <td>
-                                        <input type="number" step="0.01"
+                                        <input type="number" step="0.00001"
                                             name="products[{{ $product->id }}][unit_price]"
                                             class="form-control form-control-sm current-price-input"
                                             data-product-id="{{ $product->id }}"
@@ -293,7 +293,7 @@
                                     </div>
                                     <div class="col-6">
                                         <label class="form-label mb-0">{{ __('messages.product.price_btob') }}</label>
-                                        <input type="number" step="0.01"
+                                        <input type="number" step="0.00001"
                                             name="products[{{ $product->id }}][unit_price]"
                                             class="form-control form-control-sm current-price-input"
                                             data-product-id="{{ $product->id }}"
@@ -354,7 +354,7 @@
                                                 style="width: 80px;">
                                         </td>
                                         <td>
-                                            <input type="number" step="0.01"
+                                            <input type="number" step="0.00001"
                                                 name="products[{{ $product->id }}][unit_price]"
                                                 class="form-control form-control-sm new-price-input"
                                                 data-product-id="{{ $product->id }}"
@@ -392,7 +392,7 @@
                                         </div>
                                         <div class="col-6">
                                             <label class="form-label mb-0">{{ __('messages.product.price_btob') }}</label>
-                                            <input type="number" step="0.01"
+                                            <input type="number" step="0.00001"
                                                 name="products[{{ $product->id }}][unit_price]"
                                                 class="form-control form-control-sm new-price-input"
                                                 data-product-id="{{ $product->id }}"
@@ -649,7 +649,7 @@
                     <p><strong>{{ __('messages.resellers.remaining') }} :</strong> {{ number_format($remaining, 2) }}</p>
                     <div class="mb-3">
                         <label>{{ __('messages.resellers.amount') }}</label>
-                        <input type="number" step="0.01" name="amount" id="paymentAmount" class="form-control" max="{{ $remaining }}" required>
+                        <input type="number" step="0.00001" name="amount" id="paymentAmount" class="form-control" max="{{ $remaining }}" required>
                         <div id="amountWarning" class="text-danger mt-1" style="display:none;">
                             {{ __('messages.resellers.amount_cannot_exceed') }} {{ number_format($remaining, 2) }}.
                         </div>

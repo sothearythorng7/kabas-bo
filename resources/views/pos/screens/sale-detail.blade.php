@@ -237,7 +237,7 @@
                                                 </select>
                                             </div>
                                             <div class="col-4">
-                                                <input type="number" class="form-control form-control-sm" id="exchange-payment-amount" step="0.01" min="0" placeholder="Amount">
+                                                <input type="number" class="form-control form-control-sm" id="exchange-payment-amount" step="0.00001" min="0" placeholder="Amount">
                                             </div>
                                             <div class="col-3">
                                                 <button class="btn btn-sm btn-primary w-100" id="btn-add-exchange-payment">
@@ -377,7 +377,7 @@
 
         $("#exchange-amount-due").text(exchangeAmountDue.toFixed(2));
         $("#exchange-remaining").text(remaining.toFixed(2));
-        $("#exchange-payment-amount").val(remaining.toFixed(2));
+        $("#exchange-payment-amount").val(remaining.toFixed(5));
 
         // Render payments list
         const $list = $("#exchange-payments-list");
@@ -683,7 +683,7 @@
                 const totalPaid = exchangePayments.reduce((sum, p) => sum + p.amount, 0);
                 const remaining = exchangeAmountDue - totalPaid;
                 const voucherAmount = Math.min(parseFloat(data.voucher.amount), remaining);
-                $("#exchange-payment-amount").val(voucherAmount.toFixed(2));
+                $("#exchange-payment-amount").val(voucherAmount.toFixed(5));
 
                 $("#exchange-voucher-result").html(`<span class="text-success"><i class="bi bi-check-circle"></i> Valid: $${data.voucher.amount}</span>`);
             }
@@ -756,13 +756,25 @@
     $(document).on("click", "#btn-confirm-exchange", async function() {
         if (selectedItemsForExchange.length === 0) return;
 
+        // Check that sale has been synced with real DB IDs
+        const saleDbId = currentSaleForExchange.db_id || currentSaleForExchange.id;
+        const hasValidIds = currentSaleForExchange.db_id || !currentSaleForExchange.synced === false;
+        const hasInvalidItemIds = selectedItemsForExchange.some(item => {
+            return typeof item.sale_item_id === 'string' && item.sale_item_id.startsWith('item_');
+        });
+
+        if (hasInvalidItemIds) {
+            alert("This sale has not been fully synchronized yet. Please wait a moment and try again.");
+            return;
+        }
+
         const $btn = $(this);
         $btn.prop("disabled", true).html('<span class="spinner-border spinner-border-sm me-1"></span>Processing...');
 
         const balance = calculateReturnCredit() - calculateNewItemsTotal();
 
         const payload = {
-            original_sale_id: currentSaleForExchange.id,
+            original_sale_id: saleDbId,
             shift_id: window.currentShift?.id,
             returned_items: selectedItemsForExchange.map(item => ({
                 sale_item_id: item.sale_item_id,

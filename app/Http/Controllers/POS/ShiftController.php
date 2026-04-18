@@ -7,11 +7,18 @@ use App\Models\Shift;
 use App\Models\ShiftUser;
 use App\Models\User;
 use App\Models\Sale;
+use App\Services\TelegramService;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
 
 class ShiftController extends Controller
 {
+    protected TelegramService $telegram;
+
+    public function __construct(TelegramService $telegram)
+    {
+        $this->telegram = $telegram;
+    }
     // Check if a shift is in progress
     public function currentShift($userId)
     {
@@ -28,6 +35,7 @@ class ShiftController extends Controller
         $request->validate([
             'user_id' => 'required|exists:users,id',
             'start_amount' => 'required|numeric',
+            'popup_event_id' => 'nullable|exists:popup_events,id',
         ]);
 
         // Check that there is no active shift already
@@ -45,6 +53,7 @@ class ShiftController extends Controller
         $shift = Shift::create([
             'user_id' => $request->user_id,
             'store_id' => $user->store_id,
+            'popup_event_id' => $request->popup_event_id,
             'opening_cash' => $request->start_amount,
             'started_at' => $now,
         ]);
@@ -55,6 +64,16 @@ class ShiftController extends Controller
             'user_id' => $request->user_id,
             'started_at' => $now,
         ]);
+
+        // Telegram notification
+        $store = $shift->store;
+        $this->telegram->sendMessage(
+            "🟢 <b>Shift Opened</b>\n\n"
+            . "🏪 <b>Store:</b> {$store->name}\n"
+            . "👤 <b>Cashier:</b> {$user->name}\n"
+            . "💵 <b>Opening cash:</b> $" . number_format($shift->opening_cash, 2) . "\n"
+            . "🕐 <b>Time:</b> {$now->format('d/m/Y H:i')}"
+        );
 
         return response()->json($shift);
     }
@@ -94,6 +113,9 @@ class ShiftController extends Controller
         ShiftUser::where('shift_id', $shift->id)
             ->whereNull('ended_at')
             ->update(['ended_at' => $now]);
+
+        // Telegram notification with shift summary
+        $this->sendShiftClosedTelegram($shift, $now);
 
         return response()->json($shift);
     }
@@ -232,4 +254,100 @@ class ShiftController extends Controller
         ]);
     }
 
+    /**
+     * Send Telegram notification when a shift is closed with full summary.
+     */
+    protected function sendShiftClosedTelegram(Shift $shift, Carbon $now): void
+    {
+        try {
+            $shift->load(['user', 'store']);
+            $sales = Sale::where('shift_id', $shift->id)->get();
+
+            $salesCount = $sales->count();
+            $totalIncome = $sales->sum('total');
+
+            // Income breakdown by payment method
+            $byMethod = [];
+            foreach ($sales as $sale) {
+                if ($sale->split_payments && is_array($sale->split_payments)) {
+                    foreach ($sale->split_payments as $payment) {
+                        $method = strtoupper($payment['payment_type'] ?? $payment['method'] ?? 'OTHER');
+                        $byMethod[$method] = ($byMethod[$method] ?? 0) + floatval($payment['amount'] ?? 0);
+                    }
+                } else {
+                    $method = strtoupper($sale->payment_type ?? 'OTHER');
+                    $byMethod[$method] = ($byMethod[$method] ?? 0) + floatval($sale->total);
+                }
+            }
+
+            // Duration
+            $startedAt = Carbon::parse($shift->started_at);
+            $duration = $startedAt->diff($now);
+            $durationStr = $duration->h . 'h' . str_pad($duration->i, 2, '0', STR_PAD_LEFT);
+
+            // Walk-in & conversion
+            $visitors = (int) $shift->visitors_count;
+            $conversion = $visitors > 0 ? round(($salesCount / $visitors) * 100, 1) : 0;
+
+            // Staff who worked this shift
+            $staffNames = $shift->users()->pluck('name')->implode(', ');
+
+            // Cash summary
+            $openingCash = floatval($shift->opening_cash);
+            $closingCash = floatval($shift->closing_cash);
+            $cashIn = floatval($shift->cash_in ?? 0);
+            $cashOut = floatval($shift->cash_out ?? 0);
+            $cashFromSales = $byMethod['CASH'] ?? $byMethod['ESPÈCES'] ?? 0;
+            $expectedCash = $openingCash + $cashFromSales + $cashIn - $cashOut;
+            $difference = $closingCash - $expectedCash;
+
+            // Build message
+            $msg = "🔴 <b>Shift Closed</b>\n\n";
+            $msg .= "🏪 <b>Store:</b> {$shift->store->name}\n";
+            $msg .= "👥 <b>Staff:</b> {$staffNames}\n";
+            $msg .= "🕐 <b>Duration:</b> {$startedAt->format('H:i')} → {$now->format('H:i')} ({$durationStr})\n";
+            $msg .= "\n━━━━━━━━━━━━━━━━━━━━\n";
+
+            // Income
+            $msg .= "\n💰 <b>Income:</b> $" . number_format($totalIncome, 2) . "\n";
+            $msg .= "🧾 <b>Sales:</b> {$salesCount}\n";
+            $avgBasket = $salesCount > 0 ? $totalIncome / $salesCount : 0;
+            $msg .= "🛒 <b>Avg basket:</b> $" . number_format($avgBasket, 2) . "\n\n";
+
+            // Payment methods breakdown
+            if (!empty($byMethod)) {
+                $msg .= "💳 <b>By payment method:</b>\n";
+                foreach ($byMethod as $method => $amount) {
+                    $msg .= "  • {$method}: $" . number_format($amount, 2) . "\n";
+                }
+            }
+
+            // Cash summary
+            $msg .= "\n━━━━━━━━━━━━━━━━━━━━\n";
+            $msg .= "\n💵 <b>Cash summary:</b>\n";
+            $msg .= "  Opening: $" . number_format($openingCash, 2) . "\n";
+            $msg .= "  + Sales (cash): $" . number_format($cashFromSales, 2) . "\n";
+            if ($cashIn > 0) $msg .= "  + Cash in: $" . number_format($cashIn, 2) . "\n";
+            if ($cashOut > 0) $msg .= "  - Cash out: $" . number_format($cashOut, 2) . "\n";
+            $msg .= "  = Expected: $" . number_format($expectedCash, 2) . "\n";
+            $msg .= "  Closing: $" . number_format($closingCash, 2) . "\n";
+            if (abs($difference) >= 0.01) {
+                $diffIcon = $difference > 0 ? '📈' : '📉';
+                $msg .= "  {$diffIcon} <b>Difference: $" . number_format($difference, 2) . "</b>\n";
+            } else {
+                $msg .= "  ✅ <b>Cash balanced</b>\n";
+            }
+
+            // Walk-in & conversion
+            if ($visitors > 0) {
+                $msg .= "\n━━━━━━━━━━━━━━━━━━━━\n";
+                $msg .= "\n🚶 <b>Walk-in:</b> {$visitors}\n";
+                $msg .= "📊 <b>Conversion:</b> {$conversion}% ({$salesCount}/{$visitors})\n";
+            }
+
+            $this->telegram->sendMessage($msg);
+        } catch (\Exception $e) {
+            \Log::error('Shift Telegram notification failed', ['error' => $e->getMessage()]);
+        }
+    }
 }

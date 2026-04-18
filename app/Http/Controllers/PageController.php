@@ -117,7 +117,7 @@ class PageController extends Controller
 
         $page->save();
 
-        return redirect()->route('pages.index')->with('success', __('messages.common.updated'));
+        return redirect()->route('admin.pages.index')->with('success', __('messages.common.updated'));
     }
 
     public function destroy(Page $page)

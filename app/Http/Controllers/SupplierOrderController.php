@@ -105,6 +105,10 @@ class SupplierOrderController extends Controller
             ];
         }
 
+        if (empty($syncData)) {
+            return back()->withInput()->withErrors(['products' => __('messages.supplier_order.no_products_selected')]);
+        }
+
         $order->products()->sync($syncData);
 
         return redirect()->route('suppliers.edit', $supplier)->with('success', __('messages.supplier_order.created'));
@@ -119,12 +123,14 @@ class SupplierOrderController extends Controller
             'raw_materials' => 'required|array',
             'raw_materials.*.quantity' => 'nullable|numeric|min:0',
             'raw_materials.*.purchase_price' => 'nullable|numeric|min:0',
+            'deposit' => 'nullable|numeric|min:0',
         ]);
 
         $order = $supplier->supplierOrders()->create([
             'status' => 'pending',
-            'destination_store_id' => 3, // Warehouse pour les matières premières
+            'destination_store_id' => Store::warehouseId(), // Warehouse pour les matières premières
             'order_type' => SupplierOrder::ORDER_TYPE_RAW_MATERIAL,
+            'deposit' => $request->input('deposit', 0),
         ]);
 
         $syncData = [];
@@ -134,7 +140,7 @@ class SupplierOrderController extends Controller
             if ($quantity <= 0) continue;
 
             $material = RawMaterial::find($materialId);
-            if (!$material || $material->supplier_id !== $supplier->id) continue;
+            if (!$material || !$material->suppliers()->where('supplier_id', $supplier->id)->exists()) continue;
 
             $syncData[$materialId] = [
                 'quantity_ordered' => $quantity,
@@ -142,6 +148,10 @@ class SupplierOrderController extends Controller
                 'created_at' => now(),
                 'updated_at' => now(),
             ];
+        }
+
+        if (empty($syncData)) {
+            return back()->withInput()->withErrors(['raw_materials' => __('messages.supplier_order.no_products_selected')]);
         }
 
         $order->rawMaterials()->sync($syncData);
@@ -178,12 +188,7 @@ class SupplierOrderController extends Controller
             'deposit' => 'nullable|numeric|min:0',
         ]);
 
-        $order->update([
-            'destination_store_id' => $request->destination_store_id,
-            'deposit' => $request->input('deposit', 0),
-        ]);
-        $order->products()->detach();
-
+        $syncData = [];
         foreach ($request->products as $productId => $productData) {
             $quantity = (int) ($productData['quantity'] ?? 0);
             if ($quantity <= 0) continue;
@@ -191,14 +196,24 @@ class SupplierOrderController extends Controller
             $product = Product::findOrFail($productId);
             $purchasePrice = $supplier->products()->where('product_id', $productId)->first()?->pivot->purchase_price ?? 0;
 
-            $order->products()->attach($productId, [
+            $syncData[$productId] = [
                 'purchase_price'   => $purchasePrice,
                 'sale_price'       => $product->price,
                 'quantity_ordered' => $quantity,
                 'created_at'       => now(),
                 'updated_at'       => now(),
-            ]);
+            ];
         }
+
+        if (empty($syncData)) {
+            return back()->withInput()->withErrors(['products' => __('messages.supplier_order.no_products_selected')]);
+        }
+
+        $order->update([
+            'destination_store_id' => $request->destination_store_id,
+            'deposit' => $request->input('deposit', 0),
+        ]);
+        $order->products()->sync($syncData);
 
         return redirect()->route('suppliers.edit', $supplier)->with('success', __('messages.supplier_order.updated'));
     }
@@ -489,6 +504,7 @@ class SupplierOrderController extends Controller
             'products' => 'required|array',
             'products.*.price_invoiced' => 'required|numeric|min:0',
             'update_reference_price' => 'nullable|array',
+            'invoice_date' => 'required|date',
             'invoice_file' => 'required|file|mimes:pdf,jpg,jpeg,png|max:5120', // max 5MB
         ]);
 
@@ -543,7 +559,10 @@ class SupplierOrderController extends Controller
             }
         }
 
-        $order->update(['status' => 'received']);
+        $order->update([
+            'status' => 'received',
+            'invoice_date' => $request->invoice_date,
+        ]);
 
         return redirectBackLevels(2)->with('success', __('messages.supplier_order.invoice_received'));
     }
@@ -556,6 +575,7 @@ class SupplierOrderController extends Controller
         $request->validate([
             'raw_materials' => 'required|array',
             'raw_materials.*.price_invoiced' => 'required|numeric|min:0',
+            'invoice_date' => 'required|date',
             'invoice_file' => 'required|file|mimes:pdf,jpg,jpeg,png|max:5120',
         ]);
 
@@ -586,7 +606,10 @@ class SupplierOrderController extends Controller
                 ->update(['unit_price' => $priceInvoiced]);
         }
 
-        $order->update(['status' => 'received']);
+        $order->update([
+            'status' => 'received',
+            'invoice_date' => $request->invoice_date,
+        ]);
 
         return redirect()->route('factory.suppliers.edit', $supplier)
             ->with('success', __('messages.supplier_order.invoice_received'));
@@ -867,6 +890,102 @@ class SupplierOrderController extends Controller
                         'supplier_id'       => $supplier->id,
                         'supplier_order_id' => $order->id,
                     ]);
+                }
+            }
+        }
+
+        return redirect()->route('supplier-orders.show', [$supplier, $order])
+            ->with('success', __('messages.supplier_order.quantities_updated'));
+    }
+
+    /**
+     * Update received quantities for raw materials in an already-received order.
+     * This also updates the corresponding raw material stock batches.
+     */
+    public function updateRawMaterialReceivedQuantities(Request $request, Supplier $supplier, SupplierOrder $order)
+    {
+        if (!in_array($order->status, ['received', 'waiting_invoice'])) {
+            return redirect()->back()->with('error', __('messages.supplier_order.cannot_update_quantities'));
+        }
+
+        $request->validate([
+            'raw_materials' => 'required|array',
+            'raw_materials.*' => 'required|numeric|min:0',
+        ]);
+
+        $order->load('rawMaterials');
+
+        foreach ($request->input('raw_materials', []) as $materialId => $newQuantity) {
+            $newQuantity = (float) $newQuantity;
+
+            $material = $order->rawMaterials->find($materialId);
+            if (!$material) continue;
+
+            $oldQuantity = (float) ($material->pivot->quantity_received ?? 0);
+            $delta = $newQuantity - $oldQuantity;
+
+            if ($delta == 0) continue;
+
+            // Update the pivot table
+            $order->rawMaterials()->updateExistingPivot($materialId, [
+                'quantity_received' => $newQuantity,
+            ]);
+
+            // Find the stock batch for this order and material
+            $batch = RawMaterialStockBatch::where('source_supplier_order_id', $order->id)
+                ->where('raw_material_id', $materialId)
+                ->first();
+
+            if ($batch) {
+                $newBatchQuantity = (float) $batch->quantity + $delta;
+
+                if ($newBatchQuantity < 0) {
+                    return redirect()->back()->with('error',
+                        __('messages.supplier_order.insufficient_stock', ['product' => $material->name])
+                    );
+                }
+
+                $batch->update(['quantity' => $newBatchQuantity]);
+
+                // Create stock movement for audit trail
+                if ($material->track_stock) {
+                    RawMaterialStockMovement::create([
+                        'raw_material_id' => $materialId,
+                        'raw_material_stock_batch_id' => $batch->id,
+                        'quantity' => $delta > 0 ? $delta : abs($delta),
+                        'type' => 'adjustment',
+                        'reference' => "Correction réception commande #{$order->id}",
+                        'source_type' => SupplierOrder::class,
+                        'source_id' => $order->id,
+                        'user_id' => auth()->id(),
+                    ]);
+                }
+            } else {
+                // If no batch exists and we're adding quantity, create one
+                if ($newQuantity > 0) {
+                    $unitPrice = $material->pivot->invoice_price ?? $material->pivot->purchase_price ?? 0;
+
+                    $batch = RawMaterialStockBatch::create([
+                        'raw_material_id' => $materialId,
+                        'quantity' => $newQuantity,
+                        'unit_price' => $unitPrice,
+                        'received_at' => now(),
+                        'notes' => "Correction commande fournisseur #{$order->id}",
+                        'source_supplier_order_id' => $order->id,
+                    ]);
+
+                    if ($material->track_stock) {
+                        RawMaterialStockMovement::create([
+                            'raw_material_id' => $materialId,
+                            'raw_material_stock_batch_id' => $batch->id,
+                            'quantity' => $newQuantity,
+                            'type' => 'adjustment',
+                            'reference' => "Correction réception commande #{$order->id}",
+                            'source_type' => SupplierOrder::class,
+                            'source_id' => $order->id,
+                            'user_id' => auth()->id(),
+                        ]);
+                    }
                 }
             }
         }

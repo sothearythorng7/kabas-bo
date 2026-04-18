@@ -133,6 +133,127 @@
         </div>
     </div>
 
+    {{-- ================== BUYER INVOICES ================== --}}
+    <div class="card mb-3">
+        <div class="card-header bg-light d-flex justify-content-between align-items-center">
+            <span><i class="bi bi-bag-check"></i> {{ __('messages.reseller_overview.buyer_invoices') }}</span>
+            @if($unpaidBuyerInvoices->count() > 0)
+                <span class="badge bg-danger">{{ $unpaidBuyerInvoices->count() }} {{ __('messages.reseller_overview.unpaid') }}</span>
+            @endif
+        </div>
+        <div class="card-body">
+            @if($unpaidBuyerInvoices->isEmpty())
+                <p class="text-muted text-center py-4">{{ __('messages.reseller_overview.no_unpaid_buyer_invoices') }}</p>
+            @else
+                <table class="table table-striped table-hover">
+                    <thead>
+                        <tr>
+                            <th></th>
+                            <th>{{ __('messages.reseller_overview.reseller') }}</th>
+                            <th>{{ __('messages.reseller_overview.delivery') }}</th>
+                            <th>{{ __('messages.reseller_overview.amount') }}</th>
+                            <th>{{ __('messages.reseller_overview.remaining') }}</th>
+                            <th>{{ __('messages.reseller_overview.date') }}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach($unpaidBuyerInvoices as $invoice)
+                            @php
+                                $paid = $invoice->payments ? $invoice->payments->sum('amount') : 0;
+                                $remaining = $invoice->total_amount - $paid;
+                            @endphp
+                            <tr>
+                                <td>
+                                    <div class="btn-group">
+                                        <button type="button" class="btn btn-sm btn-primary dropdown-toggle" data-bs-toggle="dropdown">
+                                            <i class="bi bi-three-dots-vertical"></i>
+                                        </button>
+                                        <ul class="dropdown-menu">
+                                            <li>
+                                                <a class="dropdown-item" href="{{ route('reseller-invoices.show', $invoice) }}">
+                                                    <i class="bi bi-eye-fill"></i> {{ __('messages.btn.view') }}
+                                                </a>
+                                            </li>
+                                            <li>
+                                                <button class="dropdown-item" data-bs-toggle="modal" data-bs-target="#markAsPaidModalBuyer-{{ $invoice->id }}">
+                                                    <i class="bi bi-cash-coin"></i> {{ __('messages.Mark as paid') }}
+                                                </button>
+                                            </li>
+                                        </ul>
+                                    </div>
+                                </td>
+                                @php
+                                    $buyerResellerId = $invoice->reseller_id ?? $invoice->resellerStockDelivery?->reseller_id;
+                                @endphp
+                                <td>
+                                    @if($invoice->reseller)
+                                        <a href="{{ route('resellers.show', $invoice->reseller_id) }}">{{ $invoice->reseller->name }}</a>
+                                    @elseif($invoice->resellerStockDelivery?->reseller)
+                                        <a href="{{ route('resellers.show', $buyerResellerId) }}">{{ $invoice->resellerStockDelivery->reseller->name }}</a>
+                                    @endif
+                                </td>
+                                <td>
+                                    @if($invoice->reseller_stock_delivery_id && $buyerResellerId)
+                                        <a href="{{ route('reseller-stock-deliveries.edit', ['reseller' => $buyerResellerId, 'delivery' => $invoice->reseller_stock_delivery_id]) }}">
+                                            #{{ $invoice->reseller_stock_delivery_id }}
+                                        </a>
+                                    @endif
+                                </td>
+                                <td>${{ number_format($invoice->total_amount, 2) }}</td>
+                                <td class="text-danger fw-bold">${{ number_format($remaining, 2) }}</td>
+                                <td>{{ $invoice->created_at->format('d/m/Y') }}</td>
+                            </tr>
+
+                            {{-- Modal Mark as Paid --}}
+                            <div class="modal fade" id="markAsPaidModalBuyer-{{ $invoice->id }}" tabindex="-1" aria-hidden="true">
+                                <div class="modal-dialog modal-dialog-centered" style="max-width: 450px;">
+                                    <form action="{{ route('reseller-invoices.markAsPaid', $invoice) }}" method="POST" enctype="multipart/form-data">
+                                        @csrf
+                                        <div class="modal-content">
+                                            <div class="modal-header">
+                                                <h5 class="modal-title">{{ __('messages.Mark as paid') }} — {{ $invoice->reseller?->name }}</h5>
+                                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                            </div>
+                                            <div class="modal-body">
+                                                <div class="mb-3">
+                                                    <label class="form-label">{{ __('messages.Amount paid') }} : <strong>${{ number_format($remaining, 2) }}</strong></label>
+                                                </div>
+                                                <div class="mb-3">
+                                                    <label class="form-label">{{ __('messages.general_invoices.payment_date') }} <span class="text-danger">*</span></label>
+                                                    <input type="date" name="payment_date" class="form-control form-control-sm" value="{{ now()->format('Y-m-d') }}" required>
+                                                </div>
+                                                <div class="mb-3">
+                                                    <label class="form-label">{{ __('messages.Méthode de paiement') }} <span class="text-danger">*</span></label>
+                                                    <select name="payment_method_id" class="form-select form-select-sm" required>
+                                                        @foreach($paymentMethods as $method)
+                                                            <option value="{{ $method->id }}">{{ $method->name }}</option>
+                                                        @endforeach
+                                                    </select>
+                                                </div>
+                                                <div class="mb-3">
+                                                    <label class="form-label">{{ __('messages.Payment reference') }}</label>
+                                                    <input type="text" name="payment_reference" class="form-control form-control-sm">
+                                                </div>
+                                                <div class="mb-3">
+                                                    <label class="form-label">{{ __('messages.general_invoices.payment_proof') }}</label>
+                                                    <input type="file" name="payment_proof" class="form-control form-control-sm" accept=".pdf,.jpg,.jpeg,.png">
+                                                </div>
+                                            </div>
+                                            <div class="modal-footer">
+                                                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">{{ __('messages.btn.cancel') }}</button>
+                                                <button type="submit" class="btn btn-success btn-sm">{{ __('messages.Confirm payment') }}</button>
+                                            </div>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        @endforeach
+                    </tbody>
+                </table>
+            @endif
+        </div>
+    </div>
+
     {{-- ================== SALE REPORTS (3 onglets) ================== --}}
     <div class="card mb-3">
         <div class="card-header"><i class="bi bi-receipt"></i> {{ __('messages.reseller_overview.sales_reports') }}</div>

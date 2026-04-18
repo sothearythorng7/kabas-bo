@@ -34,7 +34,7 @@
                                 <th></th> <!-- dropdown column -->
                                 <th>{{ __('messages.common.name') }}</th>
                                 <th>{{ __('messages.resellers.type') }}</th>
-                                <th>{{ __('messages.reseller_invoice.sales_report') }}</th>
+                                <th>{{ __('messages.reseller_invoice.reference') }}</th>
                                 <th>{{ __('messages.reseller_invoice.total_amount') }}</th>
                                 <th>{{ __('messages.common.status') }}</th>
                                 <th>{{ __('messages.reseller_invoice.created_at') }}</th>
@@ -62,7 +62,11 @@
                                     <td>
                                         @if($invoice->sales_report_id)
                                             <a href="{{ route('resellers.reports.show', ['reseller' => $invoice->reseller_id, 'report' => $invoice->sales_report_id]) }}">
-                                                #{{ $invoice->sales_report_id }}
+                                                Report #{{ $invoice->sales_report_id }}
+                                            </a>
+                                        @elseif($invoice->reseller_stock_delivery_id)
+                                            <a href="{{ route('reseller-stock-deliveries.edit', ['reseller' => $invoice->reseller_id, 'delivery' => $invoice->reseller_stock_delivery_id]) }}">
+                                                Delivery #{{ $invoice->reseller_stock_delivery_id }}
                                             </a>
                                         @else
                                             ---
@@ -120,10 +124,14 @@
                                         <h5 class="card-title mb-1">{{ $invoice->reseller?->name ?? $invoice->store?->name ?? '—' }}</h5>
                                         <p class="mb-1"><strong>{{ __('messages.resellers.type') }}:</strong> {{ $invoice->reseller?->type ?? ($invoice->store ? 'store' : '—') }}</p>
                                         <p class="mb-1">
-                                            <strong>{{ __('messages.reseller_invoice.sales_report') }}:</strong>
+                                            <strong>{{ __('messages.reseller_invoice.reference') }}:</strong>
                                             @if($invoice->sales_report_id)
                                                 <a href="{{ route('resellers.reports.show', ['reseller' => $invoice->reseller_id, 'report' => $invoice->sales_report_id]) }}">
-                                                    #{{ $invoice->sales_report_id }}
+                                                    Report #{{ $invoice->sales_report_id }}
+                                                </a>
+                                            @elseif($invoice->reseller_stock_delivery_id)
+                                                <a href="{{ route('reseller-stock-deliveries.edit', ['reseller' => $invoice->reseller_id, 'delivery' => $invoice->reseller_stock_delivery_id]) }}">
+                                                    Delivery #{{ $invoice->reseller_stock_delivery_id }}
                                                 </a>
                                             @else
                                                 ---

@@ -220,7 +220,7 @@ class ExchangeController extends Controller
         return response()->json([
             'success' => true,
             'voucher_amount' => (float) $voucher->amount,
-            'remaining_to_pay' => round($remainingToPay, 2),
+            'remaining_to_pay' => round($remainingToPay, 5),
         ]);
     }
 }

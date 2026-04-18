@@ -15,7 +15,7 @@ use Illuminate\Support\Str;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use App\Models\StockTransaction;
-use App\Models\ProductVariation;
+use App\Models\ProductVariationAttribute;
 use App\Models\VariationType;
 use App\Models\VariationValue;
 
@@ -178,6 +178,16 @@ public function store(Request $request)
         // Calcul des alertes produit
         $productAlerts = $this->getProductAlerts($product);
 
+        // Variation group members
+        $groupProducts = collect();
+        if ($product->variation_group_id) {
+            $product->load(['variationGroup', 'variationAttributes.type', 'variationAttributes.value']);
+            $groupProducts = $product->variationGroup->products()
+                ->with(['variationAttributes.type', 'variationAttributes.value'])
+                ->orderBy('id')
+                ->get();
+        }
+
         return view('products.edit', compact(
             'product',
             'allCategories',
@@ -187,7 +197,8 @@ public function store(Request $request)
             'supplierPivot',
             'storePivot',
             'types',
-            'productAlerts'
+            'productAlerts',
+            'groupProducts'
         ));
     }
 
@@ -284,6 +295,8 @@ public function update(Request $request, Product $product)
         'is_best_seller' => 'boolean',
         'is_resalable' => 'sometimes|boolean',
         'allow_overselling' => 'sometimes|boolean',
+        'gender' => 'nullable|in:male,female,unisex',
+        'age_group' => 'nullable|in:adult,kids,toddler,infant,newborn',
         'categories' => 'nullable|array',
         'categories.*' => 'exists:categories,id',
         'suppliers' => 'nullable|array',
@@ -307,6 +320,8 @@ public function update(Request $request, Product $product)
             'is_resalable' => $data['is_resalable'] ?? false,
             'is_best_seller' => $data['is_best_seller'] ?? false,
             'allow_overselling' => $data['allow_overselling'] ?? false,
+            'gender' => $data['gender'] ?? null,
+            'age_group' => $data['age_group'] ?? null,
         ]);
 
         foreach ($locales as $locale) {
@@ -672,127 +687,131 @@ public function update(Request $request, Product $product)
 
     public function variationsIndex(Product $product)
     {
-    $product->load(['variations.linkedProduct', 'variations.type', 'variations.value']);
-    $types = \App\Models\VariationType::orderBy('name')->get();
-    return view('products.variations', compact('product', 'types'));
-}
+        $product->load(['variationGroup.products.variationAttributes.type', 'variationGroup.products.variationAttributes.value', 'variationAttributes.type', 'variationAttributes.value']);
+        $types = \App\Models\VariationType::orderBy('name')->get();
 
-public function variationsStore(Request $request, Product $product)
-{
-    $data = $request->validate([
-        'variation_type_id'  => 'required|exists:variation_types,id',
-        'variation_value_id' => 'required|exists:variation_values,id',
-        'linked_product_id'  => 'required|exists:products,id|not_in:'.$product->id,
-    ], [
-        'variation_type_id.required' => __('messages.validation.variation_type_required'),
-        'variation_type_id.exists' => __('messages.validation.variation_type_invalid'),
-        'variation_value_id.required' => __('messages.validation.variation_value_required'),
-        'variation_value_id.exists' => __('messages.validation.variation_value_invalid'),
-        'linked_product_id.required' => __('messages.validation.linked_product_required'),
-        'linked_product_id.exists' => __('messages.validation.linked_product_invalid'),
-        'linked_product_id.not_in' => __('messages.validation.linked_product_same'),
-    ]);
-
-    DB::transaction(function () use ($data, $product) {
-        // Côté produit principal
-        \App\Models\ProductVariation::updateOrCreate(
-            [
-                'product_id'         => $product->id,
-                'variation_type_id'  => $data['variation_type_id'],
-                'variation_value_id' => $data['variation_value_id'],
-            ],
-            [
-                'linked_product_id'  => $data['linked_product_id'],
-            ]
-        );
-
-        // Côté produit lié (lien réciproque)
-        \App\Models\ProductVariation::updateOrCreate(
-            [
-                'product_id'         => $data['linked_product_id'],
-                'variation_type_id'  => $data['variation_type_id'],
-                'variation_value_id' => $data['variation_value_id'],
-            ],
-            [
-                'linked_product_id'  => $product->id,
-            ]
-        );
-    });
-
-    return back()->with('success', __('messages.product.variation_added'))->withFragment('tab-variations');
-}
-
-public function variationsUpdate(Request $request, Product $product, $variationId)
-{
-    $variation = $product->variations()->findOrFail($variationId);
-
-    $data = $request->validate([
-        'variation_type_id'  => 'required|exists:variation_types,id',
-        'variation_value_id' => 'required|exists:variation_values,id',
-        'linked_product_id'  => 'required|exists:products,id|not_in:'.$product->id,
-    ], [
-        'variation_type_id.required' => __('messages.validation.variation_type_required'),
-        'variation_type_id.exists' => __('messages.validation.variation_type_invalid'),
-        'variation_value_id.required' => __('messages.validation.variation_value_required'),
-        'variation_value_id.exists' => __('messages.validation.variation_value_invalid'),
-        'linked_product_id.required' => __('messages.validation.linked_product_required'),
-        'linked_product_id.exists' => __('messages.validation.linked_product_invalid'),
-        'linked_product_id.not_in' => __('messages.validation.linked_product_same'),
-    ]);
-
-    $oldLinkedProductId = $variation->linked_product_id;
-    $oldTypeId = $variation->variation_type_id;
-    $oldValueId = $variation->variation_value_id;
-
-    DB::transaction(function () use ($data, $product, $variation, $oldLinkedProductId, $oldTypeId, $oldValueId) {
-        // Supprimer l'ancien lien réciproque
-        if ($oldLinkedProductId) {
-            Product::find($oldLinkedProductId)?->variations()
-                ->where('linked_product_id', $product->id)
-                ->where('variation_type_id', $oldTypeId)
-                ->where('variation_value_id', $oldValueId)
-                ->delete();
+        $groupProducts = collect();
+        if ($product->variationGroup) {
+            $groupProducts = $product->variationGroup->products()
+                ->with(['variationAttributes.type', 'variationAttributes.value'])
+                ->orderBy('id')
+                ->get();
         }
 
-        // Mettre à jour la variation actuelle
-        $variation->update([
-            'variation_type_id'  => $data['variation_type_id'],
-            'variation_value_id' => $data['variation_value_id'],
-            'linked_product_id'  => $data['linked_product_id'],
+        return view('products.variations', compact('product', 'types', 'groupProducts'));
+    }
+
+    public function variationsStore(Request $request, Product $product)
+    {
+        $data = $request->validate([
+            'linked_product_id'  => 'required|exists:products,id|not_in:'.$product->id,
+            'attributes'         => 'required|array|min:1',
+            'attributes.*.variation_type_id'  => 'required|exists:variation_types,id',
+            'attributes.*.variation_value_id' => 'required|exists:variation_values,id',
         ]);
 
-        // Créer le nouveau lien réciproque
-        ProductVariation::updateOrCreate(
-            [
-                'product_id'         => $data['linked_product_id'],
-                'variation_type_id'  => $data['variation_type_id'],
-                'variation_value_id' => $data['variation_value_id'],
-            ],
-            [
-                'linked_product_id'  => $product->id,
-            ]
-        );
-    });
+        DB::transaction(function () use ($data, $product) {
+            // Get or create the variation group
+            if (!$product->variation_group_id) {
+                $group = \App\Models\VariationGroup::create([
+                    'name' => $product->name['fr'] ?? $product->name['en'] ?? reset($product->name),
+                ]);
+                $product->update(['variation_group_id' => $group->id]);
 
-    return back()->with('success', __('messages.product.variation_updated'))->withFragment('tab-variations');
-}
+                // If the current product has no attributes, assign the first set of own attributes from user
+                // (handled separately via variationsUpdateSelf)
+            } else {
+                $group = $product->variationGroup;
+            }
 
-public function variationsDestroy(Product $product, $variationId)
-{
-    $variation = $product->variations()->findOrFail($variationId);
-    $linkedProduct = Product::find($variation->linked_product_id);
+            // Add the linked product to the group
+            $linkedProduct = Product::findOrFail($data['linked_product_id']);
+            $linkedProduct->update(['variation_group_id' => $group->id]);
 
-    $variation->delete();
+            // Set attributes for the linked product
+            // Remove old attributes for this product in this group first
+            \App\Models\ProductVariationAttribute::where('product_id', $linkedProduct->id)
+                ->where('variation_group_id', $group->id)
+                ->delete();
 
-    // Supprime aussi le lien réciproque
-    $linkedProduct->variations()
-        ->where('linked_product_id', $product->id)
-        ->where('variation_type_id', $variation->variation_type_id)
-        ->where('variation_value_id', $variation->variation_value_id)
-        ->delete();
+            foreach ($data['attributes'] as $attr) {
+                \App\Models\ProductVariationAttribute::create([
+                    'product_id'         => $linkedProduct->id,
+                    'variation_group_id' => $group->id,
+                    'variation_type_id'  => $attr['variation_type_id'],
+                    'variation_value_id' => $attr['variation_value_id'],
+                ]);
+            }
+        });
 
-    return back()->with('success', __('messages.product.variation_removed'))->withFragment('tab-variations');
-}
+        return back()->with('success', __('messages.product.variation_added'))->withFragment('tab-variations');
+    }
+
+    /**
+     * Update the current product's own attributes within its group.
+     */
+    public function variationsUpdateSelf(Request $request, Product $product)
+    {
+        $data = $request->validate([
+            'attributes'         => 'required|array|min:1',
+            'attributes.*.variation_type_id'  => 'required|exists:variation_types,id',
+            'attributes.*.variation_value_id' => 'required|exists:variation_values,id',
+        ]);
+
+        if (!$product->variation_group_id) {
+            return back()->with('error', 'Product is not in a variation group.');
+        }
+
+        DB::transaction(function () use ($data, $product) {
+            \App\Models\ProductVariationAttribute::where('product_id', $product->id)
+                ->where('variation_group_id', $product->variation_group_id)
+                ->delete();
+
+            foreach ($data['attributes'] as $attr) {
+                \App\Models\ProductVariationAttribute::create([
+                    'product_id'         => $product->id,
+                    'variation_group_id' => $product->variation_group_id,
+                    'variation_type_id'  => $attr['variation_type_id'],
+                    'variation_value_id' => $attr['variation_value_id'],
+                ]);
+            }
+        });
+
+        return back()->with('success', __('messages.product.variation_updated'))->withFragment('tab-variations');
+    }
+
+    /**
+     * Remove a product from the variation group.
+     */
+    public function variationsDestroy(Product $product, $targetProductId)
+    {
+        $targetProduct = Product::findOrFail($targetProductId);
+
+        if ($targetProduct->variation_group_id !== $product->variation_group_id) {
+            return back()->with('error', 'Product is not in the same group.');
+        }
+
+        DB::transaction(function () use ($product, $targetProduct) {
+            $groupId = $targetProduct->variation_group_id;
+
+            // Remove attributes and unlink from group
+            \App\Models\ProductVariationAttribute::where('product_id', $targetProduct->id)
+                ->where('variation_group_id', $groupId)
+                ->delete();
+            $targetProduct->update(['variation_group_id' => null]);
+
+            // If only 1 or 0 products remain, dissolve the group
+            $remaining = Product::where('variation_group_id', $groupId)->count();
+            if ($remaining <= 1) {
+                Product::where('variation_group_id', $groupId)
+                    ->update(['variation_group_id' => null]);
+                \App\Models\ProductVariationAttribute::where('variation_group_id', $groupId)->delete();
+                \App\Models\VariationGroup::where('id', $groupId)->delete();
+            }
+        });
+
+        return back()->with('success', __('messages.product.variation_removed'))->withFragment('tab-variations');
+    }
 
 // Ajax pour récupérer les valeurs d’un type
 public function values(VariationType $type)
@@ -911,14 +930,19 @@ public function duplicate(Product $product)
             }
         }
 
-        // Dupliquer les variations
-        if ($product->variations->isNotEmpty()) {
-            foreach ($product->variations as $variation) {
-                ProductVariation::create([
+        // Note: duplicated product is NOT added to the same variation group
+        // (it's a copy, not a sibling). Attributes are copied for reference.
+        if ($product->variationAttributes->isNotEmpty()) {
+            $newGroup = \App\Models\VariationGroup::create([
+                'name' => ($newProduct->name['fr'] ?? reset($newProduct->name)) . ' (copie)',
+            ]);
+            $newProduct->update(['variation_group_id' => $newGroup->id]);
+            foreach ($product->variationAttributes as $attr) {
+                \App\Models\ProductVariationAttribute::create([
                     'product_id' => $newProduct->id,
-                    'variation_type_id' => $variation->variation_type_id,
-                    'variation_value_id' => $variation->variation_value_id,
-                    'linked_product_id' => $variation->linked_product_id,
+                    'variation_group_id' => $newGroup->id,
+                    'variation_type_id' => $attr->variation_type_id,
+                    'variation_value_id' => $attr->variation_value_id,
                 ]);
             }
         }

@@ -49,7 +49,7 @@ class SendSaleTelegramNotification
                 $name = $item->product->name['en'] ?? $item->product->name['fr'] ?? 'Product';
             }
 
-            $itemLine = "  • {$item->quantity}x {$name} - \${$item->price}";
+            $itemLine = "  • {$item->quantity}x {$name} - \$" . number_format($item->price, 2);
 
             // Item-level discounts
             if (!empty($item->discounts)) {
@@ -60,7 +60,7 @@ class SendSaleTelegramNotification
                         $itemLine .= " <i>(-{$discount['value']}%)</i>";
                     } else {
                         $discountAmount = $discount['value'] ?? 0;
-                        $itemLine .= " <i>(-\${$discountAmount})</i>";
+                        $itemLine .= " <i>(-\$" . number_format($discountAmount, 2) . ")</i>";
                     }
                     $totalItemDiscounts += $discountAmount;
                 }
@@ -97,7 +97,7 @@ class SendSaleTelegramNotification
             $message .= "\n🎫 <b>Discounts:</b>\n{$saleDiscountsText}";
         }
 
-        $message .= "\n💰 <b>Total:</b> \${$sale->total}";
+        $message .= "\n💰 <b>Total:</b> \$" . number_format($sale->total, 2);
 
         // Daily revenue summary (excluding voucher payments)
         if ($storeId) {

@@ -30,6 +30,9 @@ class Product extends Model
         'is_resalable',
         'allow_overselling',
         'attributes',
+        'variation_group_id',
+        'gender',
+        'age_group',
     ];
 
     protected $casts = [
@@ -67,6 +70,20 @@ class Product extends Model
         return $this->stockBatches()
             ->where('reseller_id', $reseller->id)
             ->sum('quantity');
+    }
+
+    // Stock réservé par les popup events actifs pour un store
+    public function getReservedQuantity(Store $store)
+    {
+        return PopupEventItem::whereHas('event', function ($q) use ($store) {
+            $q->where('status', 'active')->where('store_id', $store->id);
+        })->where('product_id', $this->id)->sum('quantity_allocated');
+    }
+
+    // Stock disponible = total - réservé events actifs
+    public function getAvailableStock(Store $store)
+    {
+        return $this->getTotalStock($store) - $this->getReservedQuantity($store);
     }
 
     // Relations classiques
@@ -179,38 +196,26 @@ class Product extends Model
     }
 
 
-    // Relation vers ses valeurs de déclinaison
-    public function variationValues()
+    public function variationGroup()
     {
-        return $this->belongsToMany(VariationValue::class, 'product_variations')
-                    ->withTimestamps();
+        return $this->belongsTo(VariationGroup::class);
     }
 
-    // Produits liés en tant que déclinaisons
-    public function relatedProducts()
+    public function variationAttributes()
     {
-        return $this->belongsToMany(Product::class, 'product_variation_links',
-            'product_id', 'related_product_id')
-            ->withTimestamps();
+        return $this->hasMany(ProductVariationAttribute::class);
     }
 
-    // Symétrie (inverse)
-    public function linkedTo()
+    /**
+     * Get all other products in the same variation group.
+     */
+    public function groupSiblings()
     {
-        return $this->belongsToMany(Product::class, 'product_variation_links',
-            'related_product_id', 'product_id')
-            ->withTimestamps();
-    }
+        if (!$this->variation_group_id) return collect();
 
-    // Récupérer toutes les déclinaisons liées (symétriques)
-    public function allVariations()
-    {
-        return $this->relatedProducts->merge($this->linkedTo);
-    }
-
-    public function variations()
-    {
-        return $this->hasMany(ProductVariation::class, 'product_id');
+        return static::where('variation_group_id', $this->variation_group_id)
+            ->where('id', '!=', $this->id)
+            ->get();
     }
 
     /**

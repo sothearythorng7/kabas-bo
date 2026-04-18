@@ -50,7 +50,7 @@
             </div>
             <div class="col-md-4 mb-3">
                 <label for="unit_price" class="form-label">{{ __('messages.factory.unit_sale_price') }} ($)</label>
-                <input type="number" step="0.01" min="0" class="form-control @error('unit_price') is-invalid @enderror" id="unit_price" name="unit_price" value="{{ old('unit_price') }}">
+                <input type="number" step="0.00001" min="0" class="form-control @error('unit_price') is-invalid @enderror" id="unit_price" name="unit_price" value="{{ old('unit_price') }}">
                 @error('unit_price') <div class="invalid-feedback">{{ $message }}</div> @enderror
                 <small class="text-muted">{{ __('messages.factory.unit_sale_price_help') }}</small>
             </div>
@@ -120,7 +120,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Set unit price from product's price (only if field is empty or this is initial load)
         if (!unitPriceInput.dataset.userModified) {
-            unitPriceInput.value = parseFloat(option.dataset.price || 0).toFixed(2);
+            unitPriceInput.value = parseFloat(option.dataset.price || 0).toFixed(5);
         }
 
         const max = parseInt(option.dataset.max) || 0;

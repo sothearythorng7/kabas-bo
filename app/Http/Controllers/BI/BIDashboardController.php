@@ -11,6 +11,7 @@ use App\Models\Reseller;
 use App\Models\ResellerSalesReport;
 use App\Models\StockBatch;
 use App\Models\Shift;
+use App\Models\WebsiteOrder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
@@ -48,7 +49,7 @@ class BIDashboardController extends Controller
         $topResellersByRevenue = $this->getTopResellersByRevenue($startDate, $endDate);
 
         // === KPI GLOBAUX ===
-        // Chiffre d'affaires total (excluding voucher payments - already counted at creation)
+        // Chiffre d'affaires magasin uniquement (excluding voucher payments - already counted at creation)
         $allSales = Sale::whereBetween('created_at', [$startDate, $endDate])->get();
         $totalRevenue = Sale::sumRealRevenue($allSales);
         $totalRevenueByStore = [];
@@ -59,8 +60,52 @@ class BIDashboardController extends Controller
             $totalRevenueByStore[$store->id] = Sale::sumRealRevenue($storeSalesForRevenue);
         }
 
-        // Nombre de ventes
-        $totalSales = Sale::whereBetween('created_at', [$startDate, $endDate])->count();
+        // === WEBSITE ORDERS (site e-commerce uniquement) ===
+        $websiteOrderRevenue = WebsiteOrder::where('payment_status', 'paid')
+            ->where('source', 'website')
+            ->whereBetween('created_at', [$startDate, $endDate])
+            ->sum('total');
+
+        $websiteOrderCount = WebsiteOrder::where('payment_status', 'paid')
+            ->where('source', 'website')
+            ->whereBetween('created_at', [$startDate, $endDate])
+            ->count();
+
+        $websiteOrderAverageBasket = $websiteOrderCount > 0 ? $websiteOrderRevenue / $websiteOrderCount : 0;
+
+        // === SPECIAL ORDERS (commandes spéciales = Warehouse) ===
+        $specialOrderRevenue = WebsiteOrder::where('payment_status', 'paid')
+            ->where('source', 'backoffice')
+            ->whereBetween('created_at', [$startDate, $endDate])
+            ->sum('total');
+
+        $specialOrderCount = WebsiteOrder::where('payment_status', 'paid')
+            ->where('source', 'backoffice')
+            ->whereBetween('created_at', [$startDate, $endDate])
+            ->count();
+
+        $specialOrderAverageBasket = $specialOrderCount > 0 ? $specialOrderRevenue / $specialOrderCount : 0;
+
+        // Ajouter le revenu des commandes spéciales au store correspondant (Warehouse)
+        $specialOrdersByStore = WebsiteOrder::where('payment_status', 'paid')
+            ->where('source', 'backoffice')
+            ->whereBetween('created_at', [$startDate, $endDate])
+            ->select('store_id', DB::raw('SUM(total) as total'), DB::raw('COUNT(*) as count'))
+            ->groupBy('store_id')
+            ->get()
+            ->keyBy('store_id');
+
+        foreach ($specialOrdersByStore as $storeId => $data) {
+            if (isset($totalRevenueByStore[$storeId])) {
+                $totalRevenueByStore[$storeId] += $data->total;
+            }
+        }
+
+        // Ajouter au revenu global aussi
+        $totalRevenue += $specialOrderRevenue;
+
+        // Nombre de ventes (POS + special orders)
+        $totalSales = Sale::whereBetween('created_at', [$startDate, $endDate])->count() + $specialOrderCount;
 
         // Panier moyen
         $averageBasket = $totalSales > 0 ? $totalRevenue / $totalSales : 0;
@@ -69,21 +114,22 @@ class BIDashboardController extends Controller
         foreach ($stores as $store) {
             $storeSales = Sale::where('store_id', $store->id)
                 ->whereBetween('created_at', [$startDate, $endDate])
-                ->count();
+                ->count()
+                + ($specialOrdersByStore[$store->id]->count ?? 0);
             $averageBasketByStore[$store->id] = $storeSales > 0 ? $totalRevenueByStore[$store->id] / $storeSales : 0;
 
             // Nombre moyen d'articles par vente par boutique
             $storeItemsSold = SaleItem::whereHas('sale', function($q) use ($startDate, $endDate, $store) {
                 $q->whereBetween('created_at', [$startDate, $endDate])
                   ->where('store_id', $store->id);
-            })->sum('quantity');
+            })->whereNull('exchanged_at')->sum('quantity');
             $averageItemsPerSaleByStore[$store->id] = $storeSales > 0 ? $storeItemsSold / $storeSales : 0;
         }
 
-        // Nombre d'articles vendus
+        // Nombre d'articles vendus (exclure les items retournés via échange)
         $totalItemsSold = SaleItem::whereHas('sale', function($q) use ($startDate, $endDate) {
             $q->whereBetween('created_at', [$startDate, $endDate]);
-        })->sum('quantity');
+        })->whereNull('exchanged_at')->sum('quantity');
 
         // === MARGE TOTALE ===
         $totalMargin = $this->calculateTotalMargin($startDate, $endDate);
@@ -112,6 +158,20 @@ class BIDashboardController extends Controller
 
         $previousSales = Sale::whereBetween('created_at', [$previousPeriodStart, $previousPeriodEnd])->count();
         $salesGrowth = $previousSales > 0 ? (($totalSales - $previousSales) / $previousSales) * 100 : 0;
+
+        // Website orders growth
+        $previousWebsiteRevenue = WebsiteOrder::where('payment_status', 'paid')
+            ->where('source', 'website')
+            ->whereBetween('created_at', [$previousPeriodStart, $previousPeriodEnd])
+            ->sum('total');
+        $websiteRevenueGrowth = $previousWebsiteRevenue > 0 ? (($websiteOrderRevenue - $previousWebsiteRevenue) / $previousWebsiteRevenue) * 100 : 0;
+
+        // Special orders growth
+        $previousSpecialRevenue = WebsiteOrder::where('payment_status', 'paid')
+            ->where('source', 'backoffice')
+            ->whereBetween('created_at', [$previousPeriodStart, $previousPeriodEnd])
+            ->sum('total');
+        $specialRevenueGrowth = $previousSpecialRevenue > 0 ? (($specialOrderRevenue - $previousSpecialRevenue) / $previousSpecialRevenue) * 100 : 0;
 
         // === REPARTITION PAR MODE DE PAIEMENT ===
         $paymentDistribution = Sale::whereBetween('created_at', [$startDate, $endDate])
@@ -208,7 +268,15 @@ class BIDashboardController extends Controller
             'conversionRate',
             'walkInsByStore',
             'conversionRateByStore',
-            'averageWalkInPerDayByStore'
+            'averageWalkInPerDayByStore',
+            'websiteOrderRevenue',
+            'websiteOrderCount',
+            'websiteOrderAverageBasket',
+            'websiteRevenueGrowth',
+            'specialOrderRevenue',
+            'specialOrderCount',
+            'specialOrderAverageBasket',
+            'specialRevenueGrowth'
         ));
     }
 
@@ -246,6 +314,7 @@ class BIDashboardController extends Controller
                 }
             })
             ->whereNotNull('product_id')
+            ->whereNull('exchanged_at')
             ->groupBy('product_id')
             ->orderByDesc('total_quantity')
             ->limit(10)
@@ -375,7 +444,7 @@ class BIDashboardController extends Controller
             if ($storeId) {
                 $q->where('store_id', $storeId);
             }
-        })->whereNotNull('product_id')->with(['product.suppliers', 'sale.items'])->get();
+        })->whereNotNull('product_id')->whereNull('exchanged_at')->with(['product.suppliers', 'sale.items'])->get();
 
         $totalMargin = 0;
         foreach ($items as $item) {
@@ -397,6 +466,7 @@ class BIDashboardController extends Controller
                 $q->whereBetween('created_at', [$startDate, $endDate]);
             })
             ->whereNotNull('product_id')
+            ->whereNull('exchanged_at')
             ->whereHas('product', fn($q) => $q->whereNotNull('brand_id'))
             ->get();
 
@@ -429,6 +499,7 @@ class BIDashboardController extends Controller
                 $q->whereBetween('created_at', [$startDate, $endDate]);
             })
             ->whereNotNull('product_id')
+            ->whereNull('exchanged_at')
             ->get();
 
         $categoryData = [];

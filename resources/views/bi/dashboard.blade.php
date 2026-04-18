@@ -44,14 +44,14 @@ function toggleCustomDates(select) {
 }
 </script>
 
-{{-- KPI Cards Row --}}
+{{-- KPI Cards Row - Store Sales --}}
 <div class="row mb-4">
-    {{-- Total Revenue --}}
+    {{-- Store Revenue --}}
     <div class="col-md-3">
         <div class="card border-left-primary shadow h-100 py-2">
             <div class="card-body">
                 <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
-                    {{ __('messages.bi.total_revenue') }}
+                    <i class="bi bi-shop"></i> {{ __('messages.bi.store_revenue') }}
                 </div>
                 <div class="h4 mb-0 font-weight-bold text-gray-800">
                     ${{ number_format($totalRevenue, 2) }}
@@ -66,12 +66,12 @@ function toggleCustomDates(select) {
         </div>
     </div>
 
-    {{-- Total Sales --}}
+    {{-- Store Sales Count --}}
     <div class="col-md-3">
         <div class="card border-left-success shadow h-100 py-2">
             <div class="card-body">
                 <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
-                    {{ __('messages.bi.total_sales') }}
+                    <i class="bi bi-receipt"></i> {{ __('messages.bi.store_sales') }}
                 </div>
                 <div class="h4 mb-0 font-weight-bold text-gray-800">
                     {{ number_format($totalSales) }}
@@ -118,6 +118,102 @@ function toggleCustomDates(select) {
                     {{ number_format(($totalMargin / $totalRevenue) * 100, 1) }}% {{ __('messages.bi.margin_rate') }}
                 </div>
                 @endif
+            </div>
+        </div>
+    </div>
+</div>
+
+{{-- Website Orders KPI Card --}}
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="card shadow h-100 py-2" style="border-left: 4px solid #6f42c1;">
+            <div class="card-body">
+                <div class="text-xs font-weight-bold text-uppercase mb-1" style="color: #6f42c1;">
+                    <i class="bi bi-globe"></i> {{ __('messages.bi.website_revenue') }}
+                </div>
+                <div class="h4 mb-0 font-weight-bold text-gray-800">
+                    ${{ number_format($websiteOrderRevenue, 2) }}
+                </div>
+                @if($websiteRevenueGrowth != 0)
+                <div class="mt-2 {{ $websiteRevenueGrowth > 0 ? 'text-success' : 'text-danger' }}">
+                    <i class="bi {{ $websiteRevenueGrowth > 0 ? 'bi-arrow-up' : 'bi-arrow-down' }}"></i>
+                    {{ number_format(abs($websiteRevenueGrowth), 1) }}% {{ __('messages.bi.vs_previous') }}
+                </div>
+                @endif
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card shadow h-100 py-2" style="border-left: 4px solid #6f42c1;">
+            <div class="card-body">
+                <div class="text-xs font-weight-bold text-uppercase mb-1" style="color: #6f42c1;">
+                    <i class="bi bi-bag-check"></i> {{ __('messages.bi.website_orders') }}
+                </div>
+                <div class="h4 mb-0 font-weight-bold text-gray-800">
+                    {{ number_format($websiteOrderCount) }}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card shadow h-100 py-2" style="border-left: 4px solid #6f42c1;">
+            <div class="card-body">
+                <div class="text-xs font-weight-bold text-uppercase mb-1" style="color: #6f42c1;">
+                    <i class="bi bi-cart3"></i> {{ __('messages.bi.website_avg_basket') }}
+                </div>
+                <div class="h4 mb-0 font-weight-bold text-gray-800">
+                    ${{ number_format($websiteOrderAverageBasket, 2) }}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{{-- Special Orders (Warehouse) KPI Card --}}
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="card shadow h-100 py-2" style="border-left: 4px solid #e67e22;">
+            <div class="card-body">
+                <div class="text-xs font-weight-bold text-uppercase mb-1" style="color: #e67e22;">
+                    <i class="bi bi-box-seam"></i> {{ __('messages.bi.special_order_revenue') }}
+                </div>
+                <div class="h4 mb-0 font-weight-bold text-gray-800">
+                    ${{ number_format($specialOrderRevenue, 2) }}
+                </div>
+                @if($specialRevenueGrowth != 0)
+                <div class="mt-2 {{ $specialRevenueGrowth > 0 ? 'text-success' : 'text-danger' }}">
+                    <i class="bi {{ $specialRevenueGrowth > 0 ? 'bi-arrow-up' : 'bi-arrow-down' }}"></i>
+                    {{ number_format(abs($specialRevenueGrowth), 1) }}% {{ __('messages.bi.vs_previous') }}
+                </div>
+                @endif
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card shadow h-100 py-2" style="border-left: 4px solid #e67e22;">
+            <div class="card-body">
+                <div class="text-xs font-weight-bold text-uppercase mb-1" style="color: #e67e22;">
+                    <i class="bi bi-box-seam"></i> {{ __('messages.bi.special_orders') }}
+                </div>
+                <div class="h4 mb-0 font-weight-bold text-gray-800">
+                    {{ number_format($specialOrderCount) }}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card shadow h-100 py-2" style="border-left: 4px solid #e67e22;">
+            <div class="card-body">
+                <div class="text-xs font-weight-bold text-uppercase mb-1" style="color: #e67e22;">
+                    <i class="bi bi-cart3"></i> {{ __('messages.bi.special_order_avg_basket') }}
+                </div>
+                <div class="h4 mb-0 font-weight-bold text-gray-800">
+                    ${{ number_format($specialOrderAverageBasket, 2) }}
+                </div>
             </div>
         </div>
     </div>

@@ -250,7 +250,7 @@
                                                             <label class="form-label">{{ __('messages.Amount paid') }} <span class="text-danger">*</span></label>
                                                             <div class="input-group input-group-sm">
                                                                 <span class="input-group-text">$</span>
-                                                                <input type="number" name="amount" class="form-control form-control-sm" step="0.01" min="0" value="{{ number_format($remainingAmount, 2, '.', '') }}" required>
+                                                                <input type="number" name="amount" class="form-control form-control-sm" step="0.00001" min="0" value="{{ number_format($remainingAmount, 5, '.', '') }}" required>
                                                             </div>
                                                         </div>
                                                         <div class="mb-3">

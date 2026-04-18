@@ -30,7 +30,7 @@
                     <td>{{ $item->quantity_sold }}</td>
                     <td>{{ number_format($item->unit_price, 2) }} $</td>
                     <td>
-                        <input type="number" step="0.01"
+                        <input type="number" step="0.00001"
                                name="products[{{ $item->product_id }}][price_invoiced]"
                                value="{{ old('products.'.$item->product_id.'.price_invoiced', $item->unit_price) }}"
                                class="form-control form-control-sm price-input"

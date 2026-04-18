@@ -35,7 +35,7 @@
                         <td>{{ number_format($quantityReceived, 2) }}</td>
                         <td>${{ number_format($material->pivot->purchase_price, 2) }}</td>
                         <td>
-                            <input type="number" step="0.01" min="0"
+                            <input type="number" step="0.00001" min="0"
                                    name="raw_materials[{{ $material->id }}][price_invoiced]"
                                    value="{{ old('raw_materials.'.$material->id.'.price_invoiced', $material->pivot->purchase_price) }}"
                                    class="form-control form-control-sm price-input"
@@ -49,11 +49,19 @@
             </table>
         </div>
 
-        {{-- Upload facture obligatoire --}}
+        {{-- Date de facturation + Upload facture --}}
         <div class="card mt-3">
             <div class="card-body">
                 <div class="row">
-                    <div class="col-md-6">
+                    <div class="col-md-4">
+                        <label for="invoice_date" class="form-label fw-bold">{{ __('messages.invoice_reception.invoice_date') }}</label>
+                        <input type="date" class="form-control @error('invoice_date') is-invalid @enderror"
+                               id="invoice_date" name="invoice_date" value="{{ old('invoice_date', now()->format('Y-m-d')) }}" required>
+                        @error('invoice_date')
+                            <div class="invalid-feedback">{{ $message }}</div>
+                        @enderror
+                    </div>
+                    <div class="col-md-4">
                         <label for="invoice_file" class="form-label fw-bold">{{ __('messages.factory.supplier_invoice') }} (PDF {{ __('messages.factory.or_image') }})</label>
                         <input type="file" class="form-control @error('invoice_file') is-invalid @enderror"
                                id="invoice_file" name="invoice_file" accept="application/pdf,image/*" required>
@@ -61,7 +69,7 @@
                             <div class="invalid-feedback">{{ $message }}</div>
                         @enderror
                     </div>
-                    <div class="col-md-6">
+                    <div class="col-md-4">
                         <label class="form-label fw-bold">{{ __('messages.factory.invoice_number') }}</label>
                         <input type="text" name="invoice_number" class="form-control"
                                value="{{ old('invoice_number') }}"

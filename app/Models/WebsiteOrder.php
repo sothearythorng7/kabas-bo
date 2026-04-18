@@ -37,6 +37,7 @@ class WebsiteOrder extends Model
         'total',
         'status',
         'payment_status',
+        'paid_at',
         'payment_method',
         'payment_type',
         'payway_tran_id',
@@ -53,13 +54,14 @@ class WebsiteOrder extends Model
     protected function casts(): array
     {
         return [
-            'subtotal' => 'decimal:2',
-            'shipping_cost' => 'decimal:2',
-            'tax' => 'decimal:2',
-            'discount' => 'decimal:2',
-            'total' => 'decimal:2',
-            'deposit_amount' => 'decimal:2',
+            'subtotal' => 'decimal:5',
+            'shipping_cost' => 'decimal:5',
+            'tax' => 'decimal:5',
+            'discount' => 'decimal:5',
+            'total' => 'decimal:5',
+            'deposit_amount' => 'decimal:5',
             'deposit_paid' => 'boolean',
+            'paid_at' => 'datetime',
             'payment_link_expires_at' => 'datetime',
         ];
     }
@@ -163,7 +165,8 @@ class WebsiteOrder extends Model
     public static function generateOrderNumber(): string
     {
         $year = date('Y');
-        $last = static::where('order_number', 'like', "ORD-{$year}-%")
+        $last = static::withTrashed()
+            ->where('order_number', 'like', "ORD-{$year}-%")
             ->orderByRaw('CAST(SUBSTRING(order_number, -5) AS UNSIGNED) DESC')
             ->value('order_number');
 

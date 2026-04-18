@@ -76,7 +76,7 @@
                                 <label class="form-label">{{ __('messages.warehouse_invoices.amount_usd') }}</label>
                                 <div class="input-group">
                                     <span class="input-group-text">$</span>
-                                    <input type="number" step="0.01" name="amount_usd" class="form-control" value="{{ old('amount_usd', $invoice->amount_usd) }}">
+                                    <input type="number" step="0.00001" name="amount_usd" class="form-control" value="{{ old('amount_usd', $invoice->amount_usd) }}">
                                 </div>
                             </div>
                             <div class="col-md-6 mb-3">
@@ -234,7 +234,7 @@
         rielInput.addEventListener('input', function() {
             const riel = parseFloat(this.value);
             if(!isNaN(riel)) {
-                usdInput.value = (riel / rate).toFixed(2);
+                usdInput.value = (riel / rate).toFixed(5);
             } else {
                 usdInput.value = '';
             }

@@ -25,8 +25,8 @@ class WebsiteOrderItem extends Model
     protected function casts(): array
     {
         return [
-            'unit_price' => 'decimal:2',
-            'subtotal' => 'decimal:2',
+            'unit_price' => 'decimal:5',
+            'subtotal' => 'decimal:5',
             'quantity' => 'integer',
         ];
     }

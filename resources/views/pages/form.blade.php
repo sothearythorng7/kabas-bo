@@ -116,8 +116,11 @@ document.addEventListener('DOMContentLoaded', function () {
 
     paste_as_text: true,
     paste_data_images: false,
-    invalid_elements: 'img,figure,video,audio,iframe,embed,object,svg,canvas,table,thead,tbody,tfoot,tr,td,th,hr,source,track',
-    valid_elements: 'p,h2,h3,strong/b,em/i,u,a[href|target|title],ul,ol,li,blockquote,code,pre,br,span[class]',
+    invalid_elements: 'img,figure,video,audio,iframe,embed,object,svg,canvas,source,track,script',
+    valid_elements: 'p[style|class],h1[style|class],h2[style|class],h3[style|class],h4[style|class],strong/b,em/i,u,a[href|target|title|style|class],ul[style|class],ol[style|class],li[style|class],blockquote[style|class],code,pre,br,span[style|class],hr,table[style|class|border|cellpadding|cellspacing],thead,tbody,tfoot,tr[style|class],th[style|class|colspan|rowspan|scope],td[style|class|colspan|rowspan]',
+    valid_styles: {
+      '*': 'text-align,color,background-color,font-weight,font-style,text-decoration'
+    },
 
     setup(editor) {
       editor.on('drop', (e) => {

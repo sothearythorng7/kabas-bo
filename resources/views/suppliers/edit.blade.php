@@ -77,6 +77,12 @@
             </button>
         </li>
         @endif
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="sales-tracking-tab" data-bs-toggle="tab" data-bs-target="#sales-tracking" type="button" role="tab" aria-controls="sales-tracking" aria-selected="false">
+                <i class="bi bi-graph-up"></i> {{ __('messages.supplier.sales_tracking') }}
+                <span class="badge bg-{{ $stTotals['count'] > 0 ? 'primary' : 'secondary' }}">{{ $stTotals['count'] }}</span>
+            </button>
+        </li>
     </ul>
 
     <div class="tab-content mt-3" id="supplierTabsContent">
@@ -264,7 +270,7 @@
                             <div class="modal-body">
                                 <div class="mb-3">
                                     <label class="form-label">{{ __('messages.supplier.amount_paid') }}</label>
-                                    <input type="number" step="0.01" name="amount" class="form-control"
+                                    <input type="number" step="0.00001" name="amount" class="form-control"
                                         value="{{ $report->total_amount_invoiced ?? $report->total_amount_theoretical }}">
                                 </div>
                                 <div class="mb-3">
@@ -582,7 +588,7 @@
                                     <form action="{{ route('suppliers.updatePurchasePrice', [$supplier, $p]) }}" method="POST" class="d-flex">
                                         @csrf
                                         @method('PUT')
-                                        <input type="number" step="0.01" name="purchase_price" value="{{ $p->pivot->purchase_price ?? 0 }}" class="form-control form-control-sm me-2" style="max-width:100px;">
+                                        <input type="number" step="0.00001" name="purchase_price" value="{{ $p->pivot->purchase_price ?? 0 }}" class="form-control form-control-sm me-2" style="max-width:100px;">
                                         <button type="submit" class="btn btn-sm btn-success"><i class="bi bi-floppy-fill"></i></button>
                                     </form>
                                 </td>
@@ -847,6 +853,127 @@
             @endif
         </div>
         @endif
+
+        {{-- Onglet Suivi des ventes (tous canaux) --}}
+        <div class="tab-pane fade" id="sales-tracking" role="tabpanel" aria-labelledby="sales-tracking-tab">
+            {{-- Filtres --}}
+            <form method="GET" action="{{ route('suppliers.edit', $supplier) }}#sales-tracking" class="mb-4">
+                <div class="row g-3 align-items-end">
+                    <div class="col-md-3">
+                        <label for="st_month" class="form-label">{{ __('messages.supplier.st_month') }}</label>
+                        <input type="month" class="form-control" id="st_month" name="st_month" value="{{ $stMonth }}">
+                    </div>
+                    <div class="col-md-5">
+                        <label for="st_channel" class="form-label">{{ __('messages.supplier.st_channel') }}</label>
+                        <select class="form-select" id="st_channel" name="st_channel">
+                            <option value="all" @selected($stChannel === 'all')>{{ __('messages.supplier.st_all_channels') }}</option>
+                            <optgroup label="{{ __('messages.supplier.st_stores') }}">
+                                @foreach($stStores as $store)
+                                    <option value="pos_{{ $store->id }}" @selected($stChannel === 'pos_' . $store->id)>{{ $store->name }}</option>
+                                @endforeach
+                            </optgroup>
+                            <optgroup label="{{ __('messages.supplier.st_resellers') }}">
+                                @foreach($stResellers as $reseller)
+                                    <option value="reseller_{{ $reseller->id }}" @selected($stChannel === 'reseller_' . $reseller->id)>{{ $reseller->name }}</option>
+                                @endforeach
+                            </optgroup>
+                            <option value="website" @selected($stChannel === 'website')>{{ __('messages.supplier.st_website') }}</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-search"></i> {{ __('messages.btn.search') }}
+                        </button>
+                    </div>
+                </div>
+            </form>
+
+            {{-- Totaux --}}
+            <div class="alert alert-info mb-3">
+                <div class="row">
+                    <div class="col-md-4">
+                        <strong>{{ __('messages.supplier.st_lines') }}:</strong> {{ number_format($stTotals['count']) }}
+                    </div>
+                    <div class="col-md-4">
+                        <strong>{{ __('messages.supplier.total_quantity_sold') }}:</strong> {{ number_format($stTotals['quantity']) }}
+                    </div>
+                    <div class="col-md-4">
+                        <strong>{{ __('messages.supplier.total_revenue') }}:</strong> ${{ number_format($stTotals['total'], 2) }}
+                    </div>
+                </div>
+            </div>
+
+            {{-- Tableau --}}
+            @if($salesTracking->count() > 0)
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover">
+                        <thead>
+                            <tr>
+                                <th>{{ __('messages.supplier.st_date') }}</th>
+                                <th>{{ __('messages.supplier.st_channel') }}</th>
+                                <th>{{ __('messages.supplier.st_source') }}</th>
+                                <th>{{ __('messages.product.name') }}</th>
+                                <th class="text-end">{{ __('messages.supplier.quantity_sold') }}</th>
+                                <th class="text-end">{{ __('messages.supplier.unit_price_avg') }}</th>
+                                <th class="text-end">Total</th>
+                                <th class="text-center">{{ __('messages.supplier.st_financial') }}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach($salesTracking as $tracking)
+                                <tr>
+                                    <td class="text-nowrap">{{ $tracking['date']->format('d/m/Y H:i') }}</td>
+                                    <td>
+                                        @if($tracking['channel'] === 'pos')
+                                            <span class="badge bg-primary">POS</span>
+                                        @elseif($tracking['channel'] === 'website')
+                                            <span class="badge bg-success">Web</span>
+                                        @else
+                                            <span class="badge bg-warning text-dark">{{ __('messages.supplier.st_reseller') }}</span>
+                                        @endif
+                                    </td>
+                                    <td>{{ $tracking['source'] }}</td>
+                                    <td>
+                                        @if($tracking['product'])
+                                            <a href="{{ route('products.edit', $tracking['product']->id) }}">
+                                                {{ $tracking['product']->name[app()->getLocale()] ?? reset($tracking['product']->name) }}
+                                            </a>
+                                        @else
+                                            <span class="text-muted">-</span>
+                                        @endif
+                                    </td>
+                                    <td class="text-end">{{ number_format($tracking['quantity']) }}</td>
+                                    <td class="text-end">${{ number_format($tracking['unit_price'], 2) }}</td>
+                                    <td class="text-end">${{ number_format($tracking['total'], 2) }}</td>
+                                    <td class="text-center">
+                                        @if($tracking['financial_url'])
+                                            <a href="{{ $tracking['financial_url'] }}" class="btn btn-sm btn-outline-primary" title="{{ __('messages.supplier.st_view_transaction') }}">
+                                                <i class="bi bi-receipt"></i>
+                                            </a>
+                                        @else
+                                            <span class="text-muted">-</span>
+                                        @endif
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                        <tfoot class="table-light">
+                            <tr>
+                                <th colspan="4">{{ __('messages.supplier.st_total') }}</th>
+                                <th class="text-end">{{ number_format($stTotals['quantity']) }}</th>
+                                <th></th>
+                                <th class="text-end">${{ number_format($stTotals['total'], 2) }}</th>
+                                <th></th>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            @else
+                <div class="alert alert-warning">
+                    {{ __('messages.supplier.no_sales_found') }}
+                </div>
+            @endif
+        </div>
     </div>
 </div>
 

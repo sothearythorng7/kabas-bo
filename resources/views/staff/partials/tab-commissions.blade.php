@@ -152,8 +152,15 @@
 
         {{-- Commission Calculations --}}
         <div class="card">
-            <div class="card-header">
+            <div class="card-header d-flex justify-content-between align-items-center">
                 <h5 class="mb-0"><i class="bi bi-cash-stack"></i> {{ __('messages.staff.commission_calculations') }}</h5>
+                <form action="{{ route('staff.commissions.recalculate-all', $staffMember) }}" method="POST"
+                      onsubmit="return confirm('{{ __('messages.staff.confirm_recalculate_all') }}')">
+                    @csrf
+                    <button type="submit" class="btn btn-outline-primary btn-sm">
+                        <i class="bi bi-arrow-repeat"></i> {{ __('messages.staff.recalculate_all') }}
+                    </button>
+                </form>
             </div>
             <div class="card-body">
                 @php
@@ -191,6 +198,15 @@
                                             </span>
                                         </td>
                                         <td>
+                                            @if($calc->status !== 'paid')
+                                                <form action="{{ route('staff.commissions.calculate', $staffMember) }}" method="POST" class="d-inline">
+                                                    @csrf
+                                                    <input type="hidden" name="period" value="{{ $calc->period }}">
+                                                    <button type="submit" class="btn btn-sm btn-outline-primary" title="{{ __('messages.staff.recalculate') }}">
+                                                        <i class="bi bi-arrow-repeat"></i>
+                                                    </button>
+                                                </form>
+                                            @endif
                                             @if($calc->status === 'pending')
                                                 <form action="{{ route('staff.commissions.approve', $calc) }}" method="POST" class="d-inline">
                                                     @csrf

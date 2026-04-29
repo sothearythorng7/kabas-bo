@@ -1,0 +1,981 @@
+[
+    {
+        "slug": "jason-kong-buterfly-pea-gin-700ml",
+        "fixes": [
+            {
+                "field": "name_en",
+                "type": "TYPO",
+                "from": "Buterfly",
+                "to": "Butterfly"
+            },
+            {
+                "field": "slug",
+                "type": "SLUG+301",
+                "from": "jason-kong-buterfly-pea-gin-700ml",
+                "to": "jason-kong-butterfly-pea-gin-700ml"
+            },
+            {
+                "field": "name_fr",
+                "type": "TYPO+TRAD",
+                "from": "Jason Kong Buterfly Pea Gin 700ml",
+                "to": "Jason Kong Gin Fleur de Pois Papillon 700ml"
+            },
+            {
+                "field": "category",
+                "type": "ADD_CAT",
+                "from": null,
+                "to": "Gifts & Vouchers > Gift Ideas"
+            }
+        ]
+    },
+    {
+        "slug": "seekers-expresso-martini-700ml",
+        "fixes": [
+            {
+                "field": "name_en",
+                "type": "TYPO",
+                "from": "Expresso",
+                "to": "Espresso"
+            },
+            {
+                "field": "slug",
+                "type": "SLUG+301",
+                "from": "seekers-expresso-martini-700ml",
+                "to": "seekers-espresso-martini-700ml"
+            },
+            {
+                "field": "name_fr",
+                "type": "TYPO",
+                "from": "Expresso",
+                "to": "Espresso"
+            },
+            {
+                "field": "desc_fr",
+                "type": "TYPO",
+                "from": "expresso",
+                "to": "espresso"
+            }
+        ]
+    },
+    {
+        "slug": "seekers-mekong-gold-gin-700ml",
+        "fixes": [
+            {
+                "field": "desc_en",
+                "type": "SEO_ENRICH",
+                "from": null,
+                "to": "Ajouter botaniques, ABV, notes gustatives"
+            },
+            {
+                "field": "desc_fr",
+                "type": "SEO_ENRICH",
+                "from": null,
+                "to": "Même enrichissement en français"
+            },
+            {
+                "field": "category",
+                "type": "ADD_CAT",
+                "from": null,
+                "to": "Gifts & Vouchers > Gift Ideas"
+            }
+        ]
+    },
+    {
+        "slug": "ampov-rhum-amber-45-50cl-porto-cask",
+        "fixes": [
+            {
+                "field": "name_en",
+                "type": "FORMAT",
+                "from": "AMPOV RHUM AMBER 45%, 50CL, PORTO CASK",
+                "to": "Ampov Amber Rum 45% – Porto Cask (50cl)"
+            },
+            {
+                "field": "name_fr",
+                "type": "TRAD",
+                "from": "AMPOV RHUM AMBER 45%, 50CL, PORTO CASK",
+                "to": "Ampov Rhum Ambré 45% – Fût de Porto (50cl)"
+            },
+            {
+                "field": "category",
+                "type": "ADD_CAT",
+                "from": null,
+                "to": "Gifts & Vouchers > Gift Ideas"
+            }
+        ]
+    },
+    {
+        "slug": "kabas-black-kampot-pepper-100g",
+        "fixes": [
+            {
+                "field": "name_fr",
+                "type": "TRAD",
+                "from": "Kabas Black Kampot Pepper 100g",
+                "to": "Poivre Noir de Kampot Kabas 100g"
+            }
+        ]
+    },
+    {
+        "slug": "black-kampot-pepper-25g-recycle-paper",
+        "fixes": [
+            {
+                "field": "name_fr",
+                "type": "TRAD",
+                "from": "Black Kampot Pepper 25g (Recycle Paper)",
+                "to": "Poivre Noir de Kampot 25g – Papier Recyclé"
+            }
+        ]
+    },
+    {
+        "slug": "red-kampot-pepper-25g-recycle-paper",
+        "fixes": [
+            {
+                "field": "name_fr",
+                "type": "TRAD",
+                "from": "Red Kampot Pepper 25g (Recycle Paper)",
+                "to": "Poivre Rouge de Kampot 25g – Papier Recyclé"
+            }
+        ]
+    },
+    {
+        "slug": "white-kampot-pepper-25g-recycle-paper",
+        "fixes": [
+            {
+                "field": "name_fr",
+                "type": "TRAD",
+                "from": "White Kampot Pepper 25g (Recycle Paper)",
+                "to": "Poivre Blanc de Kampot 25g – Papier Recyclé"
+            }
+        ]
+    },
+    {
+        "slug": "salted-kampot-pepper-25g-recycle-paper",
+        "fixes": [
+            {
+                "field": "name_fr",
+                "type": "TRAD",
+                "from": "Salted Kampot Pepper 25g (Recycle Paper)",
+                "to": "Poivre de Kampot Salé 25g – Papier Recyclé"
+            }
+        ]
+    },
+    {
+        "slug": "black-kampot-pepper-500g",
+        "fixes": [
+            {
+                "field": "name_fr",
+                "type": "TRAD",
+                "from": "Black Kampot Pepper 500g",
+                "to": "Poivre Noir de Kampot 500g"
+            }
+        ]
+    },
+    {
+        "slug": "white-kampot-pepper-500g",
+        "fixes": [
+            {
+                "field": "name_fr",
+                "type": "TRAD",
+                "from": "White Kampot Pepper 500g",
+                "to": "Poivre Blanc de Kampot 500g"
+            }
+        ]
+    },
+    {
+        "slug": "salted-kampot-pepper-500g",
+        "fixes": [
+            {
+                "field": "name_fr",
+                "type": "TRAD",
+                "from": "Salted Kampot Pepper 500g",
+                "to": "Poivre de Kampot Salé 500g"
+            }
+        ]
+    },
+    {
+        "slug": "black-kampot-pepper-50g-tube",
+        "fixes": [
+            {
+                "field": "name_fr",
+                "type": "TRAD",
+                "from": "Black Kampot Pepper 50g Tube",
+                "to": "Poivre Noir de Kampot 50g – Tube"
+            }
+        ]
+    },
+    {
+        "slug": "red-kampot-pepper-50g-tube",
+        "fixes": [
+            {
+                "field": "name_fr",
+                "type": "TRAD",
+                "from": "Red Kampot Pepper 50g Tube",
+                "to": "Poivre Rouge de Kampot 50g – Tube"
+            }
+        ]
+    },
+    {
+        "slug": "white-kampot-pepper-50g-tube",
+        "fixes": [
+            {
+                "field": "name_fr",
+                "type": "TRAD",
+                "from": "White Kampot Pepper 50g Tube",
+                "to": "Poivre Blanc de Kampot 50g – Tube"
+            }
+        ]
+    },
+    {
+        "slug": "salted-kampot-pepper-50g-tube",
+        "fixes": [
+            {
+                "field": "name_fr",
+                "type": "TRAD",
+                "from": "Salted Kampot Pepper 50g Tube",
+                "to": "Poivre de Kampot Salé 50g – Tube"
+            }
+        ]
+    },
+    {
+        "slug": "black-kampot-pepper-55g-grinder",
+        "fixes": [
+            {
+                "field": "name_fr",
+                "type": "TRAD",
+                "from": "Black Kampot Pepper 55g Grinder",
+                "to": "Poivre Noir de Kampot 55g – Moulin"
+            },
+            {
+                "field": "desc_en",
+                "type": "SEO_ENRICH",
+                "from": null,
+                "to": "Ajouter marque LAPLANTATION, IGP, notes aromatiques"
+            },
+            {
+                "field": "desc_fr",
+                "type": "SEO_ENRICH",
+                "from": null,
+                "to": "Même enrichissement en français"
+            }
+        ]
+    },
+    {
+        "slug": "kabas-cashew-nuts",
+        "fixes": [
+            {
+                "field": "name_en",
+                "type": "FORMAT",
+                "from": "KABAS CASHEW NUTS",
+                "to": "Kabas Cashew Nuts 150g"
+            },
+            {
+                "field": "name_fr",
+                "type": "TRAD",
+                "from": "KABAS CASHEW NUTS",
+                "to": "Noix de Cajou du Cambodge Kabas 150g"
+            },
+            {
+                "field": "category",
+                "type": "ADD_CAT",
+                "from": null,
+                "to": "Gifts & Vouchers > Gift Ideas"
+            }
+        ]
+    },
+    {
+        "slug": "honey-50g",
+        "fixes": [
+            {
+                "field": "name_en",
+                "type": "SEO_RENAME",
+                "from": "HONEY 50G",
+                "to": "Ratanakiri Wild Honey 50g"
+            }
+        ]
+    },
+    {
+        "slug": "tuk-tuk",
+        "fixes": [
+            {
+                "field": "name_en",
+                "type": "FORMAT+SEO",
+                "from": "TUK TUK",
+                "to": "Wooden Tuk Tuk Souvenir"
+            },
+            {
+                "field": "name_fr",
+                "type": "TRAD",
+                "from": "TUK TUK",
+                "to": "Tuk Tuk en Bois – Souvenir Artisanal"
+            },
+            {
+                "field": "category",
+                "type": "ADD_CAT",
+                "from": null,
+                "to": "Home & Lifestyle > Home & Déco"
+            },
+            {
+                "field": "category",
+                "type": "ADD_CAT",
+                "from": null,
+                "to": "Jewelry & Handicraft > Handicraft"
+            }
+        ]
+    },
+    {
+        "slug": "big-passapp",
+        "fixes": [
+            {
+                "field": "name_en",
+                "type": "FORMAT+SEO",
+                "from": "BIG PASSAPP",
+                "to": "Passapp Wooden Souvenir – Large"
+            },
+            {
+                "field": "name_fr",
+                "type": "TRAD",
+                "from": "BIG PASSAPP",
+                "to": "Grand Passapp en Bois – Souvenir"
+            },
+            {
+                "field": "category",
+                "type": "ADD_CAT",
+                "from": null,
+                "to": "Home & Lifestyle > Home & Déco"
+            },
+            {
+                "field": "category",
+                "type": "ADD_CAT",
+                "from": null,
+                "to": "Jewelry & Handicraft > Handicraft"
+            }
+        ]
+    },
+    {
+        "slug": "palm-leaves-souvenir",
+        "fixes": [
+            {
+                "field": "name_en",
+                "type": "SEO_RENAME",
+                "from": "Palm Leaves Souvenir",
+                "to": "Handwoven Palm Leaf Souvenir"
+            },
+            {
+                "field": "name_fr",
+                "type": "TRAD",
+                "from": "Palm Leaves Souvenir",
+                "to": "Souvenir en Feuilles de Palmier Tressées"
+            },
+            {
+                "field": "category",
+                "type": "ADD_CAT",
+                "from": null,
+                "to": "Home & Lifestyle > Home & Déco"
+            },
+            {
+                "field": "category",
+                "type": "ADD_CAT",
+                "from": null,
+                "to": "Jewelry & Handicraft > Handicraft"
+            }
+        ]
+    },
+    {
+        "slug": "magnet",
+        "fixes": [
+            {
+                "field": "name_en",
+                "type": "SEO_RENAME",
+                "from": "MAGNET",
+                "to": "Angkor Wat Magnet – Cambodia Souvenir"
+            },
+            {
+                "field": "name_fr",
+                "type": "TRAD",
+                "from": "MAGNET",
+                "to": "Magnet Angkor Wat – Souvenir Cambodge"
+            },
+            {
+                "field": "category",
+                "type": "ADD_CAT",
+                "from": null,
+                "to": "Home & Lifestyle > Everyday Items"
+            }
+        ]
+    },
+    {
+        "slug": "magnet-size-m",
+        "fixes": [
+            {
+                "field": "name_en",
+                "type": "SEO_RENAME",
+                "from": "MAGNET SIZE M",
+                "to": "Cambodia Map Magnet – Size M"
+            },
+            {
+                "field": "name_fr",
+                "type": "TRAD",
+                "from": "Magnet Size M",
+                "to": "Magnet Carte du Cambodge – Taille M"
+            },
+            {
+                "field": "category",
+                "type": "ADD_CAT",
+                "from": null,
+                "to": "Home & Lifestyle > Everyday Items"
+            }
+        ]
+    },
+    {
+        "slug": "cambodian-magnet",
+        "fixes": [
+            {
+                "field": "name_fr",
+                "type": "TRAD",
+                "from": "Cambodian Magnet",
+                "to": "Magnet Cambodgien"
+            }
+        ]
+    },
+    {
+        "slug": "key-ring-cuir",
+        "fixes": [
+            {
+                "field": "name_en",
+                "type": "TYPO+FORMAT",
+                "from": "KEY RING (CUIR)",
+                "to": "Leather Key Ring"
+            },
+            {
+                "field": "name_fr",
+                "type": "TRAD",
+                "from": "KEY RING (CUIR)",
+                "to": "Porte-Clé en Cuir"
+            },
+            {
+                "field": "category",
+                "type": "ADD_CAT",
+                "from": null,
+                "to": "Clothing & Accessories > Accessories"
+            }
+        ]
+    },
+    {
+        "slug": "incense",
+        "fixes": [
+            {
+                "field": "name_en",
+                "type": "SEO_RENAME",
+                "from": "Incense",
+                "to": "Cambodian Incense Sticks – Palm Leaf Packaging"
+            },
+            {
+                "field": "name_fr",
+                "type": "TRAD",
+                "from": "Incense",
+                "to": "Encens Artisanal Cambodgien – Emballage Feuille de Palmier"
+            },
+            {
+                "field": "category",
+                "type": "ADD_CAT",
+                "from": null,
+                "to": "Health & Beauty > Aromatherapy & Fragrance"
+            }
+        ]
+    },
+    {
+        "slug": "aroma-incense",
+        "fixes": [
+            {
+                "field": "name_en",
+                "type": "FORMAT",
+                "from": "AROMA INCENSE",
+                "to": "Aromatic Incense Sticks"
+            },
+            {
+                "field": "name_fr",
+                "type": "TRAD",
+                "from": "AROMA INCENSE",
+                "to": "Encens Aromatique"
+            },
+            {
+                "field": "category",
+                "type": "ADD_CAT",
+                "from": null,
+                "to": "Health & Beauty > Aromatherapy & Fragrance"
+            }
+        ]
+    },
+    {
+        "slug": "travel-game-box",
+        "fixes": [
+            {
+                "field": "name_en",
+                "type": "FORMAT+SEO",
+                "from": "Travel game box",
+                "to": "Cambodia Travel Game Box"
+            },
+            {
+                "field": "name_fr",
+                "type": "TRAD",
+                "from": "Travel game box",
+                "to": "Boîte de Jeux de Voyage Cambodge"
+            },
+            {
+                "field": "category",
+                "type": "ADD_CAT",
+                "from": null,
+                "to": "Gifts & Vouchers > Gift Ideas"
+            },
+            {
+                "field": "category",
+                "type": "ADD_CAT",
+                "from": null,
+                "to": "Gifts & Vouchers > Gift Sets"
+            }
+        ]
+    },
+    {
+        "slug": "puzzle-animals",
+        "fixes": [
+            {
+                "field": "name_en",
+                "type": "FORMAT+SEO",
+                "from": "PUZZLE ANIMALS",
+                "to": "Animal Wooden Puzzle for Kids"
+            },
+            {
+                "field": "name_fr",
+                "type": "TRAD",
+                "from": "PUZZLE ANIMALS",
+                "to": "Puzzle Animaux en Bois – Enfants"
+            },
+            {
+                "field": "category",
+                "type": "ADD_CAT",
+                "from": null,
+                "to": "Gifts & Vouchers > Gift Ideas"
+            }
+        ]
+    },
+    {
+        "slug": "wood-gift-box",
+        "fixes": [
+            {
+                "field": "name_en",
+                "type": "FORMAT",
+                "from": "WOOD GIFT BOX",
+                "to": "Wooden Gift Box – Cambodia"
+            },
+            {
+                "field": "name_fr",
+                "type": "TRAD",
+                "from": "WOOD GIFT BOX",
+                "to": "Boîte Cadeau en Bois – Cambodge"
+            },
+            {
+                "field": "desc_en",
+                "type": "SEO_ENRICH",
+                "from": null,
+                "to": "Ajouter dimensions, personnalisation, usages"
+            },
+            {
+                "field": "desc_fr",
+                "type": "SEO_ENRICH",
+                "from": null,
+                "to": "Même enrichissement en français"
+            },
+            {
+                "field": "category",
+                "type": "MOVE",
+                "from": "Home & Lifestyle > Collections > Gift Sets",
+                "to": "Gifts & Vouchers > Gift Sets"
+            }
+        ]
+    },
+    {
+        "slug": "gift-set",
+        "fixes": [
+            {
+                "field": "name_en",
+                "type": "REVIEW",
+                "from": "Gift Set",
+                "to": "Renommer avec le contenu réel"
+            },
+            {
+                "field": "name_fr",
+                "type": "TRAD+REVIEW",
+                "from": "Gift Set",
+                "to": "Coffret Cadeau [contenu à préciser]"
+            },
+            {
+                "field": "prix",
+                "type": "VERIFY",
+                "from": "$2.00",
+                "to": "Vérifier — probablement une erreur de saisie"
+            },
+            {
+                "field": "desc_en",
+                "type": "URGENT",
+                "from": "Description vague sans contenu",
+                "to": "Lister les produits inclus"
+            },
+            {
+                "field": "desc_fr",
+                "type": "URGENT",
+                "from": "Description vague sans contenu",
+                "to": "Lister les produits inclus en français"
+            }
+        ]
+    },
+    {
+        "slug": "t-shirt-50off",
+        "fixes": [
+            {
+                "field": "name_en",
+                "type": "URGENT_RENAME",
+                "from": "T-SHIRT 50%OFF",
+                "to": "Kabas T-Shirt – Special Offer"
+            },
+            {
+                "field": "name_fr",
+                "type": "URGENT_RENAME",
+                "from": "T-SHIRT 50%OFF",
+                "to": "T-Shirt Kabas – Offre Spéciale"
+            },
+            {
+                "field": "desc_en",
+                "type": "REWRITE",
+                "from": "Promotional text",
+                "to": "Product description (design, fabric, cut)"
+            },
+            {
+                "field": "desc_fr",
+                "type": "REWRITE",
+                "from": "Texte promotionnel",
+                "to": "Description produit (design, matière, coupe)"
+            }
+        ]
+    },
+    {
+        "slug": "men-thanks-you-black-s",
+        "fixes": [
+            {
+                "field": "name_en",
+                "type": "GRAMMAR",
+                "from": "Men Thanks You",
+                "to": "Men Thank You – Khmer T-Shirt"
+            },
+            {
+                "field": "name_fr",
+                "type": "TRAD",
+                "from": "Men Thanks You",
+                "to": "T-Shirt Homme « Merci » en Khmer"
+            }
+        ]
+    },
+    {
+        "slug": "women-thanks-you-black-xs",
+        "fixes": [
+            {
+                "field": "name_en",
+                "type": "GRAMMAR",
+                "from": "Women Thanks You",
+                "to": "Women Thank You – Khmer T-Shirt"
+            },
+            {
+                "field": "name_fr",
+                "type": "TRAD",
+                "from": "Women Thanks You",
+                "to": "T-Shirt Femme « Merci » en Khmer"
+            }
+        ]
+    },
+    {
+        "slug": "krama-small",
+        "fixes": [
+            {
+                "field": "name_en",
+                "type": "FORMAT+SEO",
+                "from": "KRAMA SMALL",
+                "to": "Small Krama Pouch"
+            },
+            {
+                "field": "name_fr",
+                "type": "TRAD",
+                "from": "KRAMA SMALL",
+                "to": "Pochette Krama Petit Format"
+            },
+            {
+                "field": "category",
+                "type": "ADD_CAT",
+                "from": null,
+                "to": "Gifts & Vouchers > Gift Ideas"
+            },
+            {
+                "field": "category",
+                "type": "ADD_CAT",
+                "from": null,
+                "to": "Gifts & Vouchers > Souvenir Gifts"
+            }
+        ]
+    },
+    {
+        "slug": "krama-fanny-bag",
+        "fixes": [
+            {
+                "field": "name_en",
+                "type": "SEO_RENAME",
+                "from": "Krama Fanny Bag",
+                "to": "Krama Belt Bag"
+            },
+            {
+                "field": "name_fr",
+                "type": "TRAD",
+                "from": "Krama Fanny Bag",
+                "to": "Sac Banane Krama"
+            }
+        ]
+    },
+    {
+        "slug": "krama-dimond-bag-14x55cm",
+        "fixes": [
+            {
+                "field": "name_en",
+                "type": "TYPO",
+                "from": "KRAMA DIMOND BAG 14x55CM",
+                "to": "Krama Diamond Bag 14x55cm"
+            },
+            {
+                "field": "slug",
+                "type": "SLUG+301",
+                "from": "krama-dimond-bag-14x55cm",
+                "to": "krama-diamond-bag-14x55cm"
+            },
+            {
+                "field": "name_fr",
+                "type": "TYPO+TRAD",
+                "from": "KRAMA DIMOND BAG 14X55CM",
+                "to": "Sac Krama Losange 14x55cm"
+            }
+        ]
+    },
+    {
+        "slug": "make-up-bag",
+        "fixes": [
+            {
+                "field": "name_en",
+                "type": "FORMAT",
+                "from": "MAKE UP BAG",
+                "to": "Krama Make-Up Bag"
+            },
+            {
+                "field": "name_fr",
+                "type": "TRAD",
+                "from": "MAKE UP BAG",
+                "to": "Trousse de Maquillage Krama"
+            },
+            {
+                "field": "category",
+                "type": "ADD_CAT",
+                "from": null,
+                "to": "Health & Beauty > Body Care"
+            }
+        ]
+    },
+    {
+        "slug": "krama-wallet",
+        "fixes": [
+            {
+                "field": "name_fr",
+                "type": "TRAD",
+                "from": "KRAMA WALLET",
+                "to": "Portefeuille Krama"
+            },
+            {
+                "field": "category",
+                "type": "ADD_CAT",
+                "from": null,
+                "to": "Gifts & Vouchers > Gift Ideas"
+            },
+            {
+                "field": "category",
+                "type": "ADD_CAT",
+                "from": null,
+                "to": "Gifts & Vouchers > Souvenir Gifts"
+            }
+        ]
+    },
+    {
+        "slug": "hand-fan",
+        "fixes": [
+            {
+                "field": "name_en",
+                "type": "SEO_RENAME",
+                "from": "Hand Fan",
+                "to": "Cambodian Handcrafted Fan – Sarong & Bamboo"
+            },
+            {
+                "field": "name_fr",
+                "type": "TRAD",
+                "from": "Hand Fan",
+                "to": "Éventail Artisanal Cambodgien – Sarong & Bambou"
+            },
+            {
+                "field": "category",
+                "type": "MOVE",
+                "from": "Wallets & Small Items",
+                "to": "Accessories (catégorie principale)"
+            },
+            {
+                "field": "category",
+                "type": "ADD_CAT",
+                "from": null,
+                "to": "Gifts & Vouchers > Gift Ideas"
+            }
+        ]
+    },
+    {
+        "slug": "krama-long-pant-free-size",
+        "fixes": [
+            {
+                "field": "name_fr",
+                "type": "TRAD",
+                "from": "Krama Long Pant Free Size",
+                "to": "Pantalon Long Krama – Taille Unique"
+            }
+        ]
+    },
+    {
+        "slug": "krama-short-pant",
+        "fixes": [
+            {
+                "field": "name_fr",
+                "type": "TRAD",
+                "from": "Krama Short Pant",
+                "to": "Short Krama"
+            }
+        ]
+    },
+    {
+        "slug": "cap-siem-reap",
+        "fixes": [
+            {
+                "field": "name_fr",
+                "type": "TRAD",
+                "from": "Cap Siem Reap",
+                "to": "Casquette Siem Reap"
+            }
+        ]
+    },
+    {
+        "slug": "krama-hat",
+        "fixes": [
+            {
+                "field": "page_fr",
+                "type": "404_FIX",
+                "from": "Page FR introuvable (404)",
+                "to": "Recréer la page FR"
+            },
+            {
+                "field": "name_fr",
+                "type": "TRAD",
+                "from": "Krama Hat",
+                "to": "Chapeau Krama"
+            }
+        ]
+    },
+    {
+        "slug": "tote-bag",
+        "fixes": [
+            {
+                "field": "name_fr",
+                "type": "TRAD",
+                "from": "Tote Bag",
+                "to": "Tote Bag Krama (Sac Cabas)"
+            }
+        ]
+    },
+    {
+        "slug": "tote-bag-siem-reap",
+        "fixes": [
+            {
+                "field": "name_fr",
+                "type": "TRAD",
+                "from": "Tote Bag Siem Reap",
+                "to": "Sac Cabas Siem Reap"
+            }
+        ]
+    },
+    {
+        "slug": "tote-bag-kampuchea",
+        "fixes": [
+            {
+                "field": "name_fr",
+                "type": "TRAD",
+                "from": "Tote Bag Kampuchea",
+                "to": "Sac Cabas Kampuchea"
+            }
+        ]
+    },
+    {
+        "slug": "zip-bag",
+        "fixes": [
+            {
+                "field": "name_fr",
+                "type": "TRAD",
+                "from": "Zip Bag",
+                "to": "Pochette Zippée Krama"
+            }
+        ]
+    },
+    {
+        "slug": "food-bag",
+        "fixes": [
+            {
+                "field": "name_fr",
+                "type": "TRAD",
+                "from": "Food Bag",
+                "to": "Sac Alimentaire Krama"
+            }
+        ]
+    },
+    {
+        "slug": "bag-scratch-40x28cm",
+        "fixes": [
+            {
+                "field": "name_en",
+                "type": "SEO_RENAME",
+                "from": "Bag Scratch 40x28cm",
+                "to": "Krama Velcro Bag 40x28cm"
+            },
+            {
+                "field": "name_fr",
+                "type": "TRAD",
+                "from": "Bag Scratch 40x28cm",
+                "to": "Sac à Scratch Krama 40x28cm"
+            }
+        ]
+    },
+    {
+        "slug": "hand-bag-7x10cm",
+        "fixes": [
+            {
+                "field": "name_fr",
+                "type": "TRAD",
+                "from": "Hand Bag 7x10cm",
+                "to": "Mini Sac à Main Krama 7x10cm"
+            }
+        ]
+    },
+    {
+        "slug": "floating-village-a6",
+        "fixes": [
+            {
+                "field": "name_fr",
+                "type": "TRAD",
+                "from": "Floating Village (A6)",
+                "to": "Village Flottant du Cambodge (A6)"
+            }
+        ]
+    }
+]

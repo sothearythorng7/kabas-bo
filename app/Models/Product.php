@@ -174,7 +174,7 @@ class Product extends Model
     }
 
 
-    // Booted pour gérer le price_btob
+    // Booted pour gérer le price_btob et l'historique des slugs
     protected static function booted()
     {
         static::creating(function ($product) {
@@ -186,6 +186,26 @@ class Product extends Model
         static::updating(function ($product) {
             if ($product->is_resalable && is_null($product->price_btob)) {
                 $product->price_btob = $product->price;
+            }
+
+            // Snapshot des anciens slugs avant modification (pour 301 redirects)
+            if ($product->isDirty('slugs')) {
+                $original = $product->getOriginal('slugs');
+                $original = is_string($original) ? json_decode($original, true) : $original;
+                $original = is_array($original) ? $original : [];
+                $current = is_array($product->slugs) ? $product->slugs : [];
+
+                foreach ($original as $locale => $oldSlug) {
+                    $newSlug = $current[$locale] ?? null;
+                    if ($oldSlug && $newSlug && $oldSlug !== $newSlug) {
+                        ProductSlugHistory::create([
+                            'product_id' => $product->id,
+                            'locale'     => $locale,
+                            'old_slug'   => $oldSlug,
+                            'new_slug'   => $newSlug,
+                        ]);
+                    }
+                }
             }
         });
     }

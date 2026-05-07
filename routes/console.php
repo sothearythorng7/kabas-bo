@@ -13,3 +13,10 @@ Schedule::command('vouchers:expire')->daily();
 
 // Sync Cambodia Post shipping rates every Sunday at 3am
 Schedule::command('shipping:sync-cambodia-post')->weeklyOn(0, '03:00');
+
+// Fill missing SEO (title + meta description) every night at 02:30.
+// Notify Telegram only when at least one product was actually updated.
+Schedule::command('products:generate-seo --notify')
+    ->dailyAt('02:30')
+    ->withoutOverlapping()
+    ->runInBackground();

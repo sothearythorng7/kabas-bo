@@ -6,7 +6,12 @@ use Illuminate\Database\Eloquent\Model;
 
 class VariationValue extends Model
 {
-    protected $fillable = ['variation_type_id', 'value'];
+    protected $fillable = ['variation_type_id', 'value', 'color_hex', 'audit_decision', 'audit_decided_at'];
+
+    protected $casts = [
+        'audit_decision' => 'array',
+        'audit_decided_at' => 'datetime',
+    ];
 
     public function type()
     {
@@ -17,5 +22,10 @@ class VariationValue extends Model
     {
         return $this->belongsToMany(Product::class, 'product_variations')
                     ->withTimestamps();
+    }
+
+    public function attributes()
+    {
+        return $this->hasMany(ProductVariationAttribute::class, 'variation_value_id');
     }
 }

@@ -223,6 +223,7 @@ Route::middleware(['auth', SetUserLocale::class, 'bo.access'])->group(function (
         Route::post('products/{product}/variations', [ProductController::class, 'variationsStore'])->name('products.variations.store');
         Route::put('products/{product}/variations/self', [ProductController::class, 'variationsUpdateSelf'])->name('products.variations.updateSelf');
         Route::delete('products/{product}/variations/{targetProduct}', [ProductController::class, 'variationsDestroy'])->name('products.variations.destroy');
+        Route::put('variation-groups/{variationGroup}', [ProductController::class, 'variationGroupUpdate'])->name('variation-groups.update');
         Route::post('products/{product}/duplicate', [ProductController::class, 'duplicate'])->name('products.duplicate');
         Route::patch('products/{product}/toggle-field', [ProductController::class, 'toggleField'])->name('products.toggle-field');
 
@@ -468,6 +469,7 @@ Route::middleware(['auth', SetUserLocale::class, 'bo.access'])->group(function (
 
         Route::get('resellers/overview', [ResellerController::class, 'overview'])->name('resellers.overview');
         Route::resource('resellers', ResellerController::class);
+        Route::patch('resellers/{reseller}/toggle-active', [ResellerController::class, 'toggleActive'])->name('resellers.toggle-active');
         Route::post('resellers/{reseller}/update-stock', [ResellerController::class, 'updateStock'])->name('resellers.update-stock');
         Route::post('resellers/{reseller}/update-price', [ResellerController::class, 'updateProductPrice'])->name('resellers.update-price');
         Route::put('resellers/{reseller}/update-info', [ResellerController::class, 'updateInfo'])->name('resellers.update-info');
@@ -681,6 +683,8 @@ Route::middleware(['auth', SetUserLocale::class, 'bo.access'])->group(function (
     // === Admin only: Variation Types, Variation Values ===
     Route::middleware(['role:admin'])->group(function () {
         Route::resource('variation-types', \App\Http\Controllers\VariationTypeController::class);
+        Route::get('variation-values/audit', [\App\Http\Controllers\VariationValueController::class, 'audit'])->name('variation-values.audit');
+        Route::post('variation-values/{variationValue}/audit-decision', [\App\Http\Controllers\VariationValueController::class, 'saveAuditDecision'])->name('variation-values.audit.save');
         Route::resource('variation-values', \App\Http\Controllers\VariationValueController::class);
     });
 
@@ -769,6 +773,30 @@ Route::middleware(['auth'])->group(function () {
     Route::get('website-orders/{order}', [WebsiteOrderController::class, 'show'])->name('website-orders.show');
     Route::post('website-orders/{order}/status', [WebsiteOrderController::class, 'updateStatus'])->name('website-orders.update-status');
     Route::post('website-orders/{order}/notes', [WebsiteOrderController::class, 'updateNotes'])->name('website-orders.update-notes');
+});
+
+// Promotion Rules (Marketing)
+Route::middleware(['auth'])->group(function () {
+    Route::resource('promotions', \App\Http\Controllers\PromotionController::class)
+        ->parameters(['promotions' => 'promotion'])
+        ->except(['show']);
+    Route::post('promotions/{promotion}/codes', [\App\Http\Controllers\PromotionController::class, 'storeCode'])
+        ->name('promotions.codes.store');
+    Route::delete('promotions/{promotion}/codes/{code}', [\App\Http\Controllers\PromotionController::class, 'destroyCode'])
+        ->name('promotions.codes.destroy');
+
+    Route::get('abandoned-cart-settings', [\App\Http\Controllers\AbandonedCartSettingController::class, 'edit'])
+        ->name('abandoned-cart-settings.edit');
+    Route::put('abandoned-cart-settings', [\App\Http\Controllers\AbandonedCartSettingController::class, 'update'])
+        ->name('abandoned-cart-settings.update');
+
+    Route::get('payment-recovery-settings', [\App\Http\Controllers\PaymentRecoverySettingController::class, 'edit'])
+        ->name('payment-recovery-settings.edit');
+    Route::put('payment-recovery-settings', [\App\Http\Controllers\PaymentRecoverySettingController::class, 'update'])
+        ->name('payment-recovery-settings.update');
+
+    Route::get('wishlist-analytics', [\App\Http\Controllers\WishlistAnalyticsController::class, 'index'])
+        ->name('wishlist-analytics.index');
 });
 
 // Special Orders Routes (auth required)
@@ -889,3 +917,18 @@ Route::middleware(['auth'])->prefix('gps-tracker')->name('gps-tracker.')->group(
     Route::post('/devices', [\App\Http\Controllers\GpsTrackerController::class, 'storeDevice'])->name('devices.store');
     Route::delete('/devices/{device}', [\App\Http\Controllers\GpsTrackerController::class, 'destroyDevice'])->name('devices.destroy');
 });
+
+// Analytics dashboards (public site traffic + GA4)
+Route::middleware(['auth', \App\Http\Middleware\SetUserLocale::class, 'bo.access', 'role:admin|manager'])
+    ->prefix('analytics')
+    ->name('analytics.')
+    ->group(function () {
+        Route::get('/', [\App\Http\Controllers\AnalyticsDashboardController::class, 'overview'])->name('overview');
+        Route::get('/products', [\App\Http\Controllers\AnalyticsDashboardController::class, 'products'])->name('products');
+        Route::get('/sources', [\App\Http\Controllers\AnalyticsDashboardController::class, 'sources'])->name('sources');
+        Route::get('/search', [\App\Http\Controllers\AnalyticsDashboardController::class, 'search'])->name('search');
+        Route::get('/customers', [\App\Http\Controllers\AnalyticsDashboardController::class, 'customers'])->name('customers');
+        Route::get('/geo', [\App\Http\Controllers\AnalyticsDashboardController::class, 'geo'])->name('geo');
+        Route::get('/checkout', [\App\Http\Controllers\AnalyticsDashboardController::class, 'checkout'])->name('checkout');
+        Route::get('/marketing', [\App\Http\Controllers\AnalyticsDashboardController::class, 'marketing'])->name('marketing');
+    });

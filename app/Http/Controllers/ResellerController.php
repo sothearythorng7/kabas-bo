@@ -362,8 +362,10 @@ public function show(Request $request, $id)
             ->latest()
             ->paginate(10);
 
+        $analytics = null;
+
         return view('resellers.show', compact(
-            'reseller','products','deliveries','stock','salesReports','anomalies','alertStocks','returns','brands','pendingDisputesCount'
+            'reseller','products','deliveries','stock','salesReports','anomalies','alertStocks','returns','brands','pendingDisputesCount','analytics'
         ));
     }
 
@@ -460,11 +462,29 @@ public function show(Request $request, $id)
         ->pluck('price', 'product_id')
         ->toArray();
 
+    // Analytics (KPIs, trends, top products) — only for real resellers (not shops)
+    $analyticsSvc = new \App\Services\ResellerAnalyticsService($reseller);
+    $analytics = [
+        'headline' => $analyticsSvc->headline(),
+        'byMonth' => $analyticsSvc->byMonth(12),
+        'byYear' => $analyticsSvc->byYear(),
+        'topProducts' => $analyticsSvc->topProducts(10),
+    ];
+
     return view('resellers.show', compact(
-        'reseller','products','deliveries','stock','salesReports','anomalies','alertStocks','returns','brands','resellerPrices','pendingDisputesCount'
+        'reseller','products','deliveries','stock','salesReports','anomalies','alertStocks','returns','brands','resellerPrices','pendingDisputesCount','analytics'
     ));
 }
 
+
+    public function toggleActive(Request $request, Reseller $reseller)
+    {
+        $data = $request->validate(['is_active' => 'required|boolean']);
+        $reseller->is_active = (bool) $data['is_active'];
+        $reseller->save();
+
+        return response()->json(['success' => true, 'is_active' => $reseller->is_active]);
+    }
 
     public function updateStock(Request $request, $id)
     {
@@ -571,7 +591,9 @@ public function show(Request $request, $id)
         $data = $request->validate([
             'name' => 'required|string|max:255',
             'type' => 'required|in:buyer,consignment',
+            'is_active' => 'sometimes|boolean',
         ]);
+        $data['is_active'] = $request->has('is_active');
 
         $reseller->update($data);
 
@@ -599,7 +621,9 @@ public function show(Request $request, $id)
             'phone' => 'nullable|string|max:50',
             'email' => 'nullable|email|max:255',
             'tax_id' => 'nullable|string|max:100',
+            'is_active' => 'sometimes|boolean',
         ]);
+        $data['is_active'] = $request->has('is_active');
 
         $reseller->update($data);
 

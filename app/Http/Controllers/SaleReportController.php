@@ -304,7 +304,7 @@ class SaleReportController extends Controller
             'status' => $isZeroReport ? 'invoiced' : 'waiting_invoice',
             'is_paid' => $isZeroReport,
             'total_amount_theoretical' => $totalPayAmount,
-            'total_amount_invoiced' => $isZeroReport ? 0 : null,
+            'total_amount_invoiced' => 0,
         ]);
 
         foreach ($items as $item) {

@@ -469,10 +469,72 @@
                 </div>
             @endif
 
-            {{-- Group info --}}
-            @if($product->variation_group_id)
-                <div class="alert alert-info d-flex align-items-center justify-content-between mb-3">
-                    <span><i class="bi bi-collection"></i> <strong>{{ __('messages.variation.group') ?? 'Groupe' }}:</strong> {{ $product->variationGroup->name ?? '—' }}</span>
+            {{-- Group info + generic product fields --}}
+            @if($product->variation_group_id && $product->variationGroup)
+                @php
+                    $vg = $product->variationGroup;
+                    $vgName = is_array($vg->name) ? $vg->name : [];
+                    $vgDesc = is_array($vg->description) ? $vg->description : [];
+                @endphp
+                <div class="card mb-3">
+                    <div class="card-header d-flex align-items-center justify-content-between">
+                        <strong><i class="bi bi-collection"></i> {{ __('messages.variation.generic_product') }}</strong>
+                        <span class="text-muted small">#{{ $vg->id }}</span>
+                    </div>
+                    <div class="card-body">
+                        <p class="text-muted small mb-3">{{ __('messages.variation.generic_product_hint') }}</p>
+                        <form method="POST" action="{{ route('variation-groups.update', $vg) }}">
+                            @csrf @method('PUT')
+
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label">{{ __('messages.variation.generic_name') }} (FR) <span class="text-danger">*</span></label>
+                                    <input type="text" name="name[fr]" class="form-control"
+                                        value="{{ old('name.fr', $vgName['fr'] ?? '') }}"
+                                        placeholder="{{ __('messages.variation.generic_name_placeholder') }}" required>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">{{ __('messages.variation.generic_name') }} (EN) <span class="text-danger">*</span></label>
+                                    <input type="text" name="name[en]" class="form-control"
+                                        value="{{ old('name.en', $vgName['en'] ?? '') }}"
+                                        placeholder="{{ __('messages.variation.generic_name_placeholder') }}" required>
+                                </div>
+                            </div>
+
+                            <div class="row g-3 mt-1">
+                                <div class="col-md-6">
+                                    <label class="form-label">{{ __('messages.variation.generic_description') }} (FR)</label>
+                                    <textarea name="description[fr]" class="form-control" rows="2">{{ old('description.fr', $vgDesc['fr'] ?? '') }}</textarea>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">{{ __('messages.variation.generic_description') }} (EN)</label>
+                                    <textarea name="description[en]" class="form-control" rows="2">{{ old('description.en', $vgDesc['en'] ?? '') }}</textarea>
+                                </div>
+                            </div>
+
+                            <div class="mt-3">
+                                <label class="form-label">{{ __('messages.variation.display_product') }}</label>
+                                <select name="display_product_id" class="form-select">
+                                    <option value="">— {{ __('messages.variation.display_product_auto') }} —</option>
+                                    @if(isset($groupProducts))
+                                        @foreach($groupProducts as $gp)
+                                            <option value="{{ $gp->id }}"
+                                                {{ (int) old('display_product_id', $vg->display_product_id) === $gp->id ? 'selected' : '' }}>
+                                                {{ ($gp->name['fr'] ?? reset($gp->name) ?: '') }} ({{ $gp->ean }})
+                                            </option>
+                                        @endforeach
+                                    @endif
+                                </select>
+                                <div class="form-text">{{ __('messages.variation.display_product_hint') }}</div>
+                            </div>
+
+                            <div class="mt-3">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="bi bi-check"></i> {{ __('messages.btn.save') }}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
                 </div>
             @endif
 

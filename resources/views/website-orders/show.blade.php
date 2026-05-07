@@ -158,6 +158,33 @@
                 </div>
             </div>
 
+            <!-- Payment recovery reminder -->
+            @if($order->paymentRecoveryReminder)
+            <div class="card mb-3 border-info">
+                <div class="card-header bg-info-subtle">
+                    <i class="bi bi-envelope-check"></i> {{ __('messages.payment_recovery.reminder_sent') }}
+                </div>
+                <div class="card-body">
+                    <div class="row small">
+                        <div class="col-md-6">
+                            <strong>{{ __('messages.website_order.date') }} :</strong>
+                            {{ $order->paymentRecoveryReminder->sent_at->format('d/m/Y H:i') }}
+                        </div>
+                        <div class="col-md-6">
+                            <strong>Email :</strong>
+                            {{ $order->paymentRecoveryReminder->email_sent_to }}
+                        </div>
+                        @if($order->paymentRecoveryReminder->expires_at)
+                        <div class="col-md-12 mt-2 text-muted">
+                            {{ __('messages.payment_recovery.validity_days') }} :
+                            {{ $order->paymentRecoveryReminder->expires_at->format('d/m/Y H:i') }}
+                        </div>
+                        @endif
+                    </div>
+                </div>
+            </div>
+            @endif
+
             <!-- PayWay transactions -->
             @if($order->transactions->count() > 0)
             <div class="card mb-3">

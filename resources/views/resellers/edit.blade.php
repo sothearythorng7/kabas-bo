@@ -17,6 +17,11 @@
                 <option value="consignment" @selected($reseller->type=='consignment')>{{ __('messages.resellers.type_consignment') }}</option>
             </select>
         </div>
+        <div class="mb-3 form-check form-switch">
+            <input type="checkbox" class="form-check-input" role="switch" id="is_active" name="is_active" value="1" @checked($reseller->is_active)>
+            <label class="form-check-label" for="is_active">{{ __('messages.resellers.active') }}</label>
+            <div class="form-text small">{{ __('messages.resellers.active_hint') }}</div>
+        </div>
         <button type="submit" class="btn btn-success">
             <i class="bi bi-save"></i> {{ __('messages.resellers.update') }}
         </button>

@@ -209,6 +209,14 @@
                         <input type="number" name="refund_amount" class="form-control" step="0.00001" min="0.01"
                                value="{{ $stockLoss->total_value }}" required>
                     </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">{{ __('messages.financial.payment_method') }}</label>
+                        <select name="payment_method_id" class="form-select" required>
+                            @foreach($paymentMethods as $pm)
+                                <option value="{{ $pm->id }}">{{ $pm->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ __('messages.btn.cancel') }}</button>

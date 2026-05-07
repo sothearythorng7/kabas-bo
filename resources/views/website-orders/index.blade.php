@@ -86,6 +86,12 @@
                         <a href="{{ route('website-orders.show', $order) }}" class="fw-bold text-decoration-none">
                             {{ $order->order_number }}
                         </a>
+                        @if($order->paymentRecoveryReminder)
+                            <span class="badge bg-info text-dark ms-1"
+                                  title="{{ __('messages.payment_recovery.reminder_sent_on', ['date' => $order->paymentRecoveryReminder->sent_at->format('d/m/Y H:i')]) }}">
+                                <i class="bi bi-envelope-check"></i> {{ __('messages.payment_recovery.reminder_sent') }}
+                            </span>
+                        @endif
                     </td>
                     <td>
                         <strong>{{ $order->shipping_full_name }}</strong><br>

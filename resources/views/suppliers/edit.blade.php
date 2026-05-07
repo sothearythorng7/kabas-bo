@@ -83,6 +83,11 @@
                 <span class="badge bg-{{ $stTotals['count'] > 0 ? 'primary' : 'secondary' }}">{{ $stTotals['count'] }}</span>
             </button>
         </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="analytics-tab" data-bs-toggle="tab" data-bs-target="#analytics" type="button" role="tab" aria-controls="analytics" aria-selected="false">
+                <i class="bi bi-speedometer2"></i> {{ __('messages.supplier.analytics') }}
+            </button>
+        </li>
     </ul>
 
     <div class="tab-content mt-3" id="supplierTabsContent">
@@ -974,8 +979,193 @@
                 </div>
             @endif
         </div>
+
+        {{-- Onglet Analytics --}}
+        <div class="tab-pane fade" id="analytics" role="tabpanel" aria-labelledby="analytics-tab">
+            @php $h = $analytics['headline']; @endphp
+
+            {{-- KPI cards --}}
+            <div class="row g-3 mb-4">
+                <div class="col-md-3 col-sm-6">
+                    <div class="card h-100 border-primary">
+                        <div class="card-body">
+                            <div class="text-muted small">{{ __('messages.supplier.analytics_kpi.orders_total') }}</div>
+                            <div class="fs-3 fw-bold">{{ $h['orders_total'] }}</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3 col-sm-6">
+                    <div class="card h-100 border-danger">
+                        <div class="card-body">
+                            <div class="text-muted small">{{ __('messages.supplier.analytics_kpi.spent_total') }}</div>
+                            <div class="fs-3 fw-bold text-danger">${{ number_format($h['spent_total'], 2) }}</div>
+                            <div class="small text-muted">{{ $h['units_bought'] }} {{ __('messages.supplier.analytics_kpi.units') }}</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3 col-sm-6">
+                    <div class="card h-100 border-success">
+                        <div class="card-body">
+                            <div class="text-muted small">{{ __('messages.supplier.analytics_kpi.revenue_total') }}</div>
+                            <div class="fs-3 fw-bold text-success">${{ number_format($h['revenue_total'], 2) }}</div>
+                            <div class="small text-muted">{{ $h['units_sold'] }} {{ __('messages.supplier.analytics_kpi.units_sold') }}</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3 col-sm-6">
+                    <div class="card h-100 border-info">
+                        <div class="card-body">
+                            <div class="text-muted small">{{ __('messages.supplier.analytics_kpi.margin') }}</div>
+                            <div class="fs-3 fw-bold text-info">${{ number_format($h['margin_total'], 2) }}</div>
+                            <div class="small text-muted">{{ $h['margin_pct'] !== null ? number_format($h['margin_pct'], 1).'%' : '—' }}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row g-3 mb-4">
+                <div class="col-md-3 col-sm-6">
+                    <div class="card h-100">
+                        <div class="card-body">
+                            <div class="text-muted small">{{ __('messages.supplier.analytics_kpi.unpaid') }}</div>
+                            <div class="fs-4 fw-bold {{ $h['unpaid_total'] > 0 ? 'text-warning' : '' }}">${{ number_format($h['unpaid_total'], 2) }}</div>
+                            <div class="small text-muted">{{ $h['unpaid_count'] }} {{ __('messages.supplier.analytics_kpi.orders') }}</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3 col-sm-6">
+                    <div class="card h-100">
+                        <div class="card-body">
+                            <div class="text-muted small">{{ __('messages.supplier.analytics_kpi.avg_lead_time') }}</div>
+                            <div class="fs-4 fw-bold">{{ $h['avg_lead_time_days'] !== null ? $h['avg_lead_time_days'].' '.__('messages.supplier.analytics_kpi.days') : '—' }}</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3 col-sm-6">
+                    <div class="card h-100">
+                        <div class="card-body">
+                            <div class="text-muted small">{{ __('messages.supplier.analytics_kpi.fill_rate') }}</div>
+                            <div class="fs-4 fw-bold">{{ $h['fill_rate_pct'] !== null ? $h['fill_rate_pct'].'%' : '—' }}</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3 col-sm-6">
+                    <div class="card h-100">
+                        <div class="card-body">
+                            <div class="text-muted small">{{ __('messages.supplier.analytics_kpi.returns') }}</div>
+                            <div class="fs-4 fw-bold">{{ $analytics['returns']['count'] }}</div>
+                            <div class="small text-muted">${{ number_format($analytics['returns']['value'], 2) }} — {{ $analytics['returns']['items'] }} {{ __('messages.supplier.analytics_kpi.items') }}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {{-- Monthly trend chart --}}
+            <div class="card mb-4">
+                <div class="card-header"><strong>{{ __('messages.supplier.analytics_monthly_trend') }}</strong></div>
+                <div class="card-body">
+                    <canvas id="supplierMonthlyChart" height="90"></canvas>
+                </div>
+            </div>
+
+            {{-- By-year breakdown --}}
+            @if(!empty($analytics['byYear']))
+            <div class="card mb-4">
+                <div class="card-header"><strong>{{ __('messages.supplier.analytics_yearly_breakdown') }}</strong></div>
+                <div class="table-responsive">
+                    <table class="table table-sm table-striped mb-0">
+                        <thead>
+                            <tr>
+                                <th>{{ __('messages.supplier.analytics_year') }}</th>
+                                <th class="text-end">{{ __('messages.supplier.analytics_kpi.orders') }}</th>
+                                <th class="text-end">{{ __('messages.supplier.analytics_kpi.spent_total') }}</th>
+                                <th class="text-end">{{ __('messages.supplier.analytics_kpi.revenue_total') }}</th>
+                                <th class="text-end">{{ __('messages.supplier.analytics_kpi.margin') }}</th>
+                                <th class="text-end">{{ __('messages.supplier.analytics_margin_pct') }}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach($analytics['byYear'] as $row)
+                                <tr>
+                                    <td>{{ $row['year'] }}</td>
+                                    <td class="text-end">{{ $row['orders'] }}</td>
+                                    <td class="text-end text-danger">${{ number_format($row['spent'], 2) }}</td>
+                                    <td class="text-end text-success">${{ number_format($row['revenue'], 2) }}</td>
+                                    <td class="text-end text-info">${{ number_format($row['margin'], 2) }}</td>
+                                    <td class="text-end">{{ $row['margin_pct'] !== null ? number_format($row['margin_pct'], 1).'%' : '—' }}</td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            @endif
+
+            {{-- Top products --}}
+            @if(!empty($analytics['topProducts']))
+            <div class="card mb-4">
+                <div class="card-header"><strong>{{ __('messages.supplier.analytics_top_products') }}</strong></div>
+                <div class="table-responsive">
+                    <table class="table table-sm table-striped mb-0">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>{{ __('messages.common.name') }}</th>
+                                <th class="text-end">{{ __('messages.supplier.analytics_kpi.units_sold') }}</th>
+                                <th class="text-end">{{ __('messages.supplier.analytics_kpi.revenue_total') }}</th>
+                                <th class="text-end">{{ __('messages.supplier.analytics_kpi.margin') }}</th>
+                                <th class="text-end">{{ __('messages.supplier.analytics_margin_pct') }}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach($analytics['topProducts'] as $i => $row)
+                                <tr>
+                                    <td>{{ $i + 1 }}</td>
+                                    <td><a href="{{ route('products.edit', $row['product_id']) }}" target="_blank">{{ $row['name'] }}</a></td>
+                                    <td class="text-end">{{ $row['units'] }}</td>
+                                    <td class="text-end text-success">${{ number_format($row['revenue'], 2) }}</td>
+                                    <td class="text-end text-info">${{ number_format($row['margin'], 2) }}</td>
+                                    <td class="text-end">{{ $row['margin_pct'] !== null ? number_format($row['margin_pct'], 1).'%' : '—' }}</td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            @endif
+        </div>
     </div>
 </div>
+
+{{-- Chart.js for Analytics tab --}}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+(function() {
+    const el = document.getElementById('supplierMonthlyChart');
+    if (!el) return;
+    const data = @json($analytics['ordersByMonth']);
+    const labels = data.map(d => d.month);
+    const counts = data.map(d => d.count);
+    const spent = data.map(d => d.spent);
+    new Chart(el, {
+        type: 'bar',
+        data: {
+            labels,
+            datasets: [
+                { type: 'bar', label: @json(__('messages.supplier.analytics_kpi.orders')), data: counts, backgroundColor: 'rgba(54, 162, 235, 0.6)', yAxisID: 'y1' },
+                { type: 'line', label: @json(__('messages.supplier.analytics_kpi.spent_total')) + ' ($)', data: spent, borderColor: 'rgba(220, 53, 69, 0.9)', backgroundColor: 'rgba(220, 53, 69, 0.1)', tension: 0.25, yAxisID: 'y2' }
+            ]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                y1: { type: 'linear', position: 'left', title: { display: true, text: @json(__('messages.supplier.analytics_kpi.orders')) }, beginAtZero: true },
+                y2: { type: 'linear', position: 'right', grid: { drawOnChartArea: false }, title: { display: true, text: '$' }, beginAtZero: true }
+            }
+        }
+    });
+})();
+</script>
 
 {{-- Modal Ajout Contact --}}
 <div class="modal fade" id="addContactModal" tabindex="-1" aria-labelledby="addContactModalLabel" aria-hidden="true">

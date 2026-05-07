@@ -60,7 +60,8 @@ class ApplySeoFixes extends Command
         $only = $onlyOpt ? array_map('trim', explode(',', $onlyOpt)) : null;
         $slugFilter = $this->option('slug');
 
-        $path = base_path($this->option('file'));
+        $fileOpt = $this->option('file');
+        $path = str_starts_with($fileOpt, '/') ? $fileOpt : base_path($fileOpt);
         if (!is_file($path)) {
             $this->error("File not found: $path");
             return self::FAILURE;

@@ -20,6 +20,7 @@ class WebsiteOrderController extends Controller
     public function index(Request $request)
     {
         $query = WebsiteOrder::where('source', 'website')
+            ->with('paymentRecoveryReminder')
             ->orderBy('created_at', 'desc');
 
         if ($request->filled('search')) {
@@ -47,7 +48,7 @@ class WebsiteOrderController extends Controller
 
     public function show(WebsiteOrder $order)
     {
-        $order->load(['items', 'transactions']);
+        $order->load(['items', 'transactions', 'paymentRecoveryReminder']);
 
         return view('website-orders.show', compact('order'));
     }
@@ -78,6 +79,8 @@ class WebsiteOrderController extends Controller
             DB::transaction(function () use ($order) {
                 $this->reverseStock($order);
                 $this->reverseFinancialTransaction($order);
+                $this->reversePromotionAccounting($order);
+                $this->revertPromotionUsages($order);
             });
 
             $order->update([
@@ -290,7 +293,9 @@ class WebsiteOrderController extends Controller
         $storeId = $order->store_id ?? Store::warehouseId();
 
         foreach ($order->items as $item) {
-            if ($item->item_type !== 'product' || !$item->product_id) {
+            // Return stock for real products AND gifts given by promotions.
+            $isStockItem = in_array($item->item_type, ['product', 'promotion_gift'], true);
+            if (! $isStockItem || ! $item->product_id) {
                 continue;
             }
 
@@ -345,15 +350,18 @@ class WebsiteOrderController extends Controller
             ->orderBy('id', 'desc')
             ->first(['balance_after']);
 
+        // Mirror the 701 credit made at payment time: credit used catalog total, so debit the same amount.
+        $catalogTotal = (float) $order->total + (float) ($order->promo_discount_total ?? 0);
+
         $balanceBefore = $lastTxn ? (float) $lastTxn->balance_after : 0;
-        $balanceAfter = $balanceBefore - (float) $order->total;
+        $balanceAfter = $balanceBefore - $catalogTotal;
 
         $paymentMethodId = $this->resolvePaymentMethodId($order);
 
         DB::table('financial_transactions')->insert([
             'store_id' => $storeId,
             'account_id' => FinancialAccount::idByCode('701'),
-            'amount' => $order->total,
+            'amount' => round($catalogTotal, 5),
             'currency' => 'USD',
             'direction' => 'debit',
             'balance_before' => $balanceBefore,
@@ -368,6 +376,115 @@ class WebsiteOrderController extends Controller
             'created_at' => now(),
             'updated_at' => now(),
         ]);
+    }
+
+    /**
+     * Reverse the 609 "Charges promotionnelles" debits posted for this order
+     * (credit 609 with the same amount — idempotent via external_reference suffix).
+     */
+    protected function reversePromotionAccounting(WebsiteOrder $order): void
+    {
+        $storeId = $order->store_id ?? Store::warehouseId();
+        $accountId = FinancialAccount::idByCode('609');
+        if (! $accountId) {
+            return;
+        }
+
+        $originals = DB::table('financial_transactions')
+            ->where('account_id', $accountId)
+            ->where('direction', 'debit')
+            ->where('external_reference', 'LIKE', "WEB-{$order->id}-PROMO-%")
+            ->get();
+
+        if ($originals->isEmpty()) {
+            return;
+        }
+
+        $paymentMethodId = $this->resolvePaymentMethodId($order);
+
+        foreach ($originals as $original) {
+            $reverseRef = $original->external_reference.'-REVERT';
+
+            $alreadyReverted = DB::table('financial_transactions')
+                ->where('external_reference', $reverseRef)
+                ->exists();
+            if ($alreadyReverted) {
+                continue;
+            }
+
+            $lastTxn = DB::table('financial_transactions')
+                ->where('store_id', $storeId)
+                ->orderBy('transaction_date', 'desc')
+                ->orderBy('id', 'desc')
+                ->first(['balance_after']);
+            $balanceBefore = $lastTxn ? (float) $lastTxn->balance_after : 0;
+            $balanceAfter = $balanceBefore + (float) $original->amount;
+
+            DB::table('financial_transactions')->insert([
+                'store_id' => $storeId,
+                'account_id' => $accountId,
+                'amount' => $original->amount,
+                'currency' => $original->currency,
+                'direction' => 'credit',
+                'balance_before' => $balanceBefore,
+                'balance_after' => $balanceAfter,
+                'label' => "Reversal — {$original->label}",
+                'description' => "Cancellation of promotional charge for order {$order->order_number}",
+                'status' => 'validated',
+                'transaction_date' => now(),
+                'payment_method_id' => $paymentMethodId,
+                'user_id' => auth()->id() ?? 1,
+                'external_reference' => $reverseRef,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
+    }
+
+    /**
+     * Revert pending/confirmed promotion_usages attached to this order:
+     *  - decrement usage counts / budget_consumed (atomically, no underflow)
+     *  - flag usages as `reverted`
+     */
+    protected function revertPromotionUsages(WebsiteOrder $order): void
+    {
+        $usages = \App\Models\PromotionUsage::where('order_id', $order->id)
+            ->whereIn('status', [\App\Models\PromotionUsage::STATUS_PENDING, \App\Models\PromotionUsage::STATUS_CONFIRMED])
+            ->get();
+
+        if ($usages->isEmpty()) {
+            return;
+        }
+
+        foreach ($usages as $usage) {
+            if ($usage->status === \App\Models\PromotionUsage::STATUS_CONFIRMED) {
+                DB::table('promotion_rules')
+                    ->where('id', $usage->promotion_rule_id)
+                    ->where('usage_count', '>', 0)
+                    ->decrement('usage_count');
+
+                if ($usage->promotion_code_id) {
+                    DB::table('promotion_codes')
+                        ->where('id', $usage->promotion_code_id)
+                        ->where('usage_count', '>', 0)
+                        ->decrement('usage_count');
+                }
+
+                $cost = (float) $usage->discount_amount + (float) $usage->gift_cost;
+                if ($cost > 0) {
+                    DB::table('promotion_rules')
+                        ->where('id', $usage->promotion_rule_id)
+                        ->update([
+                            'budget_consumed' => DB::raw("GREATEST(0, budget_consumed - {$cost})"),
+                        ]);
+                }
+            }
+
+            $usage->update([
+                'status' => \App\Models\PromotionUsage::STATUS_REVERTED,
+                'reverted_at' => now(),
+            ]);
+        }
     }
 
     /**

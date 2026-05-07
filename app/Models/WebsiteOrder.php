@@ -49,6 +49,10 @@ class WebsiteOrder extends Model
         'payment_link_expires_at',
         'payment_token',
         'tracking_url',
+        'applied_promotion_code',
+        'applied_promotion_ids',
+        'promo_discount_total',
+        'promo_gift_cost',
     ];
 
     protected function casts(): array
@@ -63,6 +67,9 @@ class WebsiteOrder extends Model
             'deposit_paid' => 'boolean',
             'paid_at' => 'datetime',
             'payment_link_expires_at' => 'datetime',
+            'applied_promotion_ids' => 'array',
+            'promo_discount_total' => 'decimal:5',
+            'promo_gift_cost' => 'decimal:5',
         ];
     }
 
@@ -80,6 +87,11 @@ class WebsiteOrder extends Model
     public function latestTransaction()
     {
         return $this->hasOne(WebsitePaymentTransaction::class, 'order_id')->latestOfMany();
+    }
+
+    public function paymentRecoveryReminder()
+    {
+        return $this->hasOne(WebsiteOrderPaymentRecoveryReminder::class, 'order_id');
     }
 
     public function createdByUser()

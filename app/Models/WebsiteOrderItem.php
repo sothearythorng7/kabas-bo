@@ -14,6 +14,8 @@ class WebsiteOrderItem extends Model
         'item_type',
         'gift_box_id',
         'gift_card_id',
+        'source_promotion_id',
+        'source_item_id',
         'product_name',
         'product_sku',
         'product_image',
@@ -49,5 +51,15 @@ class WebsiteOrderItem extends Model
     public function giftCard()
     {
         return $this->belongsTo(GiftCard::class);
+    }
+
+    public function sourcePromotion()
+    {
+        return $this->belongsTo(PromotionRule::class, 'source_promotion_id');
+    }
+
+    public function sourceItem()
+    {
+        return $this->belongsTo(self::class, 'source_item_id');
     }
 }

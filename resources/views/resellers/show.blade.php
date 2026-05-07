@@ -2,7 +2,16 @@
 
 @section('content')
 <div class="container mt-4">
-    <h1 class="crud_title">{{ __('messages.resellers.title_edit') }}: {{ $reseller->name }}</h1>
+    <h1 class="crud_title">
+        {{ __('messages.resellers.title_edit') }}: {{ $reseller->name }}
+        @if(!property_exists($reseller, 'is_shop'))
+            @if($reseller->is_active)
+                <span class="badge bg-success align-middle ms-2" style="font-size:0.55em;">{{ __('messages.resellers.active') }}</span>
+            @else
+                <span class="badge bg-secondary align-middle ms-2" style="font-size:0.55em;">{{ __('messages.resellers.inactive') }}</span>
+            @endif
+        @endif
+    </h1>
 
     @php
         $resellerType = $reseller->type ?? 'buyer';
@@ -66,6 +75,13 @@
                 </span>
             </button>
         </li>
+        @if(!empty($analytics))
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="analytics-tab" data-bs-toggle="tab" data-bs-target="#analytics" type="button" role="tab" aria-controls="analytics" aria-selected="false">
+                <i class="bi bi-speedometer2"></i> {{ __('messages.supplier.analytics') }}
+            </button>
+        </li>
+        @endif
     </ul>
 
     <div class="tab-content mt-3" id="resellerTabsContent">
@@ -140,6 +156,15 @@
                                 <div class="mb-3">
                                     <label for="email" class="form-label">{{ __('messages.resellers.email') }}</label>
                                     <input type="email" class="form-control" id="email" name="email" value="{{ old('email', $reseller->email) }}">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-check form-switch">
+                                    <input type="checkbox" class="form-check-input" role="switch" id="is_active" name="is_active" value="1" @checked(old('is_active', $reseller->is_active ?? true))>
+                                    <label class="form-check-label" for="is_active">{{ __('messages.resellers.active') }}</label>
+                                    <div class="form-text small">{{ __('messages.resellers.active_hint') }}</div>
                                 </div>
                             </div>
                         </div>
@@ -780,8 +805,208 @@
                 {{ $deliveries->links() }}
             @endif
         </div>
+
+        {{-- Onglet Analytics --}}
+        @if(!empty($analytics))
+        <div class="tab-pane fade" id="analytics" role="tabpanel" aria-labelledby="analytics-tab">
+            @php $h = $analytics['headline']; @endphp
+
+            {{-- KPI cards --}}
+            <div class="row g-3 mb-4">
+                <div class="col-md-3 col-sm-6">
+                    <div class="card h-100 border-primary">
+                        <div class="card-body">
+                            <div class="text-muted small">{{ __('messages.resellers.analytics_kpi.deliveries') }}</div>
+                            <div class="fs-3 fw-bold">{{ $h['deliveries_count'] }}</div>
+                            <div class="small text-muted">${{ number_format($h['delivered_value'], 2) }} — {{ $h['units_delivered'] }} {{ __('messages.supplier.analytics_kpi.units') }}</div>
+                        </div>
+                    </div>
+                </div>
+                @if($h['is_consignment'])
+                <div class="col-md-3 col-sm-6">
+                    <div class="card h-100 border-secondary">
+                        <div class="card-body">
+                            <div class="text-muted small">{{ __('messages.resellers.analytics_kpi.reports') }}</div>
+                            <div class="fs-3 fw-bold">{{ $h['reports_count'] }}</div>
+                            <div class="small text-muted">{{ $h['units_sold'] }} {{ __('messages.supplier.analytics_kpi.units_sold') }}</div>
+                        </div>
+                    </div>
+                </div>
+                @endif
+                <div class="col-md-3 col-sm-6">
+                    <div class="card h-100 border-success">
+                        <div class="card-body">
+                            <div class="text-muted small">{{ __('messages.supplier.analytics_kpi.revenue_total') }}</div>
+                            <div class="fs-3 fw-bold text-success">${{ number_format($h['revenue_total'], 2) }}</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3 col-sm-6">
+                    <div class="card h-100 border-info">
+                        <div class="card-body">
+                            <div class="text-muted small">{{ __('messages.supplier.analytics_kpi.margin') }}</div>
+                            <div class="fs-3 fw-bold text-info">${{ number_format($h['margin_total'], 2) }}</div>
+                            <div class="small text-muted">{{ $h['margin_pct'] !== null ? number_format($h['margin_pct'], 1).'%' : '—' }}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row g-3 mb-4">
+                <div class="col-md-3 col-sm-6">
+                    <div class="card h-100">
+                        <div class="card-body">
+                            <div class="text-muted small">{{ __('messages.resellers.analytics_kpi.invoiced') }}</div>
+                            <div class="fs-4 fw-bold">${{ number_format($h['invoiced_total'], 2) }}</div>
+                            <div class="small text-success">{{ __('messages.resellers.analytics_kpi.paid') }} : ${{ number_format($h['paid_total'], 2) }}</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3 col-sm-6">
+                    <div class="card h-100">
+                        <div class="card-body">
+                            <div class="text-muted small">{{ __('messages.resellers.analytics_kpi.outstanding') }}</div>
+                            <div class="fs-4 fw-bold {{ $h['outstanding'] > 0 ? 'text-warning' : '' }}">${{ number_format($h['outstanding'], 2) }}</div>
+                            <div class="small text-muted">{{ $h['outstanding_count'] }} {{ __('messages.resellers.analytics_kpi.invoices') }}</div>
+                        </div>
+                    </div>
+                </div>
+                @if($h['is_consignment'])
+                <div class="col-md-3 col-sm-6">
+                    <div class="card h-100">
+                        <div class="card-body">
+                            <div class="text-muted small">{{ __('messages.resellers.analytics_kpi.sell_through') }}</div>
+                            <div class="fs-4 fw-bold">{{ $h['sell_through_pct'] !== null ? $h['sell_through_pct'].'%' : '—' }}</div>
+                        </div>
+                    </div>
+                </div>
+                @endif
+                <div class="col-md-3 col-sm-6">
+                    <div class="card h-100">
+                        <div class="card-body">
+                            <div class="text-muted small">{{ __('messages.supplier.analytics_kpi.returns') }}</div>
+                            <div class="fs-4 fw-bold">{{ $h['returns_count'] }}</div>
+                            <div class="small text-muted">{{ $h['units_returned'] }} {{ __('messages.supplier.analytics_kpi.items') }}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {{-- Monthly trend chart --}}
+            <div class="card mb-4">
+                <div class="card-header"><strong>{{ __('messages.supplier.analytics_monthly_trend') }}</strong></div>
+                <div class="card-body">
+                    <canvas id="resellerMonthlyChart" height="90"></canvas>
+                </div>
+            </div>
+
+            {{-- By-year breakdown --}}
+            @if(!empty($analytics['byYear']))
+            <div class="card mb-4">
+                <div class="card-header"><strong>{{ __('messages.supplier.analytics_yearly_breakdown') }}</strong></div>
+                <div class="table-responsive">
+                    <table class="table table-sm table-striped mb-0">
+                        <thead>
+                            <tr>
+                                <th>{{ __('messages.supplier.analytics_year') }}</th>
+                                <th class="text-end">{{ __('messages.resellers.analytics_kpi.deliveries') }}</th>
+                                @if($h['is_consignment'])
+                                <th class="text-end">{{ __('messages.resellers.analytics_kpi.reports') }}</th>
+                                @endif
+                                <th class="text-end">{{ __('messages.supplier.analytics_kpi.revenue_total') }}</th>
+                                <th class="text-end">{{ __('messages.supplier.analytics_kpi.margin') }}</th>
+                                <th class="text-end">{{ __('messages.supplier.analytics_margin_pct') }}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach($analytics['byYear'] as $row)
+                                <tr>
+                                    <td>{{ $row['year'] }}</td>
+                                    <td class="text-end">{{ $row['deliveries'] }}</td>
+                                    @if($h['is_consignment'])
+                                    <td class="text-end">{{ $row['reports'] }}</td>
+                                    @endif
+                                    <td class="text-end text-success">${{ number_format($row['revenue'], 2) }}</td>
+                                    <td class="text-end text-info">${{ number_format($row['margin'], 2) }}</td>
+                                    <td class="text-end">{{ $row['margin_pct'] !== null ? number_format($row['margin_pct'], 1).'%' : '—' }}</td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            @endif
+
+            {{-- Top products --}}
+            @if(!empty($analytics['topProducts']))
+            <div class="card mb-4">
+                <div class="card-header"><strong>{{ __('messages.supplier.analytics_top_products') }}</strong></div>
+                <div class="table-responsive">
+                    <table class="table table-sm table-striped mb-0">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>{{ __('messages.common.name') }}</th>
+                                <th class="text-end">{{ __('messages.supplier.analytics_kpi.units_sold') }}</th>
+                                <th class="text-end">{{ __('messages.supplier.analytics_kpi.revenue_total') }}</th>
+                                <th class="text-end">{{ __('messages.supplier.analytics_kpi.margin') }}</th>
+                                <th class="text-end">{{ __('messages.supplier.analytics_margin_pct') }}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach($analytics['topProducts'] as $i => $row)
+                                <tr>
+                                    <td>{{ $i + 1 }}</td>
+                                    <td><a href="{{ route('products.edit', $row['product_id']) }}" target="_blank">{{ $row['name'] }}</a></td>
+                                    <td class="text-end">{{ $row['units'] }}</td>
+                                    <td class="text-end text-success">${{ number_format($row['revenue'], 2) }}</td>
+                                    <td class="text-end text-info">${{ number_format($row['margin'], 2) }}</td>
+                                    <td class="text-end">{{ $row['margin_pct'] !== null ? number_format($row['margin_pct'], 1).'%' : '—' }}</td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            @endif
+        </div>
+        @endif
     </div>
 </div>
+
+@if(!empty($analytics))
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+(function() {
+    const el = document.getElementById('resellerMonthlyChart');
+    if (!el) return;
+    const data = @json($analytics['byMonth']);
+    const labels = data.map(d => d.month);
+    const delivVal = data.map(d => d.delivered_value);
+    const revenue = data.map(d => d.revenue);
+    const deliveries = data.map(d => d.deliveries);
+    const isConsignment = {{ $h['is_consignment'] ? 'true' : 'false' }};
+    const datasets = [
+        { type: 'bar', label: @json(__('messages.resellers.analytics_kpi.deliveries')), data: deliveries, backgroundColor: 'rgba(54, 162, 235, 0.6)', yAxisID: 'y1' },
+        { type: 'line', label: @json(__('messages.resellers.analytics_kpi.delivered_value')) + ' ($)', data: delivVal, borderColor: 'rgba(54, 162, 235, 0.9)', backgroundColor: 'rgba(54, 162, 235, 0.1)', tension: 0.25, yAxisID: 'y2' }
+    ];
+    if (isConsignment) {
+        datasets.push({ type: 'line', label: @json(__('messages.supplier.analytics_kpi.revenue_total')) + ' ($)', data: revenue, borderColor: 'rgba(40, 167, 69, 0.9)', backgroundColor: 'rgba(40, 167, 69, 0.1)', tension: 0.25, yAxisID: 'y2' });
+    }
+    new Chart(el, {
+        type: 'bar',
+        data: { labels, datasets },
+        options: {
+            responsive: true,
+            scales: {
+                y1: { type: 'linear', position: 'left', title: { display: true, text: @json(__('messages.resellers.analytics_kpi.deliveries')) }, beginAtZero: true },
+                y2: { type: 'linear', position: 'right', grid: { drawOnChartArea: false }, title: { display: true, text: '$' }, beginAtZero: true }
+            }
+        }
+    });
+})();
+</script>
+@endif
 
 <style>
 /* S'assurer que le modal-footer est visible */

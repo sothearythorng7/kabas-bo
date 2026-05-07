@@ -13,8 +13,12 @@ use App\Models\Store;
 class Reseller extends Model
 {
     protected $fillable = [
-        'name', 'type', 'address', 'address2', 'city',
+        'name', 'type', 'is_active', 'address', 'address2', 'city',
         'postal_code', 'country', 'phone', 'email', 'tax_id'
+    ];
+
+    protected $casts = [
+        'is_active' => 'boolean',
     ];
 
     public function contacts() { return $this->hasMany(ResellerContact::class); }

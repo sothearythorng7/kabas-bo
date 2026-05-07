@@ -7,10 +7,29 @@
     <a href="{{ route('products.create') }}" class="btn btn-success mb-3">
         <i class="bi bi-plus-circle-fill"></i> {{ __('messages.product.btnCreate') }}
     </a>
+    @if(!empty($filterValue))
+        <div class="alert alert-info d-flex align-items-center justify-content-between mb-3 py-2">
+            <div>
+                <i class="bi bi-funnel-fill"></i>
+                <strong>{{ $filterValue->type->label ?: $filterValue->type->name }} :</strong>
+                @if($filterValue->color_hex)
+                    <span style="display:inline-block;width:14px;height:14px;border-radius:3px;border:1px solid #ccc;background:{{ $filterValue->color_hex }};vertical-align:middle;margin:0 4px;"></span>
+                @endif
+                {{ $filterValue->value }}
+            </div>
+            <a href="{{ route('products.index', request()->except('variation_value_id', 'page')) }}" class="btn btn-sm btn-outline-secondary">
+                <i class="bi bi-x-circle"></i> {{ __('messages.btn.reset') ?? 'Réinitialiser' }}
+            </a>
+        </div>
+    @endif
+
     <div class="mb-3">
         <form action="{{ route('products.index') }}" method="GET" class="row g-2">
+            @if(request('variation_value_id'))
+                <input type="hidden" name="variation_value_id" value="{{ request('variation_value_id') }}">
+            @endif
             <div class="col-md-6">
-                <input type="text" name="q" value="{{ request('q') }}" class="form-control" 
+                <input type="text" name="q" value="{{ request('q') }}" class="form-control"
                     placeholder="{{ __('messages.searchBy') }}">
             </div>
             <div class="col-md-2">
@@ -40,6 +59,9 @@
                         {{-- préserver les autres filtres/params --}}
                         @if(request('q'))
                             <input type="hidden" name="q" value="{{ request('q') }}">
+                        @endif
+                        @if(request('variation_value_id'))
+                            <input type="hidden" name="variation_value_id" value="{{ request('variation_value_id') }}">
                         @endif
 
                         <select name="brand_id" class="form-select form-select-sm" onchange="this.form.submit()">

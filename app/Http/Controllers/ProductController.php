@@ -26,11 +26,17 @@ class ProductController extends Controller
         $perPage = $request->input('perPage', 100);
         $perPage = in_array($perPage, [25, 50, 100]) ? $perPage : 100;
 
+        $variationValueId = $request->input('variation_value_id');
+        $filterValue = $variationValueId ? \App\Models\VariationValue::with('type')->find($variationValueId) : null;
+
         // Si recherche textuelle, utiliser Meilisearch via Scout
         if ($request->filled('q')) {
             $searchQuery = Product::search($request->q)
-                ->query(function ($builder) use ($request) {
+                ->query(function ($builder) use ($variationValueId) {
                     $builder->with('brand', 'stores')->withCount('images');
+                    if ($variationValueId) {
+                        $builder->whereHas('variationAttributes', fn($q) => $q->where('variation_value_id', $variationValueId));
+                    }
                 });
 
             // Filtre par marque si nécessaire
@@ -55,12 +61,16 @@ class ProductController extends Controller
                 }
             }
 
+            if ($variationValueId) {
+                $query->whereHas('variationAttributes', fn($q) => $q->where('variation_value_id', $variationValueId));
+            }
+
             $products = $query->orderBy('id', 'desc')->paginate($perPage)->withQueryString();
         }
 
         $brands = Brand::orderBy('name')->get();
 
-        return view('products.index', compact('products', 'brands'));
+        return view('products.index', compact('products', 'brands', 'filterValue'));
     }
 
     public function checkEan(Request $request)
@@ -713,8 +723,13 @@ public function update(Request $request, Product $product)
         DB::transaction(function () use ($data, $product) {
             // Get or create the variation group
             if (!$product->variation_group_id) {
+                $productName = is_array($product->name) ? $product->name : [];
                 $group = \App\Models\VariationGroup::create([
-                    'name' => $product->name['fr'] ?? $product->name['en'] ?? reset($product->name),
+                    'name' => [
+                        'fr' => $productName['fr'] ?? $productName['en'] ?? (reset($productName) ?: ''),
+                        'en' => $productName['en'] ?? $productName['fr'] ?? (reset($productName) ?: ''),
+                    ],
+                    'display_product_id' => $product->id,
                 ]);
                 $product->update(['variation_group_id' => $group->id]);
 
@@ -813,6 +828,50 @@ public function update(Request $request, Product $product)
         return back()->with('success', __('messages.product.variation_removed'))->withFragment('tab-variations');
     }
 
+    /**
+     * Update the generic fields of a VariationGroup (name, description, display_product).
+     */
+    public function variationGroupUpdate(Request $request, \App\Models\VariationGroup $variationGroup)
+    {
+        $data = $request->validate([
+            'name'               => 'required|array',
+            'name.fr'            => 'required|string|max:255',
+            'name.en'            => 'required|string|max:255',
+            'description'        => 'nullable|array',
+            'description.fr'     => 'nullable|string|max:5000',
+            'description.en'     => 'nullable|string|max:5000',
+            'display_product_id' => 'nullable|integer|exists:products,id',
+        ]);
+
+        // Ensure display_product (if set) belongs to this group
+        if (!empty($data['display_product_id'])) {
+            $belongs = Product::where('id', $data['display_product_id'])
+                ->where('variation_group_id', $variationGroup->id)
+                ->exists();
+            if (!$belongs) {
+                return back()
+                    ->with('error', __('messages.variation.display_product_invalid'))
+                    ->withFragment('tab-variations');
+            }
+        }
+
+        // Normalize empty descriptions to null-object to keep column NULL if both langs are blank
+        $desc = $data['description'] ?? [];
+        if (empty(array_filter($desc, fn($v) => is_string($v) && trim($v) !== ''))) {
+            $data['description'] = null;
+        }
+
+        $variationGroup->update([
+            'name'               => $data['name'],
+            'description'        => $data['description'] ?? null,
+            'display_product_id' => $data['display_product_id'] ?? null,
+        ]);
+
+        return back()
+            ->with('success', __('messages.variation.group_updated'))
+            ->withFragment('tab-variations');
+    }
+
 // Ajax pour récupérer les valeurs d’un type
 public function values(VariationType $type)
 {
@@ -846,7 +905,7 @@ public function search(Request $request)
  */
 public function duplicate(Product $product)
 {
-    $product->load(['categories', 'suppliers', 'stores', 'images', 'variations']);
+    $product->load(['categories', 'suppliers', 'stores', 'images', 'variationAttributes']);
 
     $newProduct = DB::transaction(function () use ($product) {
         // Générer un EAN fake unique
@@ -933,8 +992,13 @@ public function duplicate(Product $product)
         // Note: duplicated product is NOT added to the same variation group
         // (it's a copy, not a sibling). Attributes are copied for reference.
         if ($product->variationAttributes->isNotEmpty()) {
+            $baseName = $newProduct->name['fr'] ?? ($newProduct->name['en'] ?? reset($newProduct->name) ?? '');
             $newGroup = \App\Models\VariationGroup::create([
-                'name' => ($newProduct->name['fr'] ?? reset($newProduct->name)) . ' (copie)',
+                'name' => [
+                    'fr' => $baseName . ' (copie)',
+                    'en' => ($newProduct->name['en'] ?? $baseName) . ' (copy)',
+                ],
+                'display_product_id' => $newProduct->id,
             ]);
             $newProduct->update(['variation_group_id' => $newGroup->id]);
             foreach ($product->variationAttributes as $attr) {

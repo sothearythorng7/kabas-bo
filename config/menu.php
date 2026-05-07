@@ -225,7 +225,7 @@ return [
     [
         'label' => 'Website',
         'icon'  => 'bi-globe',
-        'active_pattern' => 'blog*|contact-messages*|pages*|hero-slides*|home-content*|promotion-bar*|website-orders*|website-tools*|shipping-countries*|shipping-carriers*|shipping-rates*',
+        'active_pattern' => 'blog*|contact-messages*|pages*|hero-slides*|home-content*|promotion-bar*|promotions*|abandoned-cart-settings*|payment-recovery-settings*|wishlist-analytics*|website-orders*|website-tools*|shipping-countries*|shipping-carriers*|shipping-rates*|analytics*',
         'submenu' => [
             [
                 'label' => 'messages.menu.home_content',
@@ -238,6 +238,86 @@ return [
                 'icon'  => 'bi-megaphone',
                 'route' => 'promotion-bar.index',
                 'active_pattern' => 'promotion-bar*',
+            ],
+            [
+                'label' => 'messages.menu.promotions',
+                'icon'  => 'bi-tag',
+                'route' => 'promotions.index',
+                'active_pattern' => 'promotions*',
+            ],
+            [
+                'label' => 'messages.menu.abandoned_cart',
+                'icon'  => 'bi-cart-x',
+                'route' => 'abandoned-cart-settings.edit',
+                'active_pattern' => 'abandoned-cart-settings*',
+            ],
+            [
+                'label' => 'messages.menu.payment_recovery',
+                'icon'  => 'bi-clock-history',
+                'route' => 'payment-recovery-settings.edit',
+                'active_pattern' => 'payment-recovery-settings*',
+            ],
+            [
+                'label' => 'messages.menu.wishlist_analytics',
+                'icon'  => 'bi-heart-fill',
+                'route' => 'wishlist-analytics.index',
+                'active_pattern' => 'wishlist-analytics*',
+            ],
+            [
+                'label' => 'messages.menu.analytics',
+                'icon'  => 'bi-bar-chart-line',
+                'active_pattern' => 'analytics*',
+                'allowed_roles' => ['admin', 'manager'],
+                'submenu' => [
+                    [
+                        'label' => 'messages.analytics.menu.overview',
+                        'icon'  => 'bi-speedometer',
+                        'route' => 'analytics.overview',
+                        'active_pattern' => 'analytics$',
+                    ],
+                    [
+                        'label' => 'messages.analytics.menu.products',
+                        'icon'  => 'bi-bag',
+                        'route' => 'analytics.products',
+                        'active_pattern' => 'analytics/products*',
+                    ],
+                    [
+                        'label' => 'messages.analytics.menu.sources',
+                        'icon'  => 'bi-diagram-3',
+                        'route' => 'analytics.sources',
+                        'active_pattern' => 'analytics/sources*',
+                    ],
+                    [
+                        'label' => 'messages.analytics.menu.search',
+                        'icon'  => 'bi-search',
+                        'route' => 'analytics.search',
+                        'active_pattern' => 'analytics/search*',
+                    ],
+                    [
+                        'label' => 'messages.analytics.menu.customers',
+                        'icon'  => 'bi-people',
+                        'route' => 'analytics.customers',
+                        'active_pattern' => 'analytics/customers*',
+                    ],
+                    [
+                        'label' => 'messages.analytics.menu.geo',
+                        'icon'  => 'bi-globe',
+                        'route' => 'analytics.geo',
+                        'active_pattern' => 'analytics/geo*',
+                    ],
+                    [
+                        'label' => 'messages.analytics.menu.checkout',
+                        'icon'  => 'bi-funnel',
+                        'route' => 'analytics.checkout',
+                        'active_pattern' => 'analytics/checkout*',
+                    ],
+                    [
+                        'label' => 'messages.analytics.menu.marketing',
+                        'icon'  => 'bi-megaphone',
+                        'route' => 'analytics.marketing',
+                        'active_pattern' => 'analytics/marketing*',
+                    ],
+                ],
             ],
             [
                 'label' => 'messages.menu.blog',
@@ -392,6 +472,12 @@ return [
                         'icon'  => 'bi-list',
                         'route' => 'variation-values.index',
                         'active_pattern' => 'variation-values*',
+                    ],
+                    [
+                        'label' => 'messages.menu.variations_audit',
+                        'icon'  => 'bi-clipboard-check',
+                        'route' => 'variation-values.audit',
+                        'active_pattern' => 'variation-values/audit*',
                     ],
                 ]
             ],

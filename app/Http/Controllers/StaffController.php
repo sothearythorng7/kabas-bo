@@ -156,12 +156,11 @@ class StaffController extends Controller
         $tab = $request->get('tab', 'list');
         $stores = Store::orderBy('name')->get();
 
-        $currentMonth = $request->get('period', now()->subMonth()->format('Y-m'));
+        $currentMonth = $request->get('period', now()->format('Y-m'));
         $monthStart = \Carbon\Carbon::parse($currentMonth . '-01')->startOfMonth();
         $monthEnd = $monthStart->copy()->endOfMonth();
 
-        // Count pending payments (needed for all tabs) - uses previous month by default
-        // since salaries are paid at the beginning of the following month
+        // Count of staff that haven't been paid yet for the displayed period.
         $pendingPaymentsCount = StaffMember::where('contract_status', 'active')
             ->whereHas('currentSalary', function ($q) {
                 $q->where('base_salary', '>', 0);
@@ -445,9 +444,9 @@ class StaffController extends Controller
             ->where('status', 'approved')
             ->sum('amount');
 
-        // Calculate payroll data - default to previous month (salaries are paid at the beginning of the following month)
-        // CommissionService already looks at previous month's sales for the given period
-        $payrollMonth = $request->get('payroll_month', now()->subMonth()->format('Y-m'));
+        // Default to current month — this is the payroll being prepared (CommissionService already
+        // looks at the previous month's sales). Aligns with the commissions tab default.
+        $payrollMonth = $request->get('payroll_month', now()->format('Y-m'));
         $payrollData = $this->payrollService->calculatePayrollForUser($staffMember, $payrollMonth);
         $payrollData['month'] = $payrollMonth;
         $payrollData['suggested_daily_rate'] = $payrollData['daily_rate'];
@@ -875,7 +874,7 @@ class StaffController extends Controller
             'period' => 'nullable|date_format:Y-m',
         ]);
 
-        $currentMonth = $validated['period'] ?? now()->subMonth()->format('Y-m');
+        $currentMonth = $validated['period'] ?? now()->format('Y-m');
 
         $paidCount = 0;
         $totalAmount = 0;

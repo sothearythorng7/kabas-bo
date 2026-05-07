@@ -290,6 +290,16 @@ public function edit(Supplier $supplier, Request $request)
         'count' => $salesTracking->count(),
     ];
 
+    // Analytics (KPIs, time-series, top products, returns)
+    $analyticsSvc = new \App\Services\SupplierAnalyticsService($supplier);
+    $analytics = [
+        'headline' => $analyticsSvc->headline(),
+        'ordersByMonth' => $analyticsSvc->ordersByMonth(12),
+        'byYear' => $analyticsSvc->byYear(),
+        'topProducts' => $analyticsSvc->topProducts(10),
+        'returns' => $analyticsSvc->returnsStats(),
+    ];
+
     return view('suppliers.edit', compact(
         'supplier',
         'products',
@@ -308,7 +318,8 @@ public function edit(Supplier $supplier, Request $request)
         'stChannel',
         'stStores',
         'stResellers',
-        'stTotals'
+        'stTotals',
+        'analytics'
     ));
 }
 

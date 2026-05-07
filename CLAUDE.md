@@ -524,6 +524,157 @@ Module permettant de définir des règles promotionnelles applicables sur le sit
 
 ---
 
+## Module Analytics (ajouté 2026-04-24)
+
+Dashboard analytique complet pour le site public. Données capturées côté `/var/www/kabas-site`, agrégées quotidiennement, affichées dans le BO sous `/analytics/*`.
+
+### Architecture en 4 couches
+
+```
+[site] middleware + JS → queue job → events bruts (90j)
+                                      ↓ cron 01:00
+                           tables _daily (conservées à vie)
+                                      ↓
+                           [BO] AnalyticsDashboardController → 8 vues Blade
+```
+
+### Tables
+
+| Table | Role | Rétention |
+|-------|------|-----------|
+| `analytics_visitors` | 1 ligne par visiteur unique (cookie UUID) | jamais purgé |
+| `analytics_sessions` | 1 ligne par session (fermée après 30min d'inactivité) | 90 jours |
+| `analytics_events` | events bruts (page_view, product_view, etc.) | 90 jours |
+| `analytics_daily` | rollup global par jour | jamais purgé |
+| `analytics_product_daily` | rollup par produit | jamais purgé |
+| `analytics_source_daily` | rollup par source+UTM | jamais purgé |
+| `analytics_geo_daily` | rollup par pays | jamais purgé |
+| `analytics_search_daily` | rollup par terme de recherche | jamais purgé |
+
+### Event types instrumentés (kabas-site)
+
+| Event | Controller | Déclenché quand |
+|-------|------------|----------------|
+| `page_view` | `AnalyticsMiddleware` (auto) | toute GET HTML 2xx/3xx hors paths exclus |
+| `product_view` | `PublicProductController@show` | fiche produit chargée |
+| `add_to_cart` | `CartController@add` | item ajouté (incl. gift_box, gift_card) |
+| `cart_remove` | `CartController@remove` | item retiré du panier |
+| `checkout_start` | `CheckoutController@show` | arrive sur /checkout avec panier non vide |
+| `order_placed` | `CheckoutController@handleOrderPaid` | paiement confirmé |
+| `search` | `SearchController@index` | recherche avec term non vide |
+| `wishlist_add` / `wishlist_remove` | `Customer/WishlistController` | toggle + remove |
+| `404` | `bootstrap/app.php` renderable hook | NotFoundHttpException |
+
+### Exclusion staff
+
+2 mécanismes :
+1. **Email whitelist** : `ANALYTICS_EXCLUDED_EMAILS` dans `.env` du site (actuellement `adsofts@gmail.com`)
+2. **Cookie opt-out** : visite de `https://www.kabasconceptstore.com/_analytics_opt_out` pose un cookie 1 an
+
+Events stockés avec `is_staff=true` mais **exclus** de toutes les agrégations et dashboards.
+
+### Commandes artisan (kabas-site)
+
+```bash
+php artisan analytics:aggregate-daily                      # rollup hier
+php artisan analytics:aggregate-daily --date=2026-04-20    # un jour précis
+php artisan analytics:aggregate-daily --days=30            # backfill
+php artisan analytics:close-stale-sessions                 # ferme sessions idle >30min
+php artisan analytics:purge-old-events                     # delete events + sessions >90j
+php artisan geoip:update-database                          # télécharge GeoLite2
+```
+
+Schedule (routes/console.php) :
+- `close-stale-sessions` every 5 min
+- `aggregate-daily` daily 01:00
+- `purge-old-events` weekly lundi 02:00
+- `geoip:update-database` monthly 1er à 02:30
+
+### Routes BO
+
+```
+/analytics           → overview (vue d'ensemble)
+/analytics/products  → funnel produit (tri + filtres)
+/analytics/sources   → acquisition (in-house + GA4)
+/analytics/search    → top termes + zero-results
+/analytics/customers → LTV + cohort + repeat rate
+/analytics/geo       → carte Leaflet + top pays
+/analytics/checkout  → funnel 5 étapes
+/analytics/marketing → codes promo + UTM + récupération
+```
+
+Accès : `role:admin|manager`.
+
+### Ga4AnalyticsService (BO)
+
+Wrapper autour de la Google Analytics Data API (package `google/analytics-data` à installer quand actif). **Mode dégradé par défaut** — `isAvailable() = false` tant que :
+- `GA4_PROPERTY_ID` n'est pas défini dans `.env`
+- Le JSON service account n'existe pas à `storage/app/ga4/credentials.json`
+- Le package `google/analytics-data` n'est pas installé
+
+Les dashboards affichent "GA4 non configuré" proprement jusqu'à ce que ces 3 conditions soient remplies.
+
+### Runbook : ajouter un nouveau type d'event
+
+1. Ajouter la constante dans `kabas-site/app/Models/Analytics/AnalyticsEvent.php` :
+   ```php
+   public const TYPE_MY_NEW_EVENT = 'my_new_event';
+   ```
+2. Ajouter le type à `ALLOWED_EVENT_TYPES` dans `AnalyticsController::track()` (si poussé depuis le JS).
+3. Dans le controller métier qui déclenche l'event :
+   ```php
+   app(\App\Services\Analytics\AnalyticsService::class)->track(
+       eventType: \App\Models\Analytics\AnalyticsEvent::TYPE_MY_NEW_EVENT,
+       request: $request,
+       payload: ['foo' => 'bar'],
+       productId: $pid, // optionnel
+   );
+   ```
+4. Si l'event a un impact sur les agrégations (ex: doit compter dans les funnel steps), mettre à jour `AggregateAnalyticsDaily` et/ou `TrackEventJob::upsertSession()`.
+5. Si besoin d'affichage : ajouter une colonne/graph dans les dashboards BO.
+
+Le pattern `dispatchAfterResponse()` dans `TrackEventJob` exécute le job en-process après envoi de la réponse → pas besoin de worker queue actif pour l'ingest (worker reste nécessaire pour les crons d'agrégation si jamais on en fait des jobs).
+
+### Runbook : divergences GA4 vs in-house
+
+**Normales** — ne pas paniquer. Causes typiques :
+
+| Cause | Impact |
+|-------|--------|
+| GA4 filtre les bots automatiquement, in-house les marque comme `device_type=bot` mais les compte | in-house > GA4 sur sessions |
+| GA4 attribue les conversions au "last non-direct click" (fenêtre 30j), in-house à la session en cours | sources différentes pour même commande |
+| GA4 utilise client-side JS uniquement, in-house = middleware serveur | in-house > GA4 (JS bloqué par adblocker, pages AMP, etc.) |
+| Staff exclu côté in-house (cookie + email), staff non exclu côté GA4 | in-house < GA4 sur trafic staff |
+| GA4 sampling sur gros volumes | GA4 approximatif à partir de ~200k sessions/mois |
+
+**Quand s'inquiéter** : divergence > 50% sur une métrique clé (sessions, orders, revenue). Vérifier d'abord qu'aucun adblocker n'est actif côté test, puis investiguer via les events bruts.
+
+### Fichiers clés
+
+**Côté site** (`/var/www/kabas-site`) :
+- `app/Http/Middleware/AnalyticsMiddleware.php`
+- `app/Services/Analytics/{AnalyticsService,GeolocationService,UserAgentParser}.php`
+- `app/Jobs/Analytics/TrackEventJob.php`
+- `app/Http/Controllers/AnalyticsController.php`
+- `app/Console/Commands/{AggregateAnalyticsDaily,PurgeOldAnalyticsEvents,CloseStaleAnalyticsSessions,UpdateGeoIpDatabase}.php`
+- `app/Models/Analytics/*` (8 modèles)
+- `public/js/analytics.js`
+- `config/analytics.php`
+- `storage/app/geoip/GeoLite2-City.mmdb` (DB GeoIP, ~62 MB)
+
+**Côté BO** (`/var/www/kabas`) :
+- `app/Http/Controllers/AnalyticsDashboardController.php`
+- `app/Services/Ga4AnalyticsService.php`
+- `config/analytics.php`
+- `resources/views/analytics/*` (8 vues + partial period-picker)
+
+### Actions encore pending
+
+1. **Worker supervisor kabas-site** : préparé dans `/tmp/kabas-site-worker.conf`, à copier dans `/etc/supervisor/conf.d/` par admin. **Non bloquant pour le tracking** (qui utilise `dispatchAfterResponse`), mais nécessaire pour d'éventuels futurs jobs queue-based.
+2. **GA4 service account** : attendre que l'admin crée le service account dans Google Cloud Console, pose le JSON dans `storage/app/ga4/credentials.json`, renseigne `GA4_PROPERTY_ID` dans `.env`, puis `composer require google/analytics-data` dans le BO.
+
+---
+
 ## Contacts & Ressources
 
 - **Meilisearch**: http://127.0.0.1:7700

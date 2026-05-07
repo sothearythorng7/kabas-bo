@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\FinancialAccount;
+use App\Models\FinancialPaymentMethod;
 use App\Models\FinancialTransaction;
 use App\Models\Product;
 use App\Models\StockBatch;
@@ -134,8 +135,9 @@ class StockLossController extends Controller
     public function show(StockLoss $stockLoss)
     {
         $stockLoss->load(['store', 'createdBy', 'supplier', 'items.product.brand', 'financialTransaction', 'refundTransaction']);
+        $paymentMethods = FinancialPaymentMethod::orderBy('name')->get();
 
-        return view('stock_losses.show', compact('stockLoss'));
+        return view('stock_losses.show', compact('stockLoss', 'paymentMethods'));
     }
 
     public function edit(StockLoss $stockLoss)
@@ -236,6 +238,7 @@ class StockLossController extends Controller
                 'description' => "Stock loss at {$stockLoss->store->name} - {$stockLoss->items->count()} products, {$stockLoss->total_quantity} units",
                 'status' => 'validated',
                 'transaction_date' => now(),
+                'payment_method_id' => 2,
                 'user_id' => auth()->id(),
             ]);
 
@@ -273,6 +276,7 @@ class StockLossController extends Controller
 
         $request->validate([
             'refund_amount' => 'required|numeric|min:0.01',
+            'payment_method_id' => 'required|exists:financial_payment_methods,id',
         ]);
 
         DB::transaction(function () use ($request, $stockLoss) {
@@ -298,6 +302,7 @@ class StockLossController extends Controller
                 'description' => "Refund from {$stockLoss->supplier->name} for stock loss #{$stockLoss->reference}",
                 'status' => 'validated',
                 'transaction_date' => now(),
+                'payment_method_id' => $request->payment_method_id,
                 'user_id' => auth()->id(),
             ]);
 

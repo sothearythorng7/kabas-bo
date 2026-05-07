@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Models\Product;
+use App\Services\TelegramService;
 use Illuminate\Console\Command;
 
 class GenerateProductSeo extends Command
@@ -10,7 +11,8 @@ class GenerateProductSeo extends Command
     protected $signature = 'products:generate-seo
                             {--dry-run : Preview without saving}
                             {--force : Overwrite existing SEO data}
-                            {--only-empty : Only fill products with no SEO data (default behavior)}';
+                            {--only-empty : Only fill products with no SEO data (default behavior)}
+                            {--notify : Send a Telegram notification if any product was updated}';
 
     protected $description = 'Generate SEO title and meta description for all products based on name, description and brand';
 
@@ -107,7 +109,26 @@ class GenerateProductSeo extends Command
             $this->warn('This was a dry run. Run without --dry-run to save changes.');
         }
 
+        if ($this->option('notify') && ! $dryRun && $updated > 0) {
+            $this->notifyTelegram($updated, $skipped);
+        }
+
         return self::SUCCESS;
+    }
+
+    protected function notifyTelegram(int $updated, int $skipped): void
+    {
+        try {
+            $message = "🧩 <b>Auto SEO — nightly run</b>\n\n"
+                . "Updated: <b>{$updated}</b> product(s)\n"
+                . "Skipped: {$skipped}\n\n"
+                . "Triggered at " . now()->format('Y-m-d H:i');
+            app(TelegramService::class)->sendMessage($message, 'HTML');
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::warning('SEO generator: telegram notify failed', [
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
 
     /**

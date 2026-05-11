@@ -1,7 +1,7 @@
 # Kabas Concept Store - Contexte Projet
 
 > Ce fichier contient toutes les informations nécessaires pour comprendre et travailler sur le projet Kabas.
-> Dernière mise à jour: 2026-02-09
+> Dernière mise à jour: 2026-05-11
 
 ## Vue d'Ensemble
 

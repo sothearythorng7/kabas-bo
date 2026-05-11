@@ -50,7 +50,7 @@ class RawMaterial extends Model
 
     public function searchableAs()
     {
-        return 'raw_materials';
+        return config('scout.prefix') . 'raw_materials';
     }
 
     /**

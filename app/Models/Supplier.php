@@ -51,7 +51,7 @@ class Supplier extends Model
 
     public function searchableAs()
     {
-        return 'suppliers';
+        return config('scout.prefix') . 'suppliers';
     }
 
     /**

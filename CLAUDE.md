@@ -16,6 +16,74 @@
 
 ---
 
+## Workflow Dev / Prod (depuis 2026-05-11)
+
+Le projet dispose désormais d'un environnement de dev parallèle à la prod, sur le même serveur.
+
+### Environnements
+
+| Environnement | BO | Site | DB | Codebase BO | Codebase site |
+|---|---|---|---|---|---|
+| **PROD** | bo.kabasconceptstore.com | www.kabasconceptstore.com | `kabas` | `/var/www/kabas/` | `/var/www/kabas-site/` |
+| **DEV** | testing-bo.kabasconceptstore.com (basic auth) | testing.kabasconceptstore.com (basic auth) | `kabas_dev` | `/var/www/kabas-dev/` | `/var/www/kabas-site-dev/` |
+
+DEV partage l'IP de prod ; les vhosts Apache distinguent par ServerName + HTTP basic auth (`kabas-dev` user, mot de passe à demander).
+
+### Services externes en dev
+
+| Service | Prod | Dev |
+|---|---|---|
+| SMTP | Gmail | `log` (`MAIL_MAILER=log`) |
+| Telegram | actif | vide |
+| GA4 / Google Ads | actif | désactivé via `TRACKING_ENABLED=false` |
+| PayWay | sandbox ABA | **non testable** (domaine pas en whitelist ABA) |
+| Meilisearch | indexes `products`, `raw_materials`, `suppliers` | indexes `dev_products`, `dev_raw_materials`, `dev_suppliers` |
+| Crons | actifs | actifs (inoffensifs car services externes silencieux) |
+
+### Branches et PR
+
+```
+[contributeur] feature/<topic>  ou  fix/<topic>  (depuis dev)
+      ↓ commits, push
+[GitHub PR] feature/* → dev
+      ↓ review + merge (Alexis ou Mickaël)
+[Mickaël seul] PR dev → main
+      ↓ merge
+[Mickaël] SSH prod : `kabas-deploy bo`  ou  `kabas-deploy site`
+      ↓ git pull --ff-only + migrate + cache + (npm build pour site)
+[prod live]
+```
+
+Convention de noms : `feature/<topic-kebab>` pour les nouveautés, `fix/<topic>` pour les correctifs. Pas de préfixe auteur.
+
+**Hotfix prod** : pas de raccourci, le passage par dev est obligatoire même pour un bug critique.
+
+### Storage photos
+
+- `/var/www/kabas-dev/storage/app/public/products/` est un **symlink readonly** vers `/var/www/kabas/storage/app/public/products/` (les photos prod sont visibles depuis dev en lecture). Idem pour `blog`, `hero_slides`, `stores`.
+- `/var/www/kabas-dev/storage/app/public/products-dev/` est **writable** pour les uploads dev (si jamais le code les y dirige).
+- `/var/www/kabas-site-dev/public/storage` symlink vers `/var/www/kabas-dev/storage/app/public/` (mirror de la prod : le site lit le storage du BO).
+
+### Backup `kabas_dev`
+
+Cron nocturne `/etc/cron.d/kabas-dev-backup` : mysqldump quotidien à 03:00, rétention 7 jours, sauvegardes dans `/var/backups/kabas_dev/`.
+
+### Alexis (consultant SEO + dev)
+
+- Compte Linux `alexis-claude` (uid 1003) avec accès :
+  - **Prod** : lecture code OK, écriture interdite. SQL prod limité aux tables SEO via user `alexis_seo`.
+  - **Dev** : R/W complet sur les deux codebases (via ACL Linux). SQL `kabas_dev` complet via user `alexis-claude`.
+- Sudoers étendu : peut lancer `php artisan` sur les deux dev paths en tant que `www-data`. Sur la prod, uniquement le wrapper `seo-fix` (`products:apply-seo-fixes`).
+- Doc dédiée : `/home/alexis-claude/seo/CLAUDE.md` et `/home/alexis-claude/seo/APP_BRIEF.md`.
+
+### Communication Claude↔Claude
+
+Dossier partagé `/var/shared/claude-comms/` (groupe `claude-shared`) :
+- `from-alexis/YYYY-MM-DD-<topic>.md` : briefs/demandes d'Alexis vers Mickaël
+- `from-mickael/YYYY-MM-DD-<topic>.md` : réponses/instructions de Mickaël
+
+---
+
 ## Stack Technique
 
 ### Backend (Laravel 12)

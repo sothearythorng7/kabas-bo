@@ -322,7 +322,7 @@ class Product extends Model
      */
     public function searchableAs()
     {
-        return 'products';
+        return config('scout.prefix') . 'products';
     }
 
     /**

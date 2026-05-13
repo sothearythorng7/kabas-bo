@@ -274,8 +274,20 @@ class SyncCambodiaPostRates extends Command
     }
 
     /**
-     * Activate countries served by Cambodia Post, deactivate those no longer served.
-     * Only touches countries that have Cambodia Post carrier rates.
+     * Anti-flap window: a country missing from the Cambodia Post sync results
+     * for less than this duration is kept active. Protects against single-run
+     * false positives (API timeouts, transient outages).
+     */
+    private const DEACTIVATION_GRACE_DAYS = 8;
+
+    /**
+     * Activate countries served by Cambodia Post, deactivate those no longer
+     * served. Two safeguards prevent false positives:
+     *   1. Skip countries that have rates from a non-Cambodia-Post carrier.
+     *   2. Anti-flap: only deactivate a country whose last successful
+     *      observation in this sync is older than DEACTIVATION_GRACE_DAYS.
+     *      Single-run misses (e.g. transient API errors) leave the country
+     *      active and emit a warning.
      */
     private function updateCountryStatus(array $servedCodes): void
     {
@@ -285,28 +297,49 @@ class SyncCambodiaPostRates extends Command
 
         if (empty($cambodiaPostCarrierIds)) return;
 
-        // Activate countries that Cambodia Post serves
+        $now = now();
+
+        // Refresh last-seen timestamp for every country observed this run.
+        ShippingCountry::whereIn('code', $servedCodes)
+            ->update(['last_seen_in_cp_sync_at' => $now]);
+
+        // Activate countries that Cambodia Post serves but were marked inactive.
         ShippingCountry::whereIn('code', $servedCodes)
             ->where('is_active', false)
             ->update(['is_active' => true]);
 
-        // Deactivate countries that Cambodia Post no longer serves
-        // Only if they have NO rates from other carriers
+        // Candidates for deactivation: active countries missing from the served list.
+        $threshold = $now->copy()->subDays(self::DEACTIVATION_GRACE_DAYS);
         $noLongerServed = ShippingCountry::where('is_active', true)
             ->whereNotIn('code', $servedCodes)
             ->get();
+
+        $deactivated = 0;
+        $skipped = 0;
 
         foreach ($noLongerServed as $country) {
             $hasOtherCarrierRates = ShippingRate::where('shipping_country_id', $country->id)
                 ->whereNotIn('shipping_carrier_id', $cambodiaPostCarrierIds)
                 ->exists();
 
-            if (!$hasOtherCarrierRates) {
+            if ($hasOtherCarrierRates) {
+                continue;
+            }
+
+            // Anti-flap: only deactivate after a sustained absence.
+            $lastSeen = $country->last_seen_in_cp_sync_at;
+            if ($lastSeen !== null && $lastSeen->lt($threshold)) {
                 $country->update(['is_active' => false]);
+                Log::info("Cambodia Post sync: deactivated {$country->code} (last seen {$lastSeen->toDateTimeString()})");
+                $deactivated++;
+            } else {
+                $lastSeenStr = $lastSeen ? $lastSeen->toDateTimeString() : 'never';
+                Log::warning("Cambodia Post sync: kept {$country->code} active despite missing from API (last seen: {$lastSeenStr}; grace period " . self::DEACTIVATION_GRACE_DAYS . " days)");
+                $skipped++;
             }
         }
 
         $activated = ShippingCountry::whereIn('code', $servedCodes)->where('is_active', true)->count();
-        $this->info("Country status: {$activated} active countries.");
+        $this->info("Country status: {$activated} active countries (deactivated this run: {$deactivated}; kept under grace: {$skipped}).");
     }
 }

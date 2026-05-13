@@ -1,7 +1,7 @@
 # Kabas Concept Store - Contexte Projet
 
 > Ce fichier contient toutes les informations nécessaires pour comprendre et travailler sur le projet Kabas.
-> Dernière mise à jour: 2026-02-09
+> Dernière mise à jour: 2026-05-11
 
 ## Vue d'Ensemble
 
@@ -47,6 +47,9 @@ DEV partage l'IP de prod ; les vhosts Apache distinguent par ServerName + HTTP b
       ↓ commits, push
 [GitHub PR] feature/* → dev
       ↓ review + merge (Alexis ou Mickaël)
+[Alexis ou Mickaël] SSH : `sudo kabas-deploy-dev bo`  ou  `sudo kabas-deploy-dev site`
+      ↓ git pull --ff-only sur dev + migrate + clear (+ npm build pour site)
+[testing-bo.kabasconceptstore.com / testing.kabasconceptstore.com live]
 [Mickaël seul] PR dev → main
       ↓ merge
 [Mickaël] SSH prod : `kabas-deploy bo`  ou  `kabas-deploy site`
@@ -57,6 +60,17 @@ DEV partage l'IP de prod ; les vhosts Apache distinguent par ServerName + HTTP b
 Convention de noms : `feature/<topic-kebab>` pour les nouveautés, `fix/<topic>` pour les correctifs. Pas de préfixe auteur.
 
 **Hotfix prod** : pas de raccourci, le passage par dev est obligatoire même pour un bug critique.
+
+### Propagation `dev` → testing
+
+Après merge sur `dev`, lancer le script jumeau de `kabas-deploy` qui cible la branche `dev` et les codebases `*-dev/` :
+
+- `sudo kabas-deploy-dev bo`   → propage vers `/var/www/kabas-dev/` (= testing-bo.kabasconceptstore.com)
+- `sudo kabas-deploy-dev site` → propage vers `/var/www/kabas-site-dev/` (= testing.kabasconceptstore.com)
+
+Étapes du script : `sudo -u siwei git fetch + checkout dev (forcé) + pull --ff-only`, puis `sudo -u www-data php artisan migrate --force + config:clear + route:clear + view:clear + cache:clear`. Côté site uniquement : `npm install && npm run build`. Pas de `*:cache` en dev (closures dans la config + perms de views peuvent péter, simpler safer).
+
+Différence vs `kabas-deploy` (prod) : `kabas-deploy-dev` **force** le checkout `dev` (pratique pour relancer après un détour `feature/*`), là où `kabas-deploy` refuse de tourner si la branche courante ≠ `main`.
 
 ### Storage photos
 
@@ -73,7 +87,7 @@ Cron nocturne `/etc/cron.d/kabas-dev-backup` : mysqldump quotidien à 03:00, ré
 - Compte Linux `alexis-claude` (uid 1003) avec accès :
   - **Prod** : lecture code OK, écriture interdite. SQL prod limité aux tables SEO via user `alexis_seo`.
   - **Dev** : R/W complet sur les deux codebases (via ACL Linux). SQL `kabas_dev` complet via user `alexis-claude`.
-- Sudoers étendu : peut lancer `php artisan` sur les deux dev paths en tant que `www-data`. Sur la prod, uniquement le wrapper `seo-fix` (`products:apply-seo-fixes`).
+- Sudoers étendu : peut lancer `php artisan` sur les deux dev paths en tant que `www-data`, et `kabas-deploy-dev bo|site` en NOPASSWD pour propager `dev` vers testing après merge. Sur la prod, uniquement le wrapper `seo-fix` (`products:apply-seo-fixes`).
 - Doc dédiée : `/home/alexis-claude/seo/CLAUDE.md` et `/home/alexis-claude/seo/APP_BRIEF.md`.
 
 ### Communication Claude↔Claude

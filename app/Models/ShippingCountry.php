@@ -9,12 +9,13 @@ class ShippingCountry extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['code', 'name', 'continent', 'is_active'];
+    protected $fillable = ['code', 'name', 'continent', 'is_active', 'last_seen_in_cp_sync_at'];
 
     protected function casts(): array
     {
         return [
             'is_active' => 'boolean',
+            'last_seen_in_cp_sync_at' => 'datetime',
         ];
     }
 

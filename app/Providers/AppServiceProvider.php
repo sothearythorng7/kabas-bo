@@ -5,6 +5,7 @@ namespace App\Providers;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Console\Events\CommandStarting;
 use App\Models\ResellerStockDelivery;
 use App\Observers\ResellerStockDeliveryObserver;
 use App\Models\ResellerSalesReport;
@@ -31,6 +32,24 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // Garde-fou production DB : refuse les commandes destructives quand la DB
+        // cible s'appelle `kabas` (la prod), sauf flag explicite `--i-know-this-is-prod`.
+        // Cf. incident 2026-05-13 (DB prod wipée par migrate:fresh contre kabas).
+        if ($this->app->runningInConsole()) {
+            Event::listen(CommandStarting::class, function (CommandStarting $event) {
+                $destructive = ['migrate:fresh', 'migrate:reset', 'db:wipe'];
+                if (! in_array($event->command, $destructive, true)) {
+                    return;
+                }
+                if (config('database.connections.mysql.database') === 'kabas'
+                    && ! $event->input->hasParameterOption('--i-know-this-is-prod')) {
+                    fwrite(STDERR, "\nREFUSED: '{$event->command}' on production DB 'kabas'.\n"
+                        . "If you really mean it, re-run with --i-know-this-is-prod.\n\n");
+                    exit(1);
+                }
+            });
+        }
+
         Paginator::useBootstrapFive();
         ResellerStockDelivery::observe(ResellerStockDeliveryObserver::class);
 

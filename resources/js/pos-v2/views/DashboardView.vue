@@ -26,8 +26,10 @@ import CustomServiceDialog from '../components/cart/CustomServiceDialog.vue';
 import DeliveryDialog from '../components/cart/DeliveryDialog.vue';
 import PaymentDialog from '../components/payment/PaymentDialog.vue';
 import HoldSalesDropdown from '../components/cart/HoldSalesDropdown.vue';
+import ExchangeWizard from '../components/exchange/ExchangeWizard.vue';
 
 import { useSync } from '../composables/useSync.js';
+import { useExchangeStore } from '../stores/exchange.js';
 
 const router = useRouter();
 const session = useSessionStore();
@@ -36,6 +38,7 @@ const i18n = useI18nStore();
 const catalog = useCatalogStore();
 const cart = useCartStore();
 const sales = useSalesStore();
+const exchange = useExchangeStore();
 
 const t = computed(() => i18n.t);
 
@@ -303,9 +306,9 @@ const globalDiscountSummary = computed(() => {
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
                             Voucher
                         </button>
-                        <button disabled class="h-12 px-4 bg-white border border-stone-200 rounded-xl text-[14px] font-medium text-stone-300 cursor-not-allowed flex items-center gap-2" :title="'Exchange — Phase 6'">
+                        <button @click="exchange.start()" class="h-12 px-4 bg-white border border-stone-200 rounded-xl text-[14px] font-medium text-stone-700 hover:bg-stone-50 flex items-center gap-2">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
-                            Exchange
+                            {{ t('exchange') }}
                         </button>
                     </div>
                 </div>
@@ -467,6 +470,7 @@ const globalDiscountSummary = computed(() => {
         <CustomServiceDialog :open="customServiceOpen" @close="customServiceOpen = false" @submit="submitCustomService" />
         <DeliveryDialog :open="deliveryOpen" @close="deliveryOpen = false" @submit="submitDelivery" />
         <PaymentDialog :open="paymentOpen" @close="paymentOpen = false" @paid="onPaid" />
+        <ExchangeWizard />
 
         <!-- Paid flash banner -->
         <Transition name="dialog">

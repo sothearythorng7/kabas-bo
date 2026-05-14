@@ -3,12 +3,15 @@ import { ref, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useI18nStore } from '../stores/i18n.js';
 import { useJournalStore } from '../stores/journal.js';
+import { useExchangeStore } from '../stores/exchange.js';
 import { useReceiptPrinter } from '../composables/useReceiptPrinter.js';
+import ExchangeWizard from '../components/exchange/ExchangeWizard.vue';
 
 const route = useRoute();
 const router = useRouter();
 const i18n = useI18nStore();
 const journal = useJournalStore();
+const exchange = useExchangeStore();
 const printer = useReceiptPrinter();
 
 const t = computed(() => i18n.t);
@@ -78,6 +81,11 @@ function reprint() {
     printer.print(sale.value);
 }
 
+function startExchange() {
+    if (!sale.value) return;
+    exchange.startWithSale(sale.value);
+}
+
 function back() {
     router.push({ name: 'journal' });
 }
@@ -110,9 +118,8 @@ onMounted(() => {
                 </button>
                 <button
                     type="button"
-                    disabled
-                    :title="'Exchange — Phase 6'"
-                    class="h-10 px-4 bg-white border border-stone-200 rounded-xl font-medium text-stone-300 cursor-not-allowed flex items-center gap-2"
+                    @click="startExchange"
+                    class="h-10 px-4 bg-white border border-stone-200 rounded-xl font-medium text-stone-700 hover:bg-stone-50 flex items-center gap-2"
                 >
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
                     {{ t('exchange') }}
@@ -213,4 +220,6 @@ onMounted(() => {
     <div v-else class="flex-1 flex items-center justify-center p-6 text-stone-400 text-sm">
         Loading sale…
     </div>
+
+    <ExchangeWizard />
 </template>

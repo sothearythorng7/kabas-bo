@@ -255,6 +255,59 @@ export const useCartStore = defineStore('cart', () => {
     }
 
     /**
+     * Hold-sale support (V1 parity).
+     *
+     * Multiple drafts can coexist in `sales_queue` with status='held'.
+     * Each one is a paused cart waiting to be resumed.
+     *
+     * - holdActive()  → freezes the current draft as 'held', starts a fresh draft.
+     * - resumeHeld(id)→ loads a held row as the active draft (current one is held too).
+     * - listHeld()    → returns held rows for the current shift.
+     * - discardHeld(id)→ permanently deletes a held draft.
+     */
+    async function holdActive() {
+        const sale = activeSale.value;
+        if (!sale || sale.items.length === 0) return null;
+        sale.status = 'held';
+        sale.held_at = new Date().toISOString();
+        await db.table('sales_queue').put({
+            ...sale,
+            pos_local_id: sale.id,
+            status: 'held',
+        });
+        const heldId = sale.id;
+        activeSale.value = createBlankSale(sale.shift_id, sale.seller);
+        await persist();
+        return heldId;
+    }
+
+    async function resumeHeld(heldId) {
+        const heldRow = await db.table('sales_queue').get(heldId);
+        if (!heldRow || heldRow.status !== 'held') return false;
+        // Park the current draft first if it has items.
+        if (activeSale.value.items.length > 0) {
+            await holdActive();
+        } else if (activeSale.value.id) {
+            // Drop the empty current draft.
+            await db.table('sales_queue').delete(activeSale.value.id).catch(() => {});
+        }
+        heldRow.status = 'draft';
+        delete heldRow.held_at;
+        await db.table('sales_queue').put({ ...heldRow, status: 'draft' });
+        activeSale.value = heldRow;
+        return true;
+    }
+
+    async function listHeld(shiftId) {
+        const rows = await db.table('sales_queue').where('status').equals('held').toArray();
+        return rows.filter((r) => r.shift_id === shiftId);
+    }
+
+    async function discardHeld(heldId) {
+        await db.table('sales_queue').delete(heldId).catch(() => {});
+    }
+
+    /**
      * Mark the active sale as paid and ready for sync.
      *
      * @param {{ payment_type: string, split_payments: Array<{ payment_type, amount, voucher_code? }> }} payment
@@ -320,6 +373,10 @@ export const useCartStore = defineStore('cart', () => {
         setGlobalDiscount,
         clearCart,
         finalize,
+        holdActive,
+        resumeHeld,
+        listHeld,
+        discardHeld,
         lineTotalOf,
     };
 });

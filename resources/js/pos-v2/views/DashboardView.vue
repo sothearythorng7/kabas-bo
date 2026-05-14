@@ -25,6 +25,7 @@ import DiscountDialog from '../components/cart/DiscountDialog.vue';
 import CustomServiceDialog from '../components/cart/CustomServiceDialog.vue';
 import DeliveryDialog from '../components/cart/DeliveryDialog.vue';
 import PaymentDialog from '../components/payment/PaymentDialog.vue';
+import HoldSalesDropdown from '../components/cart/HoldSalesDropdown.vue';
 
 import { useSync } from '../composables/useSync.js';
 
@@ -258,6 +259,11 @@ async function forceSync() {
     cash.setCashSales(sales.cashSalesForShift(session.currentShift.id));
 }
 
+async function holdCurrent() {
+    if (cart.itemCount === 0) return;
+    await cart.holdActive();
+}
+
 const globalDiscountSummary = computed(() => {
     const d = cart.activeSale.discounts?.[0];
     if (!d) return null;
@@ -349,6 +355,19 @@ const globalDiscountSummary = computed(() => {
                         <div class="text-[11px] text-stone-500 mt-0.5">
                             Walk-in customer · {{ session.currentUser?.name }}
                         </div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <HoldSalesDropdown />
+                        <button
+                            type="button"
+                            @click="holdCurrent"
+                            :disabled="cart.itemCount === 0"
+                            class="text-[11px] font-medium px-2.5 py-1 bg-stone-100 hover:bg-stone-200 rounded-full disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1"
+                            :title="t('holdSale')"
+                        >
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+                            {{ t('holdSale') }}
+                        </button>
                     </div>
                 </div>
 

@@ -30,6 +30,18 @@ const routes = [
         component: () => import('./views/DashboardView.vue'),
         meta: { requiresAuth: true, requiresShift: true },
     },
+    {
+        path: '/pos-v2/journal',
+        name: 'journal',
+        component: () => import('./views/JournalView.vue'),
+        meta: { requiresAuth: true, requiresShift: true },
+    },
+    {
+        path: '/pos-v2/sale/:id',
+        name: 'sale-detail',
+        component: () => import('./views/SaleDetailView.vue'),
+        meta: { requiresAuth: true, requiresShift: true },
+    },
 ];
 
 const router = createRouter({

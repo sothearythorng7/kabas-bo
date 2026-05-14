@@ -698,6 +698,11 @@ Route::get('/pos', function () {
     return view('pos.index');
 });
 
+// POS V2 (Vue 3 SPA, parallel to V1 — bascule contrôlée Phase 10)
+Route::get('/pos-v2/{any?}', function () {
+    return view('pos-v2.index');
+})->where('any', '.*');
+
 // POS Logs (admin only)
 Route::middleware(['auth'])->group(function () {
     Route::get('/pos/logs', [\App\Http\Controllers\POS\LogController::class, 'index'])->name('pos.logs');

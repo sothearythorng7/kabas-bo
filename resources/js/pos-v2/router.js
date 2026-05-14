@@ -42,6 +42,18 @@ const routes = [
         component: () => import('./views/SaleDetailView.vue'),
         meta: { requiresAuth: true, requiresShift: true },
     },
+    {
+        path: '/pos-v2/planning',
+        name: 'planning',
+        component: () => import('./views/MyPlanningView.vue'),
+        meta: { requiresAuth: true, requiresShift: true },
+    },
+    {
+        path: '/pos-v2/leave-request',
+        name: 'leave-request',
+        component: () => import('./views/LeaveRequestView.vue'),
+        meta: { requiresAuth: true, requiresShift: true },
+    },
 ];
 
 const router = createRouter({

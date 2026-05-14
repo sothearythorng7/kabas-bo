@@ -66,7 +66,7 @@ onMounted(async () => {
     if (!session.currentShift?.id) return;
     await cart.initForShift(session.currentShift.id, session.currentUser?.name || '');
     await cash.loadForShift(session.currentShift.id);
-    await sales.refreshCounts();
+    await sales.refresh();
 
     const hadCache = await catalog.loadFromCache();
     if (session.isOnline) {

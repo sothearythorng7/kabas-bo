@@ -24,6 +24,9 @@ import CartItem from '../components/cart/CartItem.vue';
 import DiscountDialog from '../components/cart/DiscountDialog.vue';
 import CustomServiceDialog from '../components/cart/CustomServiceDialog.vue';
 import DeliveryDialog from '../components/cart/DeliveryDialog.vue';
+import PaymentDialog from '../components/payment/PaymentDialog.vue';
+
+import { useSync } from '../composables/useSync.js';
 
 const router = useRouter();
 const session = useSessionStore();
@@ -46,6 +49,11 @@ const switchDialogOpen = ref(false);
 const customServiceOpen = ref(false);
 const deliveryOpen = ref(false);
 const discountDialog = ref({ open: false, scope: 'line', lineId: null, initial: null });
+const paymentOpen = ref(false);
+const paymentFlash = ref(null); // last paid feedback
+
+// Auto-sync loop (60s + on online). Runs while DashboardView is mounted.
+useSync({ intervalMs: 60_000 });
 
 // ─── Boot ───
 onMounted(async () => {
@@ -225,8 +233,29 @@ function fmt(v) {
 }
 
 function payClicked() {
-    // Phase 4 will implement the payment flow.
-    alert('Payment flow is implemented in Phase 4.');
+    if (cart.itemCount === 0) return;
+    paymentOpen.value = true;
+}
+
+async function onPaid({ localId }) {
+    paymentOpen.value = false;
+    paymentFlash.value = { id: localId, at: Date.now() };
+    // Recompute expected cash + trigger sync immediately.
+    await sales.refresh();
+    cash.setCashSales(sales.cashSalesForShift(session.currentShift.id));
+    if (session.isOnline) {
+        sales.syncNow(session.currentShift.id).then(() => {
+            cash.setCashSales(sales.cashSalesForShift(session.currentShift.id));
+        });
+    }
+    // Auto-fade flash banner.
+    setTimeout(() => { paymentFlash.value = null; }, 4000);
+}
+
+async function forceSync() {
+    if (!session.currentShift?.id) return;
+    await sales.syncNow(session.currentShift.id);
+    cash.setCashSales(sales.cashSalesForShift(session.currentShift.id));
 }
 
 const globalDiscountSummary = computed(() => {
@@ -239,7 +268,7 @@ const globalDiscountSummary = computed(() => {
 
 <template>
     <div class="flex-1 flex flex-col h-full">
-        <TopBar @switch-cashier="switchDialogOpen = true" />
+        <TopBar @switch-cashier="switchDialogOpen = true" @force-sync="forceSync" />
 
         <div class="flex flex-1 overflow-hidden">
             <LeftRail @cash-in="openCashIn" @cash-out="openCashOut" />
@@ -379,10 +408,11 @@ const globalDiscountSummary = computed(() => {
                         class="w-full mt-4 h-14 bg-stone-900 hover:bg-stone-800 text-white rounded-2xl font-semibold text-[16px] flex items-center justify-center gap-2 shadow-lg shadow-stone-900/10 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
-                        Pay {{ fmt(cart.total) }}
+                        {{ t('pay') }} {{ fmt(cart.total) }}
                     </button>
                     <div class="flex items-center justify-center gap-1.5 mt-2 text-[11px] text-stone-500">
-                        <span>Payment & split — Phase 4</span>
+                        <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/><line x1="4" y1="4" x2="9" y2="9"/></svg>
+                        Cash, Card, Mobile, Voucher · split supported
                     </div>
                 </div>
             </aside>
@@ -417,5 +447,14 @@ const globalDiscountSummary = computed(() => {
         />
         <CustomServiceDialog :open="customServiceOpen" @close="customServiceOpen = false" @submit="submitCustomService" />
         <DeliveryDialog :open="deliveryOpen" @close="deliveryOpen = false" @submit="submitDelivery" />
+        <PaymentDialog :open="paymentOpen" @close="paymentOpen = false" @paid="onPaid" />
+
+        <!-- Paid flash banner -->
+        <Transition name="dialog">
+            <div v-if="paymentFlash" class="fixed bottom-4 right-4 z-50 bg-emerald-600 text-white px-5 py-3 rounded-2xl shadow-2xl text-sm font-medium flex items-center gap-2">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+                Sale recorded · queued for sync
+            </div>
+        </Transition>
     </div>
 </template>

@@ -32,7 +32,7 @@ function toggleLocale() {
     i18n.setLocale(i18n.locale === 'fr' ? 'en' : 'fr');
 }
 
-const emit = defineEmits(['switchCashier']);
+const emit = defineEmits(['switchCashier', 'forceSync']);
 </script>
 
 <template>
@@ -60,9 +60,9 @@ const emit = defineEmits(['switchCashier']);
                     <span class="text-stone-600">{{ session.isOnline ? 'Online' : 'Offline' }}</span>
                 </div>
                 <div class="h-4 w-px bg-stone-200"></div>
-                <button type="button" class="flex items-center gap-1.5 text-stone-600 hover:text-stone-900">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><polyline points="21 3 21 8 16 8"/></svg>
-                    <span>Sync</span>
+                <button type="button" @click="emit('forceSync')" :disabled="sales.syncing" class="flex items-center gap-1.5 text-stone-600 hover:text-stone-900 disabled:opacity-60">
+                    <svg class="w-4 h-4" :class="{ 'animate-spin': sales.syncing }" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><polyline points="21 3 21 8 16 8"/></svg>
+                    <span>{{ sales.syncing ? t('loading') : t('forceSync') }}</span>
                     <span v-if="sales.pendingCount > 0" class="bg-amber-100 text-amber-800 text-[10px] font-semibold px-1.5 py-0.5 rounded-full tabular-nums">
                         {{ sales.pendingCount }}
                     </span>

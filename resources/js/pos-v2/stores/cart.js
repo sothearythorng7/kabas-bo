@@ -254,6 +254,45 @@ export const useCartStore = defineStore('cart', () => {
         await persist();
     }
 
+    /**
+     * Mark the active sale as paid and ready for sync.
+     *
+     * @param {{ payment_type: string, split_payments: Array<{ payment_type, amount, voucher_code? }> }} payment
+     * @returns the finalized sale row (status='pending')
+     */
+    async function finalize(payment) {
+        const sale = activeSale.value;
+        const splitTotal = (payment.split_payments || []).reduce((s, sp) => s + Number(sp.amount || 0), 0);
+        if (Math.abs(splitTotal - total.value) > 0.01) {
+            throw new Error(`Split payments total (${splitTotal.toFixed(2)}) does not match sale total (${total.value.toFixed(2)})`);
+        }
+        if (!sale.items.length) {
+            throw new Error('Cannot finalize an empty cart');
+        }
+
+        sale.payment_type = payment.payment_type;
+        sale.split_payments = payment.split_payments || [];
+        sale.total = total.value;
+        sale.discount_total = discountAmount.value;
+        sale.status = 'pending';
+        sale.finalized_at = new Date().toISOString();
+
+        // Persist the now-pending sale (the existing draft row is reused — same id).
+        await db.table('sales_queue').put({
+            ...sale,
+            pos_local_id: sale.id,
+            status: 'pending',
+        });
+
+        const finalizedId = sale.id;
+
+        // Start a fresh draft for the next customer.
+        activeSale.value = createBlankSale(sale.shift_id, sale.seller);
+        await persist();
+
+        return finalizedId;
+    }
+
     function findLine(lineId) {
         return activeSale.value.items.find((it) => it.line_id === lineId);
     }
@@ -280,6 +319,7 @@ export const useCartStore = defineStore('cart', () => {
         setLineDiscount,
         setGlobalDiscount,
         clearCart,
+        finalize,
         lineTotalOf,
     };
 });

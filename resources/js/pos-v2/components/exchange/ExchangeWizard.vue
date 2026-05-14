@@ -6,11 +6,13 @@ import { useCatalogStore } from '../../stores/catalog.js';
 import { useSessionStore } from '../../stores/session.js';
 import VoucherInputDialog from '../payment/VoucherInputDialog.vue';
 import NumPad from '../NumPad.vue';
+import { useReceiptPrinter } from '../../composables/useReceiptPrinter.js';
 
 const exchange = useExchangeStore();
 const i18n = useI18nStore();
 const catalog = useCatalogStore();
 const session = useSessionStore();
+const printer = useReceiptPrinter();
 
 const t = computed(() => i18n.t);
 const locale = computed(() => i18n.locale);
@@ -171,8 +173,15 @@ async function submit() {
     if (submitting.value) return;
     submitting.value = true;
     exchange.setPayments(paymentLines.value);
-    await exchange.submit({ shiftId: session.currentShift?.id });
+    const res = await exchange.submit({ shiftId: session.currentShift?.id });
     submitting.value = false;
+
+    // If the backend generated a credit voucher, print it (V1 parity).
+    const voucher = res?.exchange?.voucher_generated;
+    if (voucher && voucher.code) {
+        printer.printVoucher(voucher, res.exchange, { storeId: session.currentUser?.store_id })
+            .catch((err) => console.warn('[POS V2] voucher print failed', err));
+    }
 }
 
 function close() {

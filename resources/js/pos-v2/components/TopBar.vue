@@ -3,20 +3,31 @@ import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
 import { useSessionStore } from '../stores/session.js';
 import { useI18nStore } from '../stores/i18n.js';
 import { useSalesStore } from '../stores/sales.js';
+import { useReceiptPrinter } from '../composables/useReceiptPrinter.js';
 
 const session = useSessionStore();
 const i18n = useI18nStore();
 const sales = useSalesStore();
+const printer = useReceiptPrinter();
 
 const t = computed(() => i18n.t);
 const now = ref(Date.now());
+const printerOnline = ref(false);
 let timer = null;
+let printerTimer = null;
+
+async function refreshPrinter() {
+    printerOnline.value = await printer.checkPrinter();
+}
 
 onMounted(() => {
     timer = setInterval(() => { now.value = Date.now(); }, 30_000);
+    refreshPrinter();
+    printerTimer = setInterval(refreshPrinter, 60_000);
 });
 onBeforeUnmount(() => {
     if (timer) clearInterval(timer);
+    if (printerTimer) clearInterval(printerTimer);
 });
 
 const shiftDuration = computed(() => {
@@ -58,6 +69,11 @@ const emit = defineEmits(['switchCashier', 'forceSync']);
                 <div class="flex items-center gap-2">
                     <span class="inline-block w-2 h-2 rounded-full pulse-dot" :class="session.isOnline ? 'bg-emerald-500' : 'bg-stone-400'"></span>
                     <span class="text-stone-600">{{ session.isOnline ? 'Online' : 'Offline' }}</span>
+                </div>
+                <div class="h-4 w-px bg-stone-200"></div>
+                <div class="flex items-center gap-1.5" :title="printerOnline ? 'Printer online' : 'Printer offline'">
+                    <svg class="w-4 h-4" :class="printerOnline ? 'text-emerald-600' : 'text-stone-400'" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+                    <span class="text-stone-600 text-[12px]">{{ printerOnline ? 'Printer' : 'No printer' }}</span>
                 </div>
                 <div class="h-4 w-px bg-stone-200"></div>
                 <button type="button" @click="emit('forceSync')" :disabled="sales.syncing" class="flex items-center gap-1.5 text-stone-600 hover:text-stone-900 disabled:opacity-60">

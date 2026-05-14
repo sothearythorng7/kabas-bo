@@ -74,11 +74,14 @@ const totalDiscount = computed(() => {
 
 const hasExchanges = computed(() => Array.isArray(sale.value?.exchanges) && sale.value.exchanges.length > 0);
 
-function reprint() {
+async function reprint() {
     if (!sale.value) return;
     printing.value = true;
-    setTimeout(() => { printing.value = false; }, 1200);
-    printer.print(sale.value);
+    try {
+        await printer.printSale(sale.value, { storeId: sale.value.store_id });
+    } finally {
+        setTimeout(() => { printing.value = false; }, 800);
+    }
 }
 
 function startExchange() {

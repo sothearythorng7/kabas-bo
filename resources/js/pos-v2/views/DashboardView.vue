@@ -30,6 +30,7 @@ import ExchangeWizard from '../components/exchange/ExchangeWizard.vue';
 
 import { useSync } from '../composables/useSync.js';
 import { useExchangeStore } from '../stores/exchange.js';
+import { useReceiptPrinter } from '../composables/useReceiptPrinter.js';
 
 const router = useRouter();
 const session = useSessionStore();
@@ -39,6 +40,7 @@ const catalog = useCatalogStore();
 const cart = useCartStore();
 const sales = useSalesStore();
 const exchange = useExchangeStore();
+const printer = useReceiptPrinter();
 
 const t = computed(() => i18n.t);
 
@@ -244,9 +246,28 @@ function payClicked() {
 async function onPaid({ localId }) {
     paymentOpen.value = false;
     paymentFlash.value = { id: localId, at: Date.now() };
-    // Recompute expected cash + trigger sync immediately.
+
+    // Find the just-finalized sale row from the queue for printing.
     await sales.refresh();
     cash.setCashSales(sales.cashSalesForShift(session.currentShift.id));
+
+    const finalizedSale = sales.pending.find((s) => s.id === localId)
+        || sales.synced.find((s) => s.id === localId);
+
+    // Auto-open the cash drawer if any payment line is CASH (V1 parity).
+    const hasCash = (finalizedSale?.split_payments || []).some(
+        (sp) => String(sp.payment_type || '').toUpperCase() === 'CASH'
+    );
+    if (hasCash) {
+        printer.openCashDrawer().catch((err) => console.warn('[POS V2] drawer open failed', err));
+    }
+
+    // Fire-and-forget print so it never blocks the UI.
+    if (finalizedSale) {
+        printer.printSale(finalizedSale, { storeId: session.currentUser?.store_id })
+            .catch((err) => console.warn('[POS V2] print failed', err));
+    }
+
     if (session.isOnline) {
         sales.syncNow(session.currentShift.id).then(() => {
             cash.setCashSales(sales.cashSalesForShift(session.currentShift.id));

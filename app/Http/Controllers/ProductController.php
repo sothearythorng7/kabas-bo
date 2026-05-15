@@ -421,7 +421,7 @@ public function update(Request $request, Product $product)
     public function uploadPhotos(Request $request, Product $product)
     {
         $request->validate([
-            'photos.*' => 'required|image|max:4096',
+            'photos.*' => 'required|image|max:10240',
         ]);
 
         $startIndex = $product->images()->max('sort_order') + 1;

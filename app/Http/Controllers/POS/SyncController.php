@@ -22,6 +22,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\Storage;
 use App\Events\SaleCreated;
 use App\Models\Voucher;
 use App\Services\VoucherService;
@@ -519,6 +520,7 @@ class SyncController extends Controller
                         'id'         => $img->id,
                         'path'       => $path ?: null,
                         'url'        => $path ? ($publicBase . '/' . $path) : null,
+                        'url_thumb'  => $this->variantUrl($path, 'thumb', 'webp', $publicBase),
                         'is_primary' => (bool) ($img->is_primary ?? false),
                         'sort_order' => (int) ($img->sort_order ?? 0),
                     ];
@@ -528,6 +530,7 @@ class SyncController extends Controller
                     'id'         => 0,
                     'path'       => null,
                     'url'        => $defaultPhoto,
+                    'url_thumb'  => $defaultPhoto,
                     'is_primary' => true,
                     'sort_order' => 0,
                 ]];
@@ -596,10 +599,12 @@ class SyncController extends Controller
             if ($giftBox->images->count()) {
                 $photos = $giftBox->images->map(function ($img) use ($publicBase) {
                     $path = ltrim($img->path ?? '', '/');
+                    // Note: GiftBoxImage variants not generated yet → url_thumb falls back to url
                     return [
                         'id'         => $img->id,
                         'path'       => $path ?: null,
                         'url'        => $path ? ($publicBase . '/' . $path) : null,
+                        'url_thumb'  => $path ? ($publicBase . '/' . $path) : null,
                         'is_primary' => (bool) ($img->is_primary ?? false),
                         'sort_order' => (int) ($img->sort_order ?? 0),
                     ];
@@ -609,6 +614,7 @@ class SyncController extends Controller
                     'id'         => 0,
                     'path'       => null,
                     'url'        => $defaultPhoto,
+                    'url_thumb'  => $defaultPhoto,
                     'is_primary' => true,
                     'sort_order' => 0,
                 ]];
@@ -856,21 +862,26 @@ class SyncController extends Controller
         // Formater les produits
         $productResults = $products->map(function ($product) use ($defaultPhoto, $publicBase, $stockByProduct) {
             $imagePath = $product->primaryImage?->path;
-            $imageUrl = $imagePath ? ($publicBase . '/' . ltrim($imagePath, '/')) : $defaultPhoto;
+            $cleanPath = $imagePath ? ltrim($imagePath, '/') : '';
+            $imageUrl = $cleanPath ? ($publicBase . '/' . $cleanPath) : $defaultPhoto;
+            $imageUrlThumb = $cleanPath
+                ? ($this->variantUrl($cleanPath, 'thumb', 'webp', $publicBase) ?? $imageUrl)
+                : $defaultPhoto;
 
             return [
-                'id'          => $product->id,
-                'type'        => 'product',
-                'ean'         => $product->ean,
-                'barcodes'    => $product->barcodes->pluck('barcode')->toArray(),
-                'name'        => $product->name,
-                'price'       => $product->price,
-                'brand'       => $product->brand ? [
+                'id'              => $product->id,
+                'type'            => 'product',
+                'ean'             => $product->ean,
+                'barcodes'        => $product->barcodes->pluck('barcode')->toArray(),
+                'name'            => $product->name,
+                'price'           => $product->price,
+                'brand'           => $product->brand ? [
                     'id'   => $product->brand->id,
                     'name' => $product->brand->name,
                 ] : null,
-                'image_url'   => $imageUrl,
-                'total_stock' => (int) ($stockByProduct[$product->id] ?? 0),
+                'image_url'       => $imageUrl,
+                'image_url_thumb' => $imageUrlThumb,
+                'total_stock'     => (int) ($stockByProduct[$product->id] ?? 0),
             ];
         });
 
@@ -891,18 +902,19 @@ class SyncController extends Controller
             $imageUrl = $imagePath ? ($publicBase . '/' . ltrim($imagePath, '/')) : $defaultPhoto;
 
             return [
-                'id'          => 'giftbox_' . $giftBox->id,
-                'original_id' => $giftBox->id,
-                'type'        => 'gift_box',
-                'ean'         => $giftBox->ean,
-                'name'        => $giftBox->name,
-                'price'       => $giftBox->price,
-                'brand'       => $giftBox->brand ? [
+                'id'              => 'giftbox_' . $giftBox->id,
+                'original_id'     => $giftBox->id,
+                'type'            => 'gift_box',
+                'ean'             => $giftBox->ean,
+                'name'            => $giftBox->name,
+                'price'           => $giftBox->price,
+                'brand'           => $giftBox->brand ? [
                     'id'   => $giftBox->brand->id,
                     'name' => $giftBox->brand->name,
                 ] : null,
-                'image_url'   => $imageUrl,
-                'total_stock' => 999,
+                'image_url'       => $imageUrl,
+                'image_url_thumb' => $imageUrl, // GiftBoxImage variants out of scope
+                'total_stock'     => 999,
             ];
         });
 
@@ -980,5 +992,27 @@ class SyncController extends Controller
         }
 
         return round($itemsTotal - $totalDiscounts, 5);
+    }
+
+    /**
+     * Build a public URL for a variant of a product image, or return null if the
+     * variant file is not present on disk. Mirrors the derivation in
+     * ImageVariantService (sibling files with -{size}.{format} suffix).
+     */
+    private function variantUrl(string $sourceRelative, string $size, string $format, string $publicBase): ?string
+    {
+        if ($sourceRelative === '') {
+            return null;
+        }
+
+        $dir = dirname($sourceRelative);
+        $base = pathinfo($sourceRelative, PATHINFO_FILENAME);
+        $variantPath = ($dir === '.' ? '' : $dir . '/') . $base . "-{$size}.{$format}";
+
+        if (!Storage::disk('public')->exists($variantPath)) {
+            return null;
+        }
+
+        return $publicBase . '/' . $variantPath;
     }
 }

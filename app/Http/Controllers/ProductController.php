@@ -18,6 +18,9 @@ use App\Models\StockTransaction;
 use App\Models\ProductVariationAttribute;
 use App\Models\VariationType;
 use App\Models\VariationValue;
+use App\Services\Images\ImageVariantService;
+use App\Jobs\Images\GenerateProductImageVariants;
+use Illuminate\Support\Facades\Log;
 
 class ProductController extends Controller
 {
@@ -418,21 +421,36 @@ public function update(Request $request, Product $product)
         return redirect()->back()->with('success', __('messages.common.updated'))->withFragment('tab-seo');
     }
 
-    public function uploadPhotos(Request $request, Product $product)
+    public function uploadPhotos(Request $request, Product $product, ImageVariantService $variantService)
     {
         $request->validate([
             'photos.*' => 'required|image|max:10240',
         ]);
 
         $startIndex = $product->images()->max('sort_order') + 1;
+        $syncSize = (string) config('images.sync_on_upload', 'thumb');
+        $asyncSizes = array_values(array_filter(array_keys(config('images.variants', [])), fn($s) => $s !== $syncSize));
 
         foreach ($request->file('photos', []) as $i => $file) {
             $path = $file->store('products', 'public');
-            $product->images()->create([
+            $image = $product->images()->create([
                 'path' => $path,
                 'is_primary' => false,
                 'sort_order' => $startIndex + $i,
             ]);
+
+            try {
+                $variantService->generateOne($image, $syncSize);
+            } catch (\Throwable $e) {
+                Log::warning('Sync variant generation failed; deferring to queue', [
+                    'product_image_id' => $image->id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+
+            if (!empty($asyncSizes)) {
+                GenerateProductImageVariants::dispatch($image->id, $asyncSizes);
+            }
         }
 
         if (!$product->images()->where('is_primary', true)->exists()) {

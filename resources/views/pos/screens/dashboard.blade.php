@@ -1206,7 +1206,7 @@ function renderCatalog() {
           ? product.photos
           : (product.images && product.images.length ? product.images : []);
         const imgObj = pics.length ? (pics.find(i => i.is_primary) || pics[0]) : null;
-        const imgUrl = (imgObj && imgObj.url) ? imgObj.url : '{{ config('app.url') }}/images/no_picture.jpg';
+        const imgUrl = imgObj ? (imgObj.url_thumb || imgObj.url || '{{ config('app.url') }}/images/no_picture.jpg') : '{{ config('app.url') }}/images/no_picture.jpg';
 
         const title = (product.name && product.name.en) ? product.name.en : (product.name || product.title || 'Product');
         const price = parseFloat(product.price || 0).toFixed(2);
@@ -1318,7 +1318,7 @@ function renderSearchResults(results) {
 
     const $row = $('<div class="row"></div>');
     results.forEach(product => {
-        const imgUrl = product.image_url || '{{ config('app.url') }}/images/no_picture.jpg';
+        const imgUrl = product.image_url_thumb || product.image_url || '{{ config('app.url') }}/images/no_picture.jpg';
         const title = (product.name && (product.name.fr || product.name.en))
             ? (product.name.fr || product.name.en)
             : (product.name || 'Product');
@@ -1521,7 +1521,7 @@ function filterByBrand(brandId, brandName) {
             ? product.photos
             : (product.images && product.images.length ? product.images : []);
         const imgObj = pics.length ? (pics.find(i => i.is_primary) || pics[0]) : null;
-        const imgUrl = (imgObj && imgObj.url) ? imgObj.url : '{{ config('app.url') }}/images/no_picture.jpg';
+        const imgUrl = imgObj ? (imgObj.url_thumb || imgObj.url || '{{ config('app.url') }}/images/no_picture.jpg') : '{{ config('app.url') }}/images/no_picture.jpg';
 
         const title = (product.name && product.name.en) ? product.name.en : (product.name || product.title || 'Product');
         const price = parseFloat(product.price || 0).toFixed(2);

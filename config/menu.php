@@ -225,7 +225,7 @@ return [
     [
         'label' => 'Website',
         'icon'  => 'bi-globe',
-        'active_pattern' => 'blog*|contact-messages*|pages*|hero-slides*|home-content*|promotion-bar*|promotions*|abandoned-cart-settings*|payment-recovery-settings*|wishlist-analytics*|website-orders*|website-tools*|shipping-countries*|shipping-carriers*|shipping-rates*|analytics*',
+        'active_pattern' => 'blog*|contact-messages*|pages*|hero-slides*|home-content*|promotion-bar*|promotions*|abandoned-cart-settings*|payment-recovery-settings*|wishlist-analytics*|website-orders*|website-tools*|shipping-countries*|shipping-carriers*|shipping-rates*|analytics*|bo/reviews*',
         'submenu' => [
             [
                 'label' => 'messages.menu.home_content',
@@ -349,6 +349,13 @@ return [
                 'icon'  => 'bi-bag-check',
                 'route' => 'website-orders.index',
                 'active_pattern' => 'website-orders*',
+            ],
+            [
+                'label' => 'messages.menu.reviews',
+                'icon'  => 'bi-star-fill',
+                'route' => 'admin.reviews.index',
+                'active_pattern' => 'bo/reviews*',
+                'allowed_roles' => ['admin'],
             ],
             [
                 'label' => 'messages.menu.contact_messages',

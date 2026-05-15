@@ -932,3 +932,16 @@ Route::middleware(['auth', \App\Http\Middleware\SetUserLocale::class, 'bo.access
         Route::get('/checkout', [\App\Http\Controllers\AnalyticsDashboardController::class, 'checkout'])->name('checkout');
         Route::get('/marketing', [\App\Http\Controllers\AnalyticsDashboardController::class, 'marketing'])->name('marketing');
     });
+
+// Reviews moderation (admin)
+Route::middleware(['auth', SetUserLocale::class, 'bo.access', 'role:admin'])
+    ->prefix('bo/reviews')
+    ->name('admin.reviews.')
+    ->group(function () {
+        Route::get('/', [\App\Http\Controllers\AdminReviewController::class, 'index'])->name('index');
+        Route::get('/{review}', [\App\Http\Controllers\AdminReviewController::class, 'show'])->name('show');
+        Route::post('/{review}/approve', [\App\Http\Controllers\AdminReviewController::class, 'approve'])->name('approve');
+        Route::post('/{review}/reject', [\App\Http\Controllers\AdminReviewController::class, 'reject'])->name('reject');
+        Route::post('/{review}/reply', [\App\Http\Controllers\AdminReviewController::class, 'reply'])->name('reply');
+        Route::delete('/{review}', [\App\Http\Controllers\AdminReviewController::class, 'destroy'])->name('destroy');
+    });

@@ -74,6 +74,7 @@ return [
         'blog_tags' => 'Tags',
         'contact_messages' => 'Messages',
         'website_orders' => 'Website Orders',
+        'reviews' => 'Reviews',
         'website_tools' => 'Tools',
         'shipping_countries' => 'Shipping Countries',
         'shipping_rates' => 'Shipping Rates',

@@ -70,6 +70,7 @@ return [
         'blog_tags' => 'Tags',
         'contact_messages' => 'Messages',
         'website_orders' => 'Commandes site web',
+        'reviews' => 'Avis clients',
         'website_tools' => 'Outils',
         'shipping_countries' => 'Pays de livraison',
         'shipping_rates' => 'Tarifs de livraison',

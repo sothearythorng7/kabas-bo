@@ -53,7 +53,7 @@
             @php
                 $product = $item->product;
                 $productName = $product->name[app()->getLocale()] ?? $product->name['en'] ?? reset($product->name);
-                $thumbnail = $product->images->first() ? asset('storage/' . $product->images->first()->path) : asset('images/placeholder.png');
+                $thumbnail = $product->images->first()?->urlFor('thumb', 'webp') ?? asset('images/placeholder.png');
             @endphp
             <div class="product-item">
                 <img src="{{ $thumbnail }}" alt="" class="product-image">

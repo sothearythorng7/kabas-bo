@@ -37,7 +37,7 @@
             $orderedQty = $product->pivot->quantity_ordered;
             $receivedQty = $receivedQuantities[$product->id] ?? 0;
             $productName = $product->name['en'] ?? $product->name['fr'] ?? 'Product';
-            $thumbnail = $product->images->first() ? '/storage/' . $product->images->first()->path : '/images/placeholder.png';
+            $thumbnail = $product->images->first()?->urlFor('thumb', 'webp') ?? '/images/placeholder.png';
         @endphp
         <div class="product-item" data-product-id="{{ $product->id }}" style="flex-direction: column; align-items: stretch;">
             <div class="product-name" style="margin-bottom: 8px; white-space: normal; line-height: 1.3;">{{ $productName }}</div>

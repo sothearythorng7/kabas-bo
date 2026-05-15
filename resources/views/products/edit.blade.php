@@ -404,7 +404,7 @@
                 <div class="d-flex flex-wrap gap-3 mt-3">
                     @foreach($product->images as $img)
                     <div class="image-item">
-                        <img src="{{ asset('storage/' . $img->path) }}" alt="" width="100">
+                        <img src="{{ $img->urlFor('thumb', 'webp') }}" alt="" width="100">
                         
                         <form action="{{ route('products.photos.setPrimary', [$product, $img]) }}" method="POST">
                             @csrf

@@ -9,7 +9,7 @@
         @foreach($product->images as $img)
             <label class="border rounded p-2 d-inline-flex align-items-center gap-2">
                 <input type="radio" name="primary_image_id" value="{{ $img->id }}" @checked($img->is_primary)>
-                <img src="{{ asset('storage/'.$img->path) }}" alt="" style="height:70px;">
+                <img src="{{ $img->urlFor('thumb', 'webp') }}" alt="" style="height:70px;">
             </label>
         @endforeach
     </div>

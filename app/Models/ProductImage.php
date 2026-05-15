@@ -16,6 +16,13 @@ class ProductImage extends Model
         'is_primary' => 'boolean',
     ];
 
+    protected static function booted(): void
+    {
+        static::deleting(function (ProductImage $image) {
+            app(ImageVariantService::class)->delete($image);
+        });
+    }
+
     public function product() { return $this->belongsTo(Product::class); }
 
     /**

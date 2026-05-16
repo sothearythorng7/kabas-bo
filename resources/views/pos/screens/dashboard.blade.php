@@ -1319,8 +1319,8 @@ function renderSearchResults(results) {
     const $row = $('<div class="row"></div>');
     results.forEach(product => {
         const imgUrl = product.image_url_thumb || product.image_url || '{{ config('app.url') }}/images/no_picture.jpg';
-        const title = (product.name && (product.name.fr || product.name.en))
-            ? (product.name.fr || product.name.en)
+        const title = (product.name && (product.name.en || product.name.fr))
+            ? (product.name.en || product.name.fr)
             : (product.name || 'Product');
         const price = parseFloat(product.price || 0).toFixed(2);
         const stock = product.total_stock || 0;
